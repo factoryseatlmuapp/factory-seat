@@ -1,0 +1,10 @@
+Factory Seat
+Copyright (c) 2026 The Factory Seat authors, MIT License (see LICENSE).
+
+Third-party material shipped with the app:
+
+- Barlow Condensed font, (c) The Barlow Project Authors, SIL Open Font License 1.1
+  (src/LmuCareer.App/wwwroot/fonts/OFL.txt).
+- Track outlines in src/LmuCareer.App/wwwroot/data/trackmaps.json are derived from
+  OpenStreetMap data, (c) OpenStreetMap contributors, available under the Open
+  Database License (https://www.openstreetmap.org/copyright).

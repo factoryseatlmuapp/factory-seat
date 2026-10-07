@@ -71,4 +71,4 @@ Track outlines are rebuilt with `python tools/trackmaps.py build`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Third-party credits are in [NOTICE](NOTICE).
