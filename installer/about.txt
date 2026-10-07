@@ -1,0 +1,14 @@
+Factory Seat
+A career mode for Le Mans Ultimate
+
+Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a Hypercar seat, one season at a time. You race in Le Mans Ultimate as usual; this app gives you each race weekend's briefing, reads your results when you finish, and runs the championship, your reputation and the team offers between seasons.
+
+Good to know
+- The app only reads Le Mans Ultimate's results files. It never changes your game files or settings.
+- Your careers are saved in your Windows user folder (AppData\Roaming\LmuCareer), so reinstalling or updating keeps them.
+- It's free. If someone charged you for it, that wasn't us.
+
+Factory Seat is an unofficial fan project. It is not affiliated with, endorsed by or connected to Studio 397, Motorsport Games, the ACO, the FIA WEC or IMSA. Le Mans Ultimate is a trademark of its owners. Team and event names are used only to describe the racing.
+
+Barlow Condensed font (c) The Barlow Project Authors, used under the SIL Open Font License 1.1.
+Track outlines traced from OpenStreetMap: map data (c) OpenStreetMap contributors, under the Open Database License (openstreetmap.org/copyright).

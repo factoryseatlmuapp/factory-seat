@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\LmuCareer.Core\LmuCareer.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>FactorySeat</AssemblyName>
+    <RootNamespace>LmuCareer.App</RootNamespace>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
+    <Product>Factory Seat</Product>
+    <Description>Factory Seat: a career mode for Le Mans Ultimate (unofficial)</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The page is served out of the exe; the resource name is its path under wwwroot. -->
+    <EmbeddedResource Include="wwwroot\**\*" LogicalName="wwwroot/$([System.String]::Copy('%(RecursiveDir)').Replace('\','/'))%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

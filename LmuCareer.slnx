@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/LmuCareer.App/LmuCareer.App.csproj" />
+    <Project Path="src/LmuCareer.Cli/LmuCareer.Cli.csproj" />
+    <Project Path="src/LmuCareer.Core/LmuCareer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LmuCareer.Core.Tests/LmuCareer.Core.Tests.csproj" />
+  </Folder>
+</Solution>

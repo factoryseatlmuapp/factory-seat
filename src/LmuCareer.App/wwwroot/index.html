@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Factory Seat</title>
+  <link rel="stylesheet" href="css/app.css">
+  <script>
+    // Report page errors to the app's log, including ones that stop the scripts from loading at all.
+    (function () {
+      const send = (message) => window.chrome?.webview?.postMessage({ id: 0, method: "log", args: { message } });
+      window.addEventListener("error", (e) => send(`${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`));
+      window.addEventListener("unhandledrejection", (e) => send(`Unhandled: ${e.reason?.stack ?? e.reason}`));
+    })();
+  </script>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true">
+    <div class="stripe stripe-top"></div>
+    <div class="stripe stripe-bottom"></div>
+    <div class="track-outline" id="track-outline"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="brand">FACTORY<em>SEAT</em></span>
+      <button class="back" id="back" title="Back" hidden>&#x2039;</button>
+      <span class="crumb" id="crumb"></span>
+    </div>
+    <nav class="tabs" id="tabs"></nav>
+    <div class="topbar-right">
+      <span id="update" class="update" hidden></span>
+      <button class="icon-button" id="open-settings" title="Settings">&#9776;</button>
+    </div>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <div class="modal-layer" id="modal-layer" hidden></div>
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

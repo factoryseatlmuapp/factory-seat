@@ -1,0 +1,28 @@
+{
+  "about": "LMU layout (folder/layoutFile) to the OSM source that traces it: a relation id, or a list of way ids stitched in order. Layouts with nothing suitable in OSM are left out and show no map. ELMS and endurance variants that only differ by a chicane share the main outline.",
+  "layouts": {
+    "LeMans_2023/layoutLeMans": 2126739,
+    "Spa_2023/layoutSpa": 284560,
+    "Spa_2023/layoutSpaELMS": 284560,
+    "Spa_2023/layoutSpaEnd": 284560,
+    "Monza_2023/layoutMonza": 284565,
+    "Sebring_2023/layoutSebring": 7003292,
+    "BahrainWEC_2023/layoutBahrain": 284538,
+    "BahrainWEC_2023/layoutOuter": 11987742,
+    "PortimaoWEC_2023/layoutPortimao": 7509968,
+    "PortimaoWEC_2023/layoutPortimaoELMS": 7509968,
+    "FujiWEC_2023/layoutFuji": [148622740],
+    "ImolaWEC_2024/layoutImola": 9291096,
+    "ImolaWEC_2024/layoutImolaELMS": 9291096,
+    "CotAWEC_2024/layoutCota": 6537729,
+    "Interlagos_2024/layoutInterlagos": 6781071,
+    "Qatar_2024/layoutQatar": 21297662,
+    "Silverstone_2025/layoutWEC": 51160,
+    "Silverstone_2025/layoutELMS": 51160,
+    "PaulRicard_2025/layoutELMS": 10316343,
+    "Barcelona_2025/layoutELMS": 284540,
+    "Daytona_2026/layoutDaytona": 5254136,
+    "LagunaSeca_2026/layoutLaguna": 21195763,
+    "RoadAtlanta_2026/layoutRoadAtlanta": [9292566, 1360423185, 1360423184]
+  }
+}

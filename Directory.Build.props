@@ -1,0 +1,7 @@
+<Project>
+  <!-- Release builds ship as one exe: no debug symbols, and no documentation or symbol files copied from packages. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+</Project>
