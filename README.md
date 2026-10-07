@@ -63,6 +63,10 @@ The code is split three ways:
 
 Track outlines are rebuilt with `python tools/trackmaps.py build`.
 
+## Support
+
+Factory Seat is free and always will be. If it's put some extra miles on your Le Mans Ultimate, you can [buy me a coffee on Ko-fi](https://ko-fi.com/factoryseatlmuapp). Totally optional, and very appreciated.
+
 ## Credits
 
 - Track outlines: map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL.

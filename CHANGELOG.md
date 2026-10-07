@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Settings › About has a Ko-fi link for anyone who'd like to support the project. Factory Seat stays free.
+
 ## 1.0.0
 
 The first public release of Factory Seat (called Endurance Career during development; installing 1.0 replaces an earlier install and keeps your careers).

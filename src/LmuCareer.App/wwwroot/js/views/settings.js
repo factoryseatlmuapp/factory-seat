@@ -77,7 +77,9 @@ export async function openSettings() {
 
       h("div", { class: "rows-title" }, "About"),
       h("div", { class: "muted", style: { fontSize: "12px" } },
-        h("p", {}, h("b", {}, `Version ${state.version}`)),
+        h("p", { class: "row" }, h("b", {}, `Version ${state.version}`), h("span", { class: "spacer" }),
+          h("button", { class: "btn ghost small", title: "Opens Ko-fi in your browser", onclick: () => window.open("https://ko-fi.com/factoryseatlmuapp") },
+            "Buy me a coffee ☕")),
         h("p", {}, "Factory Seat is a free, unofficial career mode for Le Mans Ultimate. It isn't affiliated with or endorsed by Studio 397 or Motorsport Games. It only reads the results files LMU writes; it never changes the game."),
         h("p", {}, "Headings use Barlow Condensed by The Barlow Project Authors, under the SIL Open Font License 1.1."),
         h("p", {}, "Track outlines are traced from OpenStreetMap. Map data © OpenStreetMap contributors, available under the Open Database License.")));
