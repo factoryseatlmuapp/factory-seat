@@ -64,7 +64,7 @@ public sealed class ApiHost
         }
         if (career.CurrentSeason.ArmedRound is null) return;
 
-        var evaluation = CareerActions.CheckArmedRound(_store, career, _install.ResultsFolder);
+        var evaluation = CareerActions.CheckArmedRound(_store, career, _install.ResultsFolder, _install.RaceSavesFolder);
         var wrongCar = CareerActions.WrongCarRace(evaluation);
         if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null) return;
 
@@ -72,7 +72,8 @@ public sealed class ApiHost
         if (signature == _lastPosted) return;
         _lastPosted = signature;
 
-        if (evaluation.Status != RoundStatus.Waiting || wrongCar is not null) _window.FlashIfInBackground();
+        // A race saved to finish later isn't news worth flashing for.
+        if (evaluation.Status is not (RoundStatus.Waiting or RoundStatus.SavedToResume) || wrongCar is not null) _window.FlashIfInBackground();
         _window.PostEvent(JsonSerializer.Serialize(new
         {
             @event = "roundUpdate",
@@ -125,7 +126,7 @@ public sealed class ApiHost
         "armRound" => Change(args, c => RoundFlow.Arm(c.CurrentSeason, DateTimeOffset.Now)),
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
-        "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder)),
+        "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "acceptRound" => AcceptRound(args),
         "endSeason" => EndSeason(args),
         "setOwnedContent" => Change(args, c => c.OwnedContent = Strings(args, "ownedPacks")
@@ -452,7 +453,7 @@ public sealed class ApiHost
     private object AcceptRound(JsonElement args)
     {
         var career = Load(args);
-        var evaluation = CareerActions.CheckArmedRound(_store, career, ResultsFolder);
+        var evaluation = CareerActions.CheckArmedRound(_store, career, ResultsFolder, _install?.RaceSavesFolder);
         var round = career.CurrentSeason.ArmedRound;
         CareerActions.AcceptArmedRound(_store, career, evaluation,
             takeDnf: args.TryGetProperty("takeDnf", out var dnf) && dnf.GetBoolean(),
@@ -468,6 +469,7 @@ public sealed class ApiHost
     private static object EvaluationView(RoundEvaluation evaluation) => new
     {
         status = evaluation.Status,
+        savedAs = evaluation.SavedAs,
         race = CheckView(evaluation.Race),
         qualifying = CheckView(evaluation.Qualifying),
         ignored = evaluation.Ignored.Select(CheckView),

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- Saving a race part-way in LMU (to finish it another time) no longer looks like quitting. The app sees the save, tells you the race is saved to finish later, and counts it when you finish. A real quit still asks whether to rerun or take the DNF.
+- The pit-plan tip for long races now says how saving actually works: save it yourself during a pit stop.
+
 ## 1.0.1
 
 - Settings › About has a Ko-fi link for anyone who'd like to support the project. Factory Seat stays free.

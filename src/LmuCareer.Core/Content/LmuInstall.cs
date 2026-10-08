@@ -14,6 +14,9 @@ public sealed partial record LmuInstall(string Root, IReadOnlyList<InstalledTrac
 
     public string ResultsFolder => Path.Combine(Root, "UserData", "Log", "Results");
 
+    /// <summary>Where LMU keeps race weekends saved part-way, to finish later.</summary>
+    public string RaceSavesFolder => Path.Combine(Root, "UserData", "Saves", "Race Weekend Saves");
+
     public bool HasLayout(string folder, string layout) =>
         Tracks.Any(t => t.Folder.Equals(folder, StringComparison.OrdinalIgnoreCase)
             && t.Layouts.Contains(layout, StringComparer.OrdinalIgnoreCase));

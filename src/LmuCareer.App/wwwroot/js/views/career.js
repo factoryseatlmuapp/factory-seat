@@ -277,7 +277,7 @@ export async function careerView(view, id, tab) {
         h("div", { class: "n" }, i + 1), h("div", {}, h("b", {}, title), h("div", { class: "muted" }, text)))),
       h("div", { class: "faint", style: { marginTop: "10px", fontSize: "12px" } },
         round.raceMinutes >= 180
-          ? "Long one? LMU saves a backup after each pit stop, so you can stop and finish it another time."
+          ? "Long one? Save it in LMU during a pit stop and finish it another time. The app waits for the finished race."
           : "Your teammate shares whatever the car scores."));
   }
 
@@ -536,6 +536,12 @@ export async function careerView(view, id, tab) {
     }
     const key = `${id}|${evaluation.status}|${evaluation.race?.file}`;
     if (dismissed.has(key)) return;
+    // Saved mid-race to finish later: nothing to decide yet, so a quiet note instead of a pop-up.
+    if (evaluation.status === "SavedToResume") {
+      dismissed.add(key);
+      toast(`Race saved as "${evaluation.savedAs}". Finish it in LMU whenever you like and it'll count.`);
+      return;
+    }
     const titles = { Ready: "Race finished", NeedsConfirmation: "Race finished", QuitEarly: "Race ended early" };
     const body = h("div", { class: "stack" });
     renderEvaluation(body, evaluation, { inModal: true, onPutOff: () => dismissed.add(key) });
@@ -606,6 +612,14 @@ export async function careerView(view, id, tab) {
           h("div", { class: "row" }, h("div", { class: "spacer" }),
             h("button", { class: "btn ghost", onclick: () => { putOff(); toast("Run it again with the briefing's settings."); } }, "I'll rerun it"),
             h("button", { class: "btn", "data-sound": "confirm", onclick: () => accept({ acceptDifferences: true }) }, "Count it anyway")));
+        break;
+      case "SavedToResume":
+        put(results, h("div", { class: "notice info" }, h("b", {}, "Saved to finish later"),
+          h("div", {}, `You saved this race in LMU as "${evaluation.savedAs}". Load it from LMU's race weekend saves, finish it, and the result pops up here.`),
+          h("div", { class: "muted" }, raceLine)),
+          h("div", { class: "row" }, h("div", { class: "spacer" }),
+            h("span", { class: "faint", style: { fontSize: "12px" } }, "Not coming back to it?"),
+            h("button", { class: "btn ghost small", onclick: () => accept({ takeDnf: true, acceptDifferences: race.verdict === "NearMiss" }) }, "Take the DNF")));
         break;
       case "QuitEarly":
         put(results, h("div", { class: "notice bad" }, h("b", {}, "Race quit before the flag"), h("div", {}, raceLine),

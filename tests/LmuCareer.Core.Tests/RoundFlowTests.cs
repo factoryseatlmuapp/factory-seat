@@ -196,6 +196,47 @@ public class RoundFlowTests
             CareerActions.ChangeCar(career, catalog.Cars.Single(c => c.Folder == "BMW_M4_LMGT3_2023")));
     }
 
+    [Theory]
+    [InlineData(-2, "SavedToResume")]   // saved in the pits two minutes before leaving: finish it later
+    [InlineData(null, "QuitEarly")]     // no save at all: a real quit
+    [InlineData(-120, "QuitEarly")]     // only a save from before the weekend started
+    public void A_race_saved_part_way_waits_to_be_finished_instead_of_asking_for_a_dnf(int? saveMinutesBeforeQuit, string expected)
+    {
+        var root = Directory.CreateTempSubdirectory("lmucareer-save-");
+        try
+        {
+            var store = new CareerStore(Path.Combine(root.FullName, "saves"));
+            var results = Directory.CreateDirectory(Path.Combine(root.FullName, "Results"));
+            var raceSaves = Directory.CreateDirectory(Path.Combine(root.FullName, "Race Weekend Saves"));
+            var career = new Career { CurrentSeason = new Season { Car = Car, Rounds = [ArmedRound()] } };
+            var quitAt = ArmedAt.AddMinutes(90);
+
+            var race = Path.Combine(results.FullName, "R1.xml");
+            Weekend().Car("Me", player: true, number: "69", status: "DNF").Car("AI", classPos: 2, status: "None").Build().Save(race);
+            File.SetLastWriteTimeUtc(race, quitAt.UtcDateTime);
+            if (saveMinutesBeforeQuit is int minutes)
+            {
+                var save = Path.Combine(raceSaves.FullName, "2616150417-Career Race 1.json");
+                File.WriteAllText(save, "{}");
+                File.SetLastWriteTimeUtc(save, quitAt.AddMinutes(minutes).UtcDateTime);
+            }
+
+            var evaluation = CareerActions.CheckArmedRound(store, career, results.FullName, raceSaves.FullName);
+
+            Assert.Equal(expected, evaluation.Status.ToString());
+            Assert.Equal(expected == "SavedToResume" ? "Career Race 1" : null, evaluation.SavedAs);
+
+            // Either way, the player can still give up on it and take the DNF.
+            var scored = RoundFlow.Accept(career.CurrentSeason.Rounds[0], evaluation, quitAt, takeDnf: true);
+            Assert.True(career.CurrentSeason.Rounds[0].Result!.QuitEarly);
+            Assert.Equal(FinishStatus.Dnf, scored.Race.Player!.Status);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public void Nothing_written_yet_is_waiting()
     {

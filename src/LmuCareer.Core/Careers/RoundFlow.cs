@@ -16,13 +16,25 @@ public enum RoundStatus
 
     /// <summary>The race was quit before the flag; the player reruns it or takes the DNF.</summary>
     QuitEarly,
+
+    /// <summary>
+    /// The race was left part-way after saving it in LMU to finish later. Nothing to decide until
+    /// the finished race turns up, though the player can still take the DNF if they abandon it.
+    /// </summary>
+    SavedToResume,
 }
 
+/// <param name="SavedAs">For <see cref="RoundStatus.SavedToResume"/>: the name LMU saved the race weekend under.</param>
 public sealed record RoundEvaluation(
     RoundStatus Status,
     SessionCheck? Race,
     SessionCheck? Qualifying,
-    IReadOnlyList<SessionCheck> Ignored);
+    IReadOnlyList<SessionCheck> Ignored,
+    string? SavedAs = null)
+{
+    /// <summary>The race stopped before the flag, quit or saved: counting it means taking the DNF.</summary>
+    public bool EndedEarly => Status is RoundStatus.QuitEarly or RoundStatus.SavedToResume;
+}
 
 /// <summary>Arming, evaluating and accepting a round.</summary>
 public static class RoundFlow
@@ -85,12 +97,12 @@ public static class RoundFlow
         if (round.State != RoundState.Armed) throw new InvalidOperationException("Only the armed round can be accepted.");
         var check = evaluation.Race ?? throw new InvalidOperationException("There's no race to accept yet.");
 
-        if (evaluation.Status == RoundStatus.QuitEarly && !takeDnf)
+        if (evaluation.EndedEarly && !takeDnf)
             throw new InvalidOperationException("The race was quit early: rerun it or take the DNF.");
         if (check.Verdict == MatchVerdict.NearMiss && !acceptDifferences)
             throw new InvalidOperationException("The race doesn't match the briefing: " + string.Join("; ", check.Reasons));
 
-        var race = evaluation.Status == RoundStatus.QuitEarly ? AsQuitByPlayer(check.Session) : check.Session;
+        var race = evaluation.EndedEarly ? AsQuitByPlayer(check.Session) : check.Session;
         var scored = RaceScorer.Score(race, evaluation.Qualifying?.Session,
             weight: round.PointsWeight,
             playerMinimumDriveShare: Features.AiDriverSwaps ? round.MinimumDriveShare : 0,
@@ -102,7 +114,7 @@ public static class RoundFlow
             RaceFile = check.FileName,
             QualifyingFile = evaluation.Qualifying?.FileName,
             AcceptedAt = now,
-            QuitEarly = evaluation.Status == RoundStatus.QuitEarly,
+            QuitEarly = evaluation.EndedEarly,
             AcceptedDespite = check.Verdict == MatchVerdict.NearMiss ? check.Reasons : [],
             PlayerPenalties = race.Player is { } player
                 // A disqualification is logged as a penalty too, but the DQ result already counts it.
