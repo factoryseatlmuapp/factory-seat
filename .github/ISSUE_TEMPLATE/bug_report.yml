@@ -1,0 +1,75 @@
+name: Bug report
+description: Something in Factory Seat didn't work the way it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. The more of this you can fill in, the quicker it gets fixed.
+
+  - type: input
+    id: version
+    attributes:
+      label: Factory Seat version
+      description: Shown in Settings › About.
+      placeholder: e.g. 1.0.2
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what the app did instead.
+      placeholder: |
+        I finished the Spa 6h round, but the app didn't pop up. "Check now" said the race didn't match the briefing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be reproduced?
+      description: Steps if you know them. "It happened once" is fine too.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where in the app?
+      options:
+        - First-run setup / finding LMU
+        - Creating a career / season builder
+        - Race briefing
+        - Picking up results after a race
+        - Standings
+        - Off-season, offers, sponsors
+        - Settings
+        - Installer / updating
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: textarea
+    id: race-settings
+    attributes:
+      label: Race details (if it's about a race)
+      description: Track and layout, car, race length, and whether you restarted, quit early or saved the race part-way.
+
+  - type: textarea
+    id: error-log
+    attributes:
+      label: Error log
+      description: |
+        If `%AppData%\LmuCareer\page-errors.log` exists, paste the last few lines here. You can paste that path into the Explorer address bar to open it.
+      render: text
+
+  - type: markdown
+    attributes:
+      value: |
+        **Results files and saves.** For a race that wasn't picked up correctly, the race's results file helps a lot. It's in your LMU folder under `UserData\Log\Results`. Your career saves are in `%AppData%\LmuCareer\careers`. Zip the file and drag the zip onto this form to attach it. Both contain your in-game driver name.
+
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: e.g. Windows 11 24H2

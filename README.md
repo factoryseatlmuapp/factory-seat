@@ -6,6 +6,12 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 
 > Factory Seat is a fan project. It is not affiliated with, endorsed by or connected to Studio 397, Motorsport Games, the ACO, the FIA WEC or IMSA.
 
+![The race briefing for the São Paulo 6 Hours, with LMU's settings, a pit plan and the track map](docs/screenshots/briefing.png)
+
+| Season calendar | Championship standings | Off-season offers |
+| :---: | :---: | :---: |
+| [![Season calendar](docs/screenshots/calendar.png)](docs/screenshots/calendar.png) | [![Championship standings](docs/screenshots/standings.png)](docs/screenshots/standings.png) | [![Season review and team offers](docs/screenshots/off-season.png)](docs/screenshots/off-season.png) |
+
 ## Features
 
 - **Multi-season careers.** LMGT3 → LMP3 → LMP2 → Hypercar. You only move up when a team offers you a seat.
@@ -45,6 +51,40 @@ At the end of the season you get a review, a reputation change, and offers for n
 - **DLC ownership is on trust.** LMU installs every pack's files whether you own it or not, so the app asks you which packs you have. Offers and calendars only use those.
 - **Your careers** are saved in `%AppData%\LmuCareer`. Uninstalling asks before it deletes them.
 - **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings.
+
+## FAQ
+
+**Does it work online?**
+No. Only offline Race Weekends count, and only the one that matches your current briefing. Online races, test drives and any other offline races are ignored, so you can race whatever else you like in LMU without affecting your career.
+
+**Do I need all the DLC?**
+No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks. The LMP3 rung needs the ELMS packs, and careers without them go straight from LMGT3 to LMP2.
+
+**Windows says "Windows protected your PC". Is it safe?**
+That's SmartScreen. It shows for any installer that isn't code-signed, and code signing costs money a free fan project doesn't have. Choose **More info → Run anyway**. If you'd like to check first, every release lists the installer's SHA-256 checksum and a VirusTotal scan, and the full source is in this repo.
+
+**Can I save a race part-way and finish it later?**
+Yes. Save it in LMU as usual. When you leave the race, LMU writes a results file that looks like you quit. Factory Seat spots the save and waits instead of asking whether to count a DNF. Load the save from LMU's race weekend saves, finish the race, and the result pops up then.
+
+**Can my teammate drive a stint?**
+Not yet. LMU removed the AI takeover button in 2024, so you drive the whole race. The briefing gives you a pit plan instead of driver swaps. Your teammate shares the car's points.
+
+**I race a custom team (Race Control) or a real team's livery. Does that work?**
+Yes. Leave the car number and team blank when you start a career, and the app learns them from your first race. Race Control custom-team cars are recognised whatever number they run.
+
+**A race didn't count. Why?**
+A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If one setting is off, the app asks you. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
+
+## Reporting a bug
+
+[Open an issue](../../issues/new/choose) using the bug report form. The things that help most:
+
+- Your version, from **Settings › About**.
+- What happened, and what you expected to happen.
+- The error log at `%AppData%\LmuCareer\page-errors.log`, if there is one. You can paste that path into the Explorer address bar.
+- For a race that wasn't picked up correctly, the race's results file from your LMU folder under `UserData\Log\Results`. Zip it before attaching. Results files and career saves contain your in-game driver name.
+
+Your careers are saved in `%AppData%\LmuCareer\careers`, with the last three versions of each kept as `.bak1` to `.bak3`.
 
 ## Building from source
 
