@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Ideas and feedback
+    url: https://github.com/factoryseatlmuapp/factory-seat/discussions/categories/ideas
+    about: Got an idea or a feature request? Start a discussion.
+  - name: Questions
+    url: https://github.com/factoryseatlmuapp/factory-seat/discussions/categories/q-a
+    about: Not sure how something works? Ask here.

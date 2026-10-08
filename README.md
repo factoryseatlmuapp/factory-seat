@@ -75,6 +75,10 @@ Yes. Leave the car number and team blank when you start a career, and the app le
 **A race didn't count. Why?**
 A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If one setting is off, the app asks you. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
 
+## Feedback and ideas
+
+Got an idea, a question, or a career story to share? [Start a discussion](../../discussions). Ideas and Q&A both have their own categories, and there's **Show and tell** for your careers.
+
 ## Reporting a bug
 
 [Open an issue](../../issues/new/choose) using the bug report form. The things that help most:
