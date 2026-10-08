@@ -28,6 +28,8 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 
 It needs Windows 10 or 11 (64-bit) and the Microsoft Edge WebView2 Runtime, which Windows 11 and most Windows 10 PCs already have.
 
+Every release lists the installer's SHA-256 checksum and a link to its VirusTotal scan, so you can check the download before running it. The full source is in this repo too.
+
 ## How a race weekend works
 
 1. Open your career and read the **Next race** briefing.
