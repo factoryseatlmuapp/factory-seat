@@ -50,7 +50,7 @@ At the end of the season you get a review, a reputation change, and offers for n
 - **The app only reads LMU's results files.** It never changes game files or settings, and it doesn't automate anything in the game.
 - **DLC ownership is on trust.** LMU installs every pack's files whether you own it or not, so the app asks you which packs you have. Offers and calendars only use those.
 - **Your careers** are saved in `%AppData%\LmuCareer`. Uninstalling asks before it deletes them.
-- **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings.
+- **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings. The app collects no data and has no accounts or servers. Its window is drawn by Microsoft's WebView2 runtime, a Windows component that may contact Microsoft for its own updates, just as it does for other apps that use it.
 
 ## FAQ
 
