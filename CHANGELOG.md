@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 (in progress)
+
+- Factory Seat speaks your language: Korean, German, French, Spanish and Brazilian Portuguese, picked from LMU's own language in Steam (or in Settings › Language). Briefings use the exact names LMU gives its settings in that language. Translations are files anyone can fix or add to; see `src/LmuCareer.App/locales`. Thanks to arch642 for the Korean translation.
+- The briefing's Fuel Usage and Tyre Wear now say "Real" at x1, as LMU's event screen does, and point to that screen.
+- The app no longer sends its internal page address to your DNS server or to Microsoft's SmartScreen when it starts. Its only network request is still the optional update check.
+
 ## 1.0.3
 
 - Leaving straight after the checkered flag, without a cool-down lap, could make a finished race look like a quit, because LMU writes the cars still on their last lap as unfinished. Once you've taken the flag the race now counts, and those cars keep the places they were running in.

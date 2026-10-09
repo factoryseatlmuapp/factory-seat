@@ -13,7 +13,10 @@ namespace LmuCareer.App;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const string Host = "app.factory-seat";
+    // A .localhost name: browsers resolve it on the PC itself and never ask a DNS server (RFC 6761),
+    // so nothing about the app goes out on the network. The pages never reach it anyway: every
+    // request to it is answered from the exe (ServeEmbeddedFile).
+    private const string Host = "factory-seat.localhost";
     private const string StartPage = $"https://{Host}/index.html";
 
     private readonly ApiHost _api;
@@ -45,6 +48,9 @@ public partial class MainWindow : Window
         var core = Web.CoreWebView2;
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsZoomControlEnabled = false;
+        // SmartScreen would send each page's address to Microsoft for a reputation check. The pages
+        // all come out of the exe, and links anywhere else open in the player's own browser.
+        core.Settings.IsReputationCheckingRequired = false;
 #if !DEBUG
         core.Settings.AreDevToolsEnabled = false;
         core.Settings.AreDefaultContextMenusEnabled = false;
