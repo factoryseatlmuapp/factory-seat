@@ -76,6 +76,11 @@ public class ContentTests
     [InlineData(24, 45, 45, 32, 2, false)]
     [InlineData(6, 60, 60, 6, 1, false)]
     [InlineData(24, 50, 45, 32, 2, false)]
+    [InlineData(24, 1440, 1440, 1, 1, true)]
+    [InlineData(12, 720, 720, 1, 1, true)]
+    [InlineData(12, 600, 600, 1, 1, true)]
+    [InlineData(24, 720, 720, 2, 2, true)]
+    [InlineData(12, 360, 360, 2, 2, true)]
     public void Formats_use_only_values_lmus_menus_offer(
         double hours, int? minutes, int length, int timeScale, int fuel, bool fullPlan)
     {

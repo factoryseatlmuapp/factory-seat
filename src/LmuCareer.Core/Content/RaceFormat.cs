@@ -59,7 +59,12 @@ public static class RaceFormats
         var fullPlan = realHours >= 12 && length >= 120;
 
         int multiplier;
-        if (fullPlan)
+        if (fullPlan && timeScale == 1)
+        {
+            // Raced at (about) its real length: real fuel use gives the real race's stops.
+            multiplier = 1;
+        }
+        else if (fullPlan)
         {
             // Stints of about 22 minutes keep roughly half the real race's stops.
             multiplier = Multipliers.MinBy(m => Math.Abs(tankMinutes / m - 22));
