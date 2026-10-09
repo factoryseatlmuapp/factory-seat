@@ -219,6 +219,12 @@ h1, h2, h3 { font-family: "Barlow Condensed", var(--cjk); text-transform: upperc
   display: flex; justify-content: space-between; margin: 22px 0 6px; }
 .setting { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 36px;
   border-bottom: 1px solid var(--border-soft); padding: 4px 2px; gap: 16px; }
+.setting.tickable { grid-template-columns: 20px 1fr auto; }
+.setting.ticked .label, .setting.ticked .value { opacity: 0.55; }
+.tick { width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: transparent;
+  color: #fff; font: 700 13px/1 "Segoe UI", system-ui, sans-serif; display: grid; place-items: center; }
+.tick:hover { border-color: var(--accent); }
+.tick.on { background: var(--good); border-color: var(--good); }
 .setting .label { font-weight: 600; }
 .setting .label small { display: block; font-weight: 400; color: var(--text-dim); font-size: 12px; }
 .setting .value { display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-weight: 600; }

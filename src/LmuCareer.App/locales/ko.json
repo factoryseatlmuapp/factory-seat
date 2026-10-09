@@ -209,6 +209,8 @@
     "Change car": "차량 변경",
     "Pick the {class} car you'll race this season. Your number and team stay as they are.": "이번 시즌에 탈 {class} 차량을 고르세요. 번호와 팀은 그대로 유지됩니다.",
     "Your car is now the {name}.": "이제 내 차량은 {name}입니다.",
+    "{done} of {total} set": "{total}개 중 {done}개 설정됨",
+    "Tick it off once it's set in LMU": "LMU에서 설정했으면 체크하세요",
     "of {total}": "/ 총 {total}라운드",
     "Real race {hours}": "실제 레이스 {hours}",
     "Points x{n}": "점수 x{n}",

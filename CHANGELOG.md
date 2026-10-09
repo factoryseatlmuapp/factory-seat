@@ -3,6 +3,7 @@
 ## 1.1.0 (in progress)
 
 - Factory Seat speaks your language: Korean, German, French, Spanish and Brazilian Portuguese, picked from LMU's own language in Steam (or in Settings › Language). Briefings use the exact names LMU gives its settings in that language. Translations are files anyone can fix or add to; see `src/LmuCareer.App/locales`. Thanks to arch642 for the Korean translation.
+- The briefing has a tick box on each setting, so you can tick them off as you set them in LMU, with a count of how many are done. It's only a helper: nothing waits on it. Ticks are kept until the round counts.
 - The briefing's Fuel Usage and Tyre Wear now say "Real" at x1, as LMU's event screen does, and point to that screen.
 - A race you saved to finish later is recognised however long you sat in the menus before leaving, and when you load the save another day and back out without saving again. Before, it had to be saved within 10 minutes of leaving, or you got asked whether to rerun or take a DNF.
 - A 12 or 24 hour race run at its full real length (Time Scale X1) now gets Real fuel and tyres, so it has the real race's stops instead of twice as many. Compressed races are unchanged. Rounds already on a calendar keep their settings until you change their length.

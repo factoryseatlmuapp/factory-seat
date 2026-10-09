@@ -208,6 +208,8 @@
     "Change car": "",
     "Pick the {class} car you'll race this season. Your number and team stay as they are.": "",
     "Your car is now the {name}.": "",
+    "{done} of {total} set": "",
+    "Tick it off once it's set in LMU": "",
     "of {total}": "",
     "Real race {hours}": "",
     "Points x{n}": "",

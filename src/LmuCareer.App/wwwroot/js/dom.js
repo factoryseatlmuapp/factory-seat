@@ -44,8 +44,25 @@ export function stepper(text, onChange, { canDown = true, canUp = true } = {}) {
     h("button", { title: t("Next"), disabled: !canUp, onclick: () => onChange(1) }, "›"));
 }
 
-export function setting(label, value, { hint, big } = {}) {
-  return h("div", { class: "setting" },
+/**
+ * A settings row: label (with an optional hint under it) and value. tick: { on, title, onToggle(on) }
+ * adds a tick box in front, for ticking a setting off once it's done; untickable: true leaves the
+ * box's space empty, to line up with rows that have one.
+ */
+export function setting(label, value, { hint, big, tick, untickable } = {}) {
+  const row = h("div", { class: "setting" + (tick || untickable ? " tickable" : "") + (tick?.on ? " ticked" : "") });
+  if (untickable) put(row, h("span"));
+  const box = tick ? h("button", { class: "tick" + (tick.on ? " on" : ""), title: tick.title, "aria-pressed": String(!!tick.on),
+    onclick: () => {
+      const on = !box.classList.contains("on");
+      box.classList.toggle("on", on);
+      box.textContent = on ? "✓" : "";
+      box.setAttribute("aria-pressed", String(on));
+      row.classList.toggle("ticked", on);
+      tick.onToggle(on);
+    } }, tick.on ? "✓" : "") : null;
+  return put(row,
+    box,
     h("div", { class: "label" }, label, hint ? h("small", {}, hint) : null),
     h("div", { class: "value" + (big ? " big" : "") }, value));
 }

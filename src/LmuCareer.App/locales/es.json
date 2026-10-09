@@ -208,6 +208,8 @@
     "Change car": "Cambiar de coche",
     "Pick the {class} car you'll race this season. Your number and team stay as they are.": "Elige el coche {class} con el que correrás esta temporada. Tu dorsal y tu equipo no cambian.",
     "Your car is now the {name}.": "Tu coche ahora es el {name}.",
+    "{done} of {total} set": "{done} de {total} configurados",
+    "Tick it off once it's set in LMU": "Márcalo cuando lo tengas configurado en LMU",
     "of {total}": "de {total}",
     "Real race {hours}": "Carrera real {hours}",
     "Points x{n}": "Puntos x{n}",

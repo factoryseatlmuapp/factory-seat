@@ -31,6 +31,18 @@ const ROUND_STATES = { Upcoming: mark("Upcoming"), Armed: mark("In progress"), C
 
 const RATINGS = { Bronze: mark("Bronze"), Silver: mark("Silver"), Gold: mark("Gold"), Platinum: mark("Platinum") };
 
+// Briefing rows the player has ticked off as set in LMU, per round, kept in this PC's browser
+// storage until the round counts. Only a helper: nothing waits on them.
+const ticksKey = (id, season, round) => `ticks:${id}:${season}:${round}`;
+
+function loadTicks(key) {
+  try { return new Set(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { return new Set(); }
+}
+
+function saveTicks(key, ticks) {
+  try { if (ticks.size) localStorage.setItem(key, JSON.stringify([...ticks])); else localStorage.removeItem(key); } catch { /* not kept */ }
+}
+
 /** Text the app saved in a career: its phrase when it has one, or the English it was saved in. */
 const saved = (phrase, english) => (phrase ? t(phrase) : english);
 
@@ -169,6 +181,20 @@ export async function careerView(view, id, tab) {
     const map = mapFor(round);
     setBackdropTrack(map);
 
+    const key = ticksKey(id, season().number, round.number);
+    const ticks = loadTicks(key);
+    const items = ["circuit", "layout", "car", "length", "fuel", "tyres", "start", "timeScale"];
+    const counter = h("span", { class: "faint" });
+    const count = () => {
+      counter.textContent = t("{done} of {total} set", { done: items.filter((x) => ticks.has(x)).length, total: items.length });
+    };
+    count();
+    const tick = (item) => ({
+      on: ticks.has(item),
+      title: t("Tick it off once it's set in LMU"),
+      onToggle: (on) => { if (on) ticks.add(item); else ticks.delete(item); saveTicks(key, ticks); count(); },
+    });
+
     put(view,
       h("div", { class: "hero" },
         h("div", { class: "hero-mark" }, t("Round {number}", { number: round.number }), h("div", { class: "faint", style: { fontSize: "18px", marginTop: "4px" } },
@@ -186,22 +212,23 @@ export async function careerView(view, id, tab) {
       round.guest ? guestNotice(round) : null,
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
-          h("div", { class: "section-title" }, t("Set up in LMU")),
+          h("div", { class: "row", style: { alignItems: "baseline", marginBottom: "14px" } },
+            h("div", { class: "section-title", style: { margin: 0 } }, t("Set up in LMU")), h("div", { class: "spacer" }), counter),
           h("div", { class: "lmu-path" }, lmu("Circuit")),
           h("div", { class: "rows", style: { marginBottom: "16px" } },
-            setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true }),
-            setting(lmu("Layout"), layoutName(round), { big: true })),
+            setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true, tick: tick("circuit") }),
+            setting(lmu("Layout"), layoutName(round), { big: true, tick: tick("layout") })),
           h("div", { class: "lmu-path" }, lmu("Car")),
-          h("div", { class: "rows", style: { marginBottom: "16px" } }, round.guest ? guestCarRow(round) : carRow(car)),
+          h("div", { class: "rows", style: { marginBottom: "16px" } }, round.guest ? guestCarRow(round, tick("car")) : carRow(car, tick("car"))),
           h("div", { class: "lmu-path" }, lmu("Event settings")),
           h("div", { class: "rows" },
-            setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like.") }),
-            setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid.") }),
-            setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true }),
-            setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event settings") }),
-            setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event settings") }),
-            setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions") }),
-            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced") }))),
+            setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like."), untickable: true }),
+            setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid."), untickable: true }),
+            setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true, tick: tick("length") }),
+            setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event settings"), tick: tick("fuel") }),
+            setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event settings"), tick: tick("tyres") }),
+            setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
+            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") }))),
         h("div", {},
           h("div", { class: "section-title" }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
@@ -212,29 +239,29 @@ export async function careerView(view, id, tab) {
           guestPanel())));
   }
 
-  function carRow(car) {
+  function carRow(car, tick) {
     const numbers = season().contract?.numbers ?? [];
     const name = data.carName || car.carType || t("Your car");
     if (car.customTeam) {
-      return setting(name, t("Custom team"), { big: true,
+      return setting(name, t("Custom team"), { big: true, tick,
         hint: t("Your {team} car, any number you like (last raced as #{n}).", { team: car.teamName || t("custom team"), n: car.carNumber }) });
     }
     if (car.carNumber) {
-      return setting(name, `#${car.carNumber}`, { big: true,
+      return setting(name, `#${car.carNumber}`, { big: true, tick,
         hint: car.teamName ? t("Racing for {team}", { team: car.teamName }) : t("Same number as your last race") });
     }
-    return setting(name, numbers.length ? carNumbers(numbers) : t("Any livery"), { big: true,
+    return setting(name, numbers.length ? carNumbers(numbers) : t("Any livery"), { big: true, tick,
       hint: numbers.length
         ? t("Pick the {team} livery. Your first race sets your number for the season.", { team: teamName() })
         : t("Pick any livery for this car. Your first race sets your number and team for the season.") });
   }
 
   /** A guest drive is in the guest team's car, not the season's. */
-  function guestCarRow(round) {
+  function guestCarRow(round, tick) {
     const car = round.guestCar;
     const numbers = round.guestNumbers ?? [];
     const value = car.carNumber ? `#${car.carNumber}` : numbers.length ? carNumbers(numbers) : t("Any livery");
-    return setting(carName(car.carType), value, { big: true,
+    return setting(carName(car.carType), value, { big: true, tick,
       hint: numbers.length || car.carNumber ? t("Pick the {team} livery.", { team: car.teamName }) : t("Any livery: you're guesting for {team}.", { team: car.teamName }) });
   }
 
@@ -662,6 +689,7 @@ export async function careerView(view, id, tab) {
     // Shown once the standings have loaded, since changing tab closes any open pop-up.
     noticed = accepted.noticed;
     const done = season().rounds.filter((r) => r.state === "Completed").at(-1);
+    if (done) saveTicks(ticksKey(id, season().number, done.number), new Set());
     const me = done && playerEntry(done);
     toast(me ? t("{eventName}: {finish}, {points} points.", { eventName: done.eventName, finish: finish(me), points: number(driverPoints(me)) }) : t("Round counted."));
     show("standings");
