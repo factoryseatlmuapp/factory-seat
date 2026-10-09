@@ -37,8 +37,8 @@ export function tn(n, one, other, args = {}) {
 /** Marks text in a table of words for translation; t() translates it where it's shown. */
 export const mark = (text) => text;
 
-/** Text set into the middle of a sentence: "Win the title" → "win the title". English only, since other languages capitalise differently (German nouns). */
-export const midSentence = (text) => (language === "en" ? text.charAt(0).toLowerCase() + text.slice(1) : text);
+/** Text set into the middle of a sentence: "Win the title" → "win the title". Not in German, which capitalises its nouns. */
+export const midSentence = (text) => (language.startsWith("de") ? text : text.charAt(0).toLowerCase() + text.slice(1));
 
 /** Text at the start of a sentence: "your win at…" → "Your win at…". */
 export const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
