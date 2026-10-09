@@ -162,8 +162,8 @@ export async function careerView(view, id, tab) {
 
     const track = tracks.get(round.trackFolder);
     const car = season().car;
-    const fuel = round.fuelMultiplier > 1 ? `x${round.fuelMultiplier}` : lmu("Realistic");
-    const tyres = round.tireMultiplier > 1 ? `x${round.tireMultiplier}` : lmu("Realistic");
+    const fuel = round.fuelMultiplier > 1 ? `x${round.fuelMultiplier}` : lmu("Real");
+    const tyres = round.tireMultiplier > 1 ? `x${round.tireMultiplier}` : lmu("Real");
     const isArmed = round.state === "Armed";
     const month = events.get(round.eventId)?.month;
     const map = mapFor(round);
@@ -278,7 +278,7 @@ export async function careerView(view, id, tab) {
   function pitPlan(round) {
     const stint = Math.round(round.raceMinutes / round.stints);
     const stops = round.stints - 1;
-    const fuel = round.fuelMultiplier > 1 ? "x" + round.fuelMultiplier : lmu("Realistic");
+    const fuel = round.fuelMultiplier > 1 ? "x" + round.fuelMultiplier : lmu("Real");
     const time = formatMinutes(stint);
     const steps = [
       [t("Start"), t("First stint, about {time}.", { time })],
