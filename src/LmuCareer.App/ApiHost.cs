@@ -181,6 +181,7 @@ public sealed class ApiHost
     private object? WatchCareer(string id)
     {
         _watchedCareer = Guid.TryParse(id, out var guid) ? guid : null;
+        if (_watchedCareer is null) Closing();
         _lastPosted = null;
         return null;
     }
@@ -240,6 +241,12 @@ public sealed class ApiHost
         }
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Locales.OwnFolder}\"") { UseShellExecute = true });
         return null;
+    }
+
+    /// <summary>No career is open any more (the player left it, or the app is closing): briefing.json says so.</summary>
+    public static void Closing()
+    {
+        try { BriefingFile.MarkClosed(CareerStore.DefaultRoot); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>Text the app shows itself, outside the page.</summary>
@@ -366,6 +373,7 @@ public sealed class ApiHost
                 Number = 1,
                 Car = new CareerCar(car.CarTypes.FirstOrDefault() ?? "", carClass, Str(args, "carNumber").Trim(), Str(args, "teamName").Trim())
                 {
+                    Folder = car.Folder,
                     OtherCarTypes = car.CarTypes.Skip(1).ToList(),
                 },
                 Contract = new Contract

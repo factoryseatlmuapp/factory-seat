@@ -16,6 +16,9 @@ public sealed record CareerCar(string CarType, string CarClass, string CarNumber
     /// <summary>The player races their Race Control custom team car: any number on it counts.</summary>
     public bool CustomTeam { get; init; }
 
+    /// <summary>The car's folder under LMU's Installed\Vehicles, e.g. BMW_M4_LMGT3_2023; empty on saves from before 1.1.</summary>
+    public string Folder { get; init; } = "";
+
     public bool IsCarType(string carType) =>
         carType.Equals(CarType, StringComparison.OrdinalIgnoreCase)
         || OtherCarTypes.Contains(carType, StringComparer.OrdinalIgnoreCase);

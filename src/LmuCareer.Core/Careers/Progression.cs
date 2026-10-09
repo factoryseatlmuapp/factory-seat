@@ -404,6 +404,7 @@ public static class Progression
                 reSign ? finished.Car.TeamName : offer.TeamName)
             {
                 OtherCarTypes = car.CarTypes.Skip(1).ToList(),
+                Folder = car.Folder,
             },
             Teammate = reSign ? finished.Teammate : "",
             Contract = new Contract

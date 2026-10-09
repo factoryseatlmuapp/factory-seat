@@ -10,6 +10,11 @@ It's rewritten whenever a career's briefing is shown or changes (opening the car
 cancelling the race weekend, counting a race, signing a sponsor). It's written whole, then swapped
 in, so a reader never sees half a file. When a career is deleted, its file goes with it.
 
+The file stays when the player leaves the career or closes Factory Seat, with `open` set to
+`false`, so a companion can tell the briefing on screen from the last one viewed. If Factory Seat
+didn't close cleanly (a crash, a forced shutdown), `open` can be left `true`; checking that
+`FactorySeat.exe` is running covers that.
+
 It's a file, not a server: Factory Seat stays off the network. Read it as often as you like; watch
 the folder for changes rather than reading it in a tight loop.
 
@@ -26,6 +31,7 @@ changes meaning or goes away. New fields can appear at any time, so ignore ones 
   "version": 1,
   "app": "1.1.0",
   "writtenAt": "2026-10-09T15:08:50-04:00",
+  "open": true,
   "career": {
     "id": "d2481b30-5814-49b9-8539-544ffecf9b00",
     "name": "Road to Hypercar",
@@ -51,6 +57,7 @@ changes meaning or goes away. New fields can appear at any time, so ignore ones 
     },
     "car": {
       "class": "GT3",
+      "folder": "Ford_Mustang_GT3_2024",
       "carTypes": ["Ford Mustang LMGT3"],
       "name": "Ford Mustang",
       "number": null,
@@ -72,7 +79,10 @@ changes meaning or goes away. New fields can appear at any time, so ignore ones 
 Values are LMU's own, not the words on Factory Seat's screens, so they can be compared with what
 the game reports.
 
-**career**: the open career. `season` is its number; `team` is the team signed with (empty when
+**open**: `true` while this career is open in Factory Seat; `false` once the player leaves it or
+closes the app.
+
+**career**: the career. `season` is its number; `team` is the team signed with (empty when
 the first race decides it); `targetPosition` is the team's target in the class standings.
 
 **round**: the race to set up next, or `null` between seasons.
@@ -84,7 +94,9 @@ the first race decides it); `targetPosition` is the team's target in the class s
 - `track`: `folder` is the track's folder under LMU's `Installed\Locations`; `layoutFile` the
   layout's file without `.mas`, which is what a race is matched on. `trackCourse` is the layout as
   LMU names it in results files.
-- `car`: `carTypes` are how LMU names the car in results files (a car can have more than one; empty
+- `car`: `folder` is the car's folder under LMU's `Installed\Vehicles` (e.g. `BMW_M4_LMGT3_2023`),
+  the same name the selected vehicle's `.VEH` path carries; `null` if not known. `carTypes` are how
+  LMU names the car in results files (a car can have more than one; empty
   until a race shows it). `number` is the number to race, or `null` when any livery will do and the
   first race decides. `customTeam` means a Race Control custom team car, where any number counts.
   `liveryNumbers` are the team's numbers on LMU's grid, to find its livery.

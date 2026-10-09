@@ -103,6 +103,7 @@ public static class CareerActions
         {
             CarType = car.CarTypes.FirstOrDefault() ?? "",
             OtherCarTypes = car.CarTypes.Skip(1).ToList(),
+            Folder = car.Folder,
         };
     }
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using LmuCareer.Core.Content;
 
@@ -14,11 +15,13 @@ namespace LmuCareer.Core.Careers;
 /// <see cref="Version"/> goes up only when something a companion relies on changes meaning or
 /// goes away; new fields can appear at any time, so readers should ignore ones they don't know.
 /// </remarks>
+/// <param name="Open">True while the career is open in Factory Seat; false once the player leaves it or closes the app.</param>
 public sealed record BriefingFile(
     string Format,
     int Version,
     string? App,
     DateTimeOffset WrittenAt,
+    bool Open,
     BriefingCareer Career,
     // Null between seasons, when there's no race to set up.
     BriefingRound? Round,
@@ -38,7 +41,7 @@ public sealed record BriefingFile(
     public static BriefingFile For(Career career, ContentCatalog catalog, string? app, DateTimeOffset now)
     {
         var season = career.CurrentSeason;
-        return new BriefingFile(FormatName, CurrentVersion, app, now,
+        return new BriefingFile(FormatName, CurrentVersion, app, now, true,
             new BriefingCareer(career.Id, career.Name, season.Number, season.Car.CarClass, Math.Round(career.Reputation, 1),
                 season.Contract?.TeamName is { Length: > 0 } team ? team : season.Car.TeamName,
                 season.Contract?.TargetPosition ?? Progression.DefaultTarget),
@@ -67,7 +70,9 @@ public sealed record BriefingFile(
             new BriefingEvent(round.EventId.Length > 0 ? round.EventId : null, round.EventName, round.RealDurationHours, round.PointsWeight),
             new BriefingTrack(round.TrackFolder, track?.Name ?? round.TrackCourse, round.LayoutFile,
                 track?.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile, round.TrackCourse),
-            new BriefingCar(car.CarClass, new[] { car.CarType }.Concat(car.OtherCarTypes).Where(t => t.Length > 0).Distinct().ToList(),
+            new BriefingCar(car.CarClass,
+                car.Folder.Length > 0 ? car.Folder : car.CarType.Length > 0 ? catalog.CarByType(car.CarType)?.Folder : null,
+                new[] { car.CarType }.Concat(car.OtherCarTypes).Where(t => t.Length > 0).Distinct().ToList(),
                 catalog.CarByType(car.CarType)?.Name ?? car.CarType,
                 car.CarNumber.Length > 0 ? car.CarNumber : null,
                 car.CustomTeam,
@@ -86,6 +91,29 @@ public sealed record BriefingFile(
         var temp = path + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(this, Json));
         File.Move(temp, path, overwrite: true);
+    }
+
+    /// <summary>
+    /// Marks the briefing no longer open: the player left the career or closed the app. The file
+    /// stays, so a companion can still show the last briefing.
+    /// </summary>
+    public static void MarkClosed(string folder)
+    {
+        var path = Path.Combine(folder, FileName);
+        if (!File.Exists(path)) return;
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject json || json["open"]?.GetValue<bool>() == false) return;
+            json["open"] = false;
+            json["writtenAt"] = DateTimeOffset.Now;
+            var temp = path + ".tmp";
+            File.WriteAllText(temp, json.ToJsonString(Json));
+            File.Move(temp, path, overwrite: true);
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            // Not ours to fix: the next briefing rewrites it.
+        }
     }
 
     /// <summary>Removes the file when it describes the given career (it was deleted).</summary>
@@ -131,11 +159,12 @@ public sealed record BriefingEvent(string? Id, string Name, double RealHours, de
 /// <param name="TrackCourse">The layout as LMU names it in results files.</param>
 public sealed record BriefingTrack(string Folder, string Name, string LayoutFile, string LayoutName, string TrackCourse);
 
+/// <param name="Folder">The car's folder under LMU's Installed\Vehicles (e.g. BMW_M4_LMGT3_2023), as the .VEH path names it; null if not known.</param>
 /// <param name="CarTypes">How LMU names the car in results files (a car can have more than one); the first is the one last raced. Empty until a race shows it.</param>
 /// <param name="Number">The number to race, or null when the first race sets it (any livery).</param>
 /// <param name="CustomTeam">A Race Control custom team car: any number on it counts.</param>
 /// <param name="LiveryNumbers">The team's numbers on LMU's grid, to find its livery; empty when any will do.</param>
-public sealed record BriefingCar(string Class, IReadOnlyList<string> CarTypes, string Name, string? Number, bool CustomTeam, string? Team, IReadOnlyList<string> LiveryNumbers);
+public sealed record BriefingCar(string Class, string? Folder, IReadOnlyList<string> CarTypes, string Name, string? Number, bool CustomTeam, string? Team, IReadOnlyList<string> LiveryNumbers);
 
 /// <param name="RaceMinutes">One of LMU's race length steps.</param>
 /// <param name="FuelUsage">1 = Real, 2 = x2, 3 = x3.</param>

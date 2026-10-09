@@ -115,6 +115,7 @@ public static class GuestDrives
         round.Guest = true;
         round.GuestCar = new CareerCar(car.CarTypes.FirstOrDefault() ?? "", offer.CarClass, "", offer.TeamName)
         {
+            Folder = car.Folder,
             OtherCarTypes = car.CarTypes.Skip(1).ToList(),
         };
         round.GuestNumbers = offer.Numbers;

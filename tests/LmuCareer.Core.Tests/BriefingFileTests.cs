@@ -43,12 +43,15 @@ public sealed class BriefingFileTests : IDisposable
 
         Assert.Equal("factory-seat-briefing", json.GetProperty("format").GetString());
         Assert.Equal(1, json.GetProperty("version").GetInt32());
+        Assert.True(json.GetProperty("open").GetBoolean());
         var round = json.GetProperty("round");
         Assert.Equal("Armed", round.GetProperty("state").GetString());
         Assert.StartsWith("Daytona", round.GetProperty("track").GetProperty("folder").GetString());
         Assert.StartsWith("layout", round.GetProperty("track").GetProperty("layoutFile").GetString());
         Assert.Equal(["Lexus RCF LMGT3"], round.GetProperty("car").GetProperty("carTypes").EnumerateArray().Select(t => t.GetString()));
         Assert.True(round.GetProperty("car").GetProperty("customTeam").GetBoolean());
+        // A save from before 1.1 has no folder on its car: the catalog fills it in from the car type.
+        Assert.Equal(ContentCatalog.Default.CarByType("Lexus RCF LMGT3")!.Folder, round.GetProperty("car").GetProperty("folder").GetString());
         var settings = round.GetProperty("settings");
         Assert.Equal(360, settings.GetProperty("raceMinutes").GetInt32());
         Assert.Equal(4, settings.GetProperty("timeScale").GetInt32());
@@ -56,6 +59,20 @@ public sealed class BriefingFileTests : IDisposable
         var sponsor = json.GetProperty("sponsors")[0];
         Assert.Equal("a podium", sponsor.GetProperty("objective").GetString());
         Assert.Equal("InProgress", sponsor.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public void A_new_careers_car_keeps_its_folder_before_any_race_names_it()
+    {
+        var catalog = ContentCatalog.Default;
+        var bmw = catalog.Cars.First(c => c.Folder.StartsWith("BMW_M4", StringComparison.OrdinalIgnoreCase));
+        var career = Career();
+        career.CurrentSeason.Car = new CareerCar("", "GT3", "", "") { Folder = bmw.Folder };
+
+        var car = JsonDocument.Parse(BriefingFile.For(career, catalog, null, DateTimeOffset.Now).ToJson()).RootElement.GetProperty("round").GetProperty("car");
+
+        Assert.Equal(bmw.Folder, car.GetProperty("folder").GetString());
+        Assert.Empty(car.GetProperty("carTypes").EnumerateArray());
     }
 
     [Fact]
@@ -68,6 +85,11 @@ public sealed class BriefingFileTests : IDisposable
         var path = Path.Combine(_root, BriefingFile.FileName);
         Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("round").ValueKind);
         Assert.False(File.Exists(path + ".tmp"));
+
+        // Leaving the career keeps the file but says it's no longer open.
+        BriefingFile.MarkClosed(_root);
+        Assert.False(JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("open").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, JsonDocument.Parse(File.ReadAllText(path)).RootElement.GetProperty("round").ValueKind);
 
         BriefingFile.RemoveFor(_root, Guid.NewGuid());
         Assert.True(File.Exists(path));

@@ -26,6 +26,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _api = new ApiHost(this);
         Loaded += async (_, _) => await StartAsync();
+        Closing += (_, _) => ApiHost.Closing();
     }
 
     private async Task StartAsync()
