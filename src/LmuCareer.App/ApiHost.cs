@@ -419,7 +419,30 @@ public sealed class ApiHost
         return CareerView(career);
     }
 
-    private object CareerView(Career career) => new
+    private object CareerView(Career career)
+    {
+        WriteBriefing(career);
+        return CareerViewData(career);
+    }
+
+    /// <summary>
+    /// Keeps briefing.json next to the saves up to date with the career on screen, for companion
+    /// apps. A file that can't be written (locked by a reader) waits for the next change.
+    /// </summary>
+    private static void WriteBriefing(Career career)
+    {
+        try
+        {
+            BriefingFile.For(career, ContentCatalog.Default, typeof(ApiHost).Assembly.GetName().Version?.ToString(3), DateTimeOffset.Now)
+                .Write(CareerStore.DefaultRoot);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log($"briefing.json not written: {ex.Message}");
+        }
+    }
+
+    private object CareerViewData(Career career) => new
     {
         career,
         sponsors = career.CurrentSeason.Sponsors.Select(d => new
@@ -477,7 +500,9 @@ public sealed class ApiHost
 
     private object? DeleteCareer(JsonElement args)
     {
-        _store.Delete(Guid.Parse(Str(args, "id")));
+        var id = Guid.Parse(Str(args, "id"));
+        _store.Delete(id);
+        try { BriefingFile.RemoveFor(CareerStore.DefaultRoot, id); } catch (IOException) { }
         return null;
     }
 

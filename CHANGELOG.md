@@ -7,6 +7,7 @@
 - The briefing's Fuel Usage and Tyre Wear now say "Real" at x1, as LMU's event screen does, and point to that screen.
 - A race you saved to finish later is recognised however long you sat in the menus before leaving, and when you load the save another day and back out without saving again. Before, it had to be saved within 10 minutes of leaving, or you got asked whether to rerun or take a DNF.
 - A 12 or 24 hour race run at its full real length (Time Scale X1) now gets Real fuel and tyres, so it has the real race's stops instead of twice as many. Compressed races are unchanged. Rounds already on a calendar keep their settings until you change their length.
+- For companion apps (like an overlay that checks your LMU settings): the next race's settings are written to `briefing.json` next to your saves. See `docs/briefing-json.md`.
 - The app no longer sends its internal page address to your DNS server or to Microsoft's SmartScreen when it starts. Its only network request is still the optional update check.
 
 ## 1.0.3
