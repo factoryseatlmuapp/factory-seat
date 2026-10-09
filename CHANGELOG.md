@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Leaving straight after the checkered flag, without a cool-down lap, could make a finished race look like a quit, because LMU writes the cars still on their last lap as unfinished. Once you've taken the flag the race now counts, and those cars keep the places they were running in.
+
 ## 1.0.2
 
 - Saving a race part-way in LMU (to finish it another time) no longer looks like quitting. The app sees the save, tells you the race is saved to finish later, and counts it when you finish. A real quit still asks whether to rerun or take the DNF.

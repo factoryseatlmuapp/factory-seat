@@ -6,7 +6,10 @@ public enum SessionKind { Practice, Qualifying, Warmup, Race, Unknown }
 
 public enum FinishStatus
 {
-    /// <summary>Still running when the session ended, which means the session was quit before the flag.</summary>
+    /// <summary>
+    /// Still running when the session ended: the session was quit before the flag, or the car was
+    /// still on its last lap when the player left after taking the flag.
+    /// </summary>
     None,
     Finished,
     Dnf,
@@ -87,9 +90,11 @@ public sealed record SessionResult(
 
     /// <summary>
     /// False when the session was quit before the checkered flag: LMU then writes every
-    /// car that was still running with a status of "None".
+    /// car that was still running with a status of "None". A player who took the flag finished
+    /// the race even if they left before the cars still on their last lap got there.
     /// </summary>
-    public bool IsComplete => Entries.Count > 0 && Entries.All(e => e.Status != FinishStatus.None);
+    public bool IsComplete => Entries.Count > 0
+        && (Player?.Status == FinishStatus.Finished || Entries.All(e => e.Status != FinishStatus.None));
 
     public EntryResult? Player => Entries.FirstOrDefault(e => e.IsPlayer);
 

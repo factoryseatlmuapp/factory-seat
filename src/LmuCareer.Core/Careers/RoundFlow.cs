@@ -102,7 +102,7 @@ public static class RoundFlow
         if (check.Verdict == MatchVerdict.NearMiss && !acceptDifferences)
             throw new InvalidOperationException("The race doesn't match the briefing: " + string.Join("; ", check.Reasons));
 
-        var race = evaluation.EndedEarly ? AsQuitByPlayer(check.Session) : check.Session;
+        var race = Classified(check.Session);
         var scored = RaceScorer.Score(race, evaluation.Qualifying?.Session,
             weight: round.PointsWeight,
             playerMinimumDriveShare: Features.AiDriverSwaps ? round.MinimumDriveShare : 0,
@@ -129,11 +129,12 @@ public static class RoundFlow
     }
 
     /// <summary>
-    /// When the player quits, LMU leaves every other car with no finish status. Taking the DNF
-    /// freezes the running order at that moment: the others count as finished where they were.
-    /// A player who was disqualified before quitting stays disqualified.
+    /// When the player leaves, LMU gives cars still running no finish status: the whole field if
+    /// they quit, the cars still on their last lap if they took the flag and left straight away.
+    /// The running order at that moment stands: the others count as finished where they were.
+    /// A player who quit is a DNF; one who was disqualified before quitting stays disqualified.
     /// </summary>
-    private static SessionResult AsQuitByPlayer(SessionResult race) => race with
+    private static SessionResult Classified(SessionResult race) => race with
     {
         Entries = race.Entries
             .Select(e => e.Status != FinishStatus.None ? e

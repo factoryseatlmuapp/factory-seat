@@ -272,6 +272,40 @@ public class RoundFlowTests
     }
 
     [Fact]
+    public void Leaving_right_after_the_flag_still_counts_and_cars_on_their_last_lap_keep_their_places()
+    {
+        // No cool-down lap: LMU writes the cars that hadn't crossed the line yet as "None".
+        var round = ArmedRound();
+        var evaluation = RoundFlow.Evaluate([Check(Weekend()
+            .Car("Leader", laps: 12)
+            .Car("Me", player: true, number: "69", classPos: 2, laps: 12)
+            .Car("Last lap", classPos: 3, laps: 11, status: "None")
+            .Car("Retired", classPos: 4, laps: 5, status: "DNF")
+            .Parse())]);
+
+        Assert.Equal(RoundStatus.Ready, evaluation.Status);
+        RoundFlow.Accept(round, evaluation, ArmedAt);
+
+        var entries = round.Result!.Entries;
+        Assert.False(round.Result.QuitEarly);
+        Assert.Equal((FinishStatus.Finished, 2), (entries.Single(e => e.Entry.IsPlayer).Entry.Status, entries.Single(e => e.Entry.IsPlayer).ClassRank));
+        Assert.Equal((FinishStatus.Finished, 3), (entries.Single(e => e.Entry.Name == "Last lap").Entry.Status, entries.Single(e => e.Entry.Name == "Last lap").ClassRank));
+        Assert.Equal(FinishStatus.Dnf, entries.Single(e => e.Entry.Name == "Retired").Entry.Status);
+    }
+
+    [Fact]
+    public void A_retired_player_in_a_race_that_ran_to_the_flag_is_a_plain_dnf()
+    {
+        var evaluation = RoundFlow.Evaluate([Check(Weekend()
+            .Car("Leader", laps: 12)
+            .Car("Me", player: true, number: "69", classPos: 2, laps: 5, status: "DNF")
+            .Parse())]);
+
+        Assert.Equal(RoundStatus.Ready, evaluation.Status);
+        Assert.False(evaluation.EndedEarly);
+    }
+
+    [Fact]
     public void Accepting_scores_the_round_with_its_weight_and_keeps_laps_only_for_the_player()
     {
         var round = ArmedRound();
