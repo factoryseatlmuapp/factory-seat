@@ -15,6 +15,9 @@ public sealed class AppSettings
     /// <summary>"system", "dark" or "light".</summary>
     public string Theme { get; set; } = "system";
 
+    /// <summary>A language code ("de", "pt-BR"), or "auto" for the language LMU runs in.</summary>
+    public string Language { get; set; } = "auto";
+
     /// <summary>Click and hover sound volume, 0 to 1.</summary>
     public double SoundVolume { get; set; } = 0.6;
 

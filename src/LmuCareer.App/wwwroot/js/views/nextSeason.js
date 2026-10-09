@@ -3,6 +3,7 @@ import { h, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, toast } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
 import { offerFacts } from "./offers.js";
+import { t } from "../i18n.js";
 
 // Signing an offer: build the new season's calendar, then start it.
 
@@ -13,11 +14,11 @@ export async function nextSeasonView(view, id, offerId) {
   if (!offer) return go(`#/career/${id}/briefing`);
 
   const number = career.currentSeason.number + 1;
-  setChrome({ crumb: `${career.name} · Season ${number}`, back: `#/career/${id}/briefing` });
+  setChrome({ crumb: `${career.name} · ${t("Season {number}", { number })}`, back: `#/career/${id}/briefing` });
 
   const car = cat.cars.find((c) => c.folder === offer.carFolder);
   const intro = h("div", { class: "car-strip" },
-    h("span", { class: "lmu-path" }, "Signing with"),
+    h("span", { class: "lmu-path" }, t("Signing with")),
     chip(offer.carClass),
     h("span", { class: "car-name" }, offer.teamName),
     h("span", { class: "muted" }, offerFacts(offer, car).join(" · ")));
@@ -27,12 +28,12 @@ export async function nextSeasonView(view, id, offerId) {
     carClass: offer.carClass,
     ownedPacks: career.ownedContent,
     draft: {},
-    mark: `Season ${number}`,
+    mark: t("Season {number}", { number }),
     intro,
-    confirmLabel: `Start season ${number}`,
+    confirmLabel: t("Start season {number}", { number }),
     onConfirm: async (rounds) => {
       if (await attempt(call("startNextSeason", { id, offerId, rounds }))) {
-        toast(`Season ${number} with ${offer.teamName} is on. Good luck.`);
+        toast(t("Season {number} with {team} is on. Good luck.", { number, team: offer.teamName }));
         go(`#/career/${id}/briefing`);
       }
     },

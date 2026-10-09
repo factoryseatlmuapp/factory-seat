@@ -117,8 +117,16 @@ public sealed class CareerStore
     /// <summary>Adds a career from an exported file, under a new identity if this PC already has it.</summary>
     public Career Import(string source)
     {
-        var career = JsonSerializer.Deserialize<Career>(File.ReadAllText(source), Json)
-            ?? throw new InvalidDataException("The file isn't a career save.");
+        Career? career;
+        try
+        {
+            career = JsonSerializer.Deserialize<Career>(File.ReadAllText(source), Json);
+        }
+        catch (JsonException)
+        {
+            career = null;
+        }
+        if (career is null) throw new PlayerError("The file isn't a career save.");
         if (File.Exists(PathFor(career.Id))) career.Id = Guid.NewGuid();
 
         Save(career);

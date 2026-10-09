@@ -105,6 +105,25 @@ public class ProgressionTests
     }
 
     [Fact]
+    public void A_review_saved_before_translations_gets_its_phrases_back()
+    {
+        var career = CareerWith(0, "GT3", Counted(1, 1, weight: 2), Counted(2, 1), Counted(3, 2), Counted(4, 3));
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+        var review = career.CurrentSeason.Review!;
+        // As 1.0 saved it: English labels only, one of them from rules that have since changed.
+        review.Items = [.. review.Items.Select(i => i with { Text = null }), new ReputationItem("Something 1.0 counted", 1)];
+        career.Offers.Add(new TeamOffer { Id = "noticed", Reason = "your win at the Le Mans 24 Hours" });
+
+        Assert.True(CareerActions.AddPhrases(career));
+
+        Assert.Equal("{n} podiums", review.Items.Single(i => i.Label == "2 podiums").Text!.Text);
+        Assert.Equal("Won the {event}", review.Items.Single(i => i.Label == "Won the Le Mans 24 Hours").Text!.Text);
+        Assert.Null(review.Items.Single(i => i.Label == "Something 1.0 counted").Text);
+        Assert.Equal("Le Mans 24 Hours", career.Offers.Single(o => o.Id == "noticed").ReasonText!.Args["event"]);
+        Assert.False(CareerActions.AddPhrases(career));
+    }
+
+    [Fact]
     public void Big_event_wins_count_extra()
     {
         var career = CareerWith(0, "GT3", Counted(1, 1, weight: 2), Counted(2, 1), Counted(3, 2), Counted(4, 3));

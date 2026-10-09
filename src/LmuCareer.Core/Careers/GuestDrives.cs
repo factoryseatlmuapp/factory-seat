@@ -105,9 +105,9 @@ public static class GuestDrives
     public static Round Accept(Career career, string offerId, int? minutes, ContentCatalog catalog)
     {
         var season = career.CurrentSeason;
-        if (!Sponsorship.CanSign(season)) throw new InvalidOperationException("Guest drives are agreed before the season's first round counts.");
+        if (!Sponsorship.CanSign(season)) throw new PlayerError("Guest drives are agreed before the season's first round counts.");
         var offer = season.GuestOffers?.FirstOrDefault(o => o.Id == offerId) ?? throw new KeyNotFoundException("That guest drive isn't on offer.");
-        if (offer.Accepted) throw new InvalidOperationException("You've already agreed to that one.");
+        if (offer.Accepted) throw new PlayerError("You've already agreed to that one.");
         var e = catalog.Event(offer.EventId) ?? throw new KeyNotFoundException($"No event \"{offer.EventId}\".");
         var car = catalog.Car(offer.CarFolder) ?? throw new KeyNotFoundException($"No car \"{offer.CarFolder}\".");
 
@@ -142,14 +142,14 @@ public static class GuestDrives
     public static void Withdraw(Career career, string offerId)
     {
         var season = career.CurrentSeason;
-        if (!Sponsorship.CanSign(season)) throw new InvalidOperationException("The season has started; skip the round instead.");
+        if (!Sponsorship.CanSign(season)) throw new PlayerError("The season has started; skip the round instead.");
         var offer = season.GuestOffers?.FirstOrDefault(o => o.Id == offerId && o.Accepted) ?? throw new KeyNotFoundException("You haven't agreed to that guest drive.");
 
         var index = season.Rounds.FindIndex(r => r.Guest && r.EventId == offer.EventId);
         if (index >= 0)
         {
-            if (season.Rounds[index].State == RoundState.Armed) throw new InvalidOperationException("Cancel the race weekend first.");
-            if (season.Rounds[index].State == RoundState.Completed) throw new InvalidOperationException("You've already raced that one.");
+            if (season.Rounds[index].State == RoundState.Armed) throw new PlayerError("Cancel the race weekend first.");
+            if (season.Rounds[index].State == RoundState.Completed) throw new PlayerError("You've already raced that one.");
             var moved = season.Rounds.Skip(index + 1).ToDictionary(r => r.Number, r => r.Number - 1);
             season.Rounds.RemoveAt(index);
             foreach (var deal in season.Sponsors.Concat(season.SponsorOffers ?? []).Where(d => moved.ContainsKey(d.RoundNumber)))

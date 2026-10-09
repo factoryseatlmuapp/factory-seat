@@ -120,9 +120,25 @@ public sealed class TeamInterest
 
     /// <summary>What caught their eye, e.g. "your win at the Le Mans 24 Hours".</summary>
     public string Reason { get; set; } = "";
+
+    /// <summary><see cref="Reason"/> to translate; null on saves from before translations.</summary>
+    public Phrase? ReasonText { get; set; }
 }
 
-public sealed record ReputationItem(string Label, decimal Points);
+/// <param name="Label">The item in English, as saves from before translations have it.</param>
+public sealed record ReputationItem(string Label, decimal Points)
+{
+    /// <summary><see cref="Label"/> to translate; null on saves from before translations.</summary>
+    public Phrase? Text { get; init; }
+
+    // A factory, not a second constructor: saves are read through the one constructor.
+    public static ReputationItem For(Phrase text, decimal points) => new(text.ToString(), points) { Text = text };
+
+    // The phrase is the label in translatable form: items with the same label and points are the same.
+    public bool Equals(ReputationItem? other) => other is not null && Label == other.Label && Points == other.Points;
+
+    public override int GetHashCode() => HashCode.Combine(Label, Points);
+}
 
 /// <summary>How a finished season went, and what it did to the player's reputation.</summary>
 public sealed class SeasonReview
@@ -191,6 +207,9 @@ public sealed class TeamOffer
 
     /// <summary>For a team that noticed the player mid-season: what caught its eye.</summary>
     public string Reason { get; set; } = "";
+
+    /// <summary><see cref="Reason"/> to translate; null on saves from before translations.</summary>
+    public Phrase? ReasonText { get; set; }
 }
 
 public enum ObjectiveKind

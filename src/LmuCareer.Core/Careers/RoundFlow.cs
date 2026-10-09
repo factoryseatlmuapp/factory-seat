@@ -115,7 +115,7 @@ public static class RoundFlow
             QualifyingFile = evaluation.Qualifying?.FileName,
             AcceptedAt = now,
             QuitEarly = evaluation.EndedEarly,
-            AcceptedDespite = check.Verdict == MatchVerdict.NearMiss ? check.Reasons : [],
+            AcceptedDespite = check.Verdict == MatchVerdict.NearMiss ? check.Reasons.Select(r => r.ToString()).ToList() : [],
             PlayerPenalties = race.Player is { } player
                 // A disqualification is logged as a penalty too, but the DQ result already counts it.
                 ? race.Events.Count(e => e.Kind == RaceEventKind.Penalty && e.Text != "Disqualify" && e.Driver is { } driver

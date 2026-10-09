@@ -86,6 +86,29 @@ public sealed partial record LmuInstall(string Root, IReadOnlyList<InstalledTrac
         return null;
     }
 
+    /// <summary>
+    /// The language LMU runs in, as Steam names it ("english", "german", "koreana", "brazilian"…).
+    /// LMU has no language setting of its own: Steam's per-game language choice, kept in the app
+    /// manifest next to steamapps\common, picks it. Null when the install isn't a Steam one.
+    /// </summary>
+    public static string? SteamLanguage(string root)
+    {
+        try
+        {
+            var manifest = Path.GetFullPath(Path.Combine(root, "..", "..", $"appmanifest_{SteamAppId}.acf"));
+            return File.Exists(manifest)
+                ? File.ReadLines(manifest).Select(l => VdfLanguage().Match(l)).FirstOrDefault(m => m.Success)?.Groups["language"].Value
+                : null;
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    [GeneratedRegex(@"^\s*""language""\s+""(?<language>[^""]+)""")]
+    private static partial Regex VdfLanguage();
+
     [GeneratedRegex(@"^MASFile=(?<layout>layout[^.\s]*)\.mas\b", RegexOptions.IgnoreCase)]
     private static partial Regex LayoutLine();
 

@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 // Element building. Text always goes in as text nodes, never as HTML, since names and team
 // names come from results files.
 
@@ -37,9 +39,9 @@ export function clear(el) {
 /** "  ‹  value  ›  " control. Calls onChange(+1 | -1). */
 export function stepper(text, onChange, { canDown = true, canUp = true } = {}) {
   return h("span", { class: "stepper" },
-    h("button", { title: "Previous", disabled: !canDown, onclick: () => onChange(-1) }, "‹"),
+    h("button", { title: t("Previous"), disabled: !canDown, onclick: () => onChange(-1) }, "‹"),
     h("span", {}, text),
-    h("button", { title: "Next", disabled: !canUp, onclick: () => onChange(1) }, "›"));
+    h("button", { title: t("Next"), disabled: !canUp, onclick: () => onChange(1) }, "›"));
 }
 
 export function setting(label, value, { hint, big } = {}) {

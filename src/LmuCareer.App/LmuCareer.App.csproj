@@ -25,6 +25,8 @@
   <ItemGroup>
     <!-- The page is served out of the exe; the resource name is its path under wwwroot. -->
     <EmbeddedResource Include="wwwroot\**\*" LogicalName="wwwroot/$([System.String]::Copy('%(RecursiveDir)').Replace('\','/'))%(Filename)%(Extension)" />
+    <!-- Translations, one file per language (see Locales.cs). -->
+    <EmbeddedResource Include="locales\*.json" Exclude="locales\_*.json" LogicalName="locales/%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

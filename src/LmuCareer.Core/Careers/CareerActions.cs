@@ -54,7 +54,8 @@ public static class CareerActions
 
                 var writtenAt = new DateTimeOffset(file.LastWriteTimeUtc);
                 checks.Add(counted.TryGetValue(file.Name, out var countedFor)
-                    ? new SessionCheck(session, writtenAt, MatchVerdict.Ignored, [$"already counted for round {countedFor.Number} ({countedFor.EventName})"])
+                    ? new SessionCheck(session, writtenAt, MatchVerdict.Ignored,
+                        [Phrase.Of("already counted for round {number} ({event})", ("number", countedFor.Number), ("event", countedFor.EventName))])
                     : RoundMatcher.Check(session, writtenAt, round, round.GuestCar ?? season.Car, store.ClaimedByOther(file.Name, career.Id)));
             }
         }
@@ -95,11 +96,11 @@ public static class CareerActions
     {
         var season = career.CurrentSeason;
         if (career.PastSeasons.Count > 0)
-            throw new InvalidOperationException("The car comes with your seat; a different car means a different offer next season.");
+            throw new PlayerError("The car comes with your seat; a different car means a different offer next season.");
         if (season.Rounds.Any(r => r.State == RoundState.Completed))
-            throw new InvalidOperationException("The season has started; the car is set until next season.");
+            throw new PlayerError("The season has started; the car is set until next season.");
         if (!car.Class.Equals(season.Car.CarClass, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException($"The season is built for {season.Car.CarClass}; pick a car in that class.");
+            throw new PlayerError("The season is built for {class}; pick a car in that class.", ("class", season.Car.CarClass));
 
         season.Car = season.Car with
         {
@@ -114,7 +115,7 @@ public static class CareerActions
     /// </summary>
     public static SessionCheck? WrongCarRace(RoundEvaluation evaluation) =>
         evaluation.Ignored
-            .Where(c => c.Session.Kind == SessionKind.Race && c.Reasons.Any(r => r.StartsWith("wrong car", StringComparison.Ordinal)))
+            .Where(c => c.Session.Kind == SessionKind.Race && c.WrongCar)
             .MaxBy(c => c.WrittenAt);
 
     /// <summary>
@@ -147,6 +148,46 @@ public static class CareerActions
         if (player.CarNumber != car.CarNumber || player.IsCustomTeam != car.CustomTeam)
             return car with { CarNumber = player.CarNumber, TeamName = player.TeamName, CustomTeam = player.IsCustomTeam };
         return car.TeamName.Length == 0 ? car with { TeamName = player.TeamName } : car;
+    }
+
+    /// <summary>
+    /// Careers saved before translations hold their season reviews and offer reasons as English
+    /// text only. A review is worked out from the season's results alone, so working it out again
+    /// gives each item its phrase back; an item that doesn't come out the same is left as it was.
+    /// </summary>
+    /// <returns>True when phrases were added (the career needs saving).</returns>
+    public static bool AddPhrases(Career career)
+    {
+        var changed = false;
+        foreach (var season in career.PastSeasons.Append(career.CurrentSeason))
+        {
+            if (season.Review is not { } review || review.Items.All(i => i.Text is not null)) continue;
+            var fresh = Progression.Review(season, review.ReputationBefore).Items;
+            var items = review.Items
+                .Select(i => i.Text is null && fresh.FirstOrDefault(f => f.Label == i.Label)?.Text is { } text ? i with { Text = text } : i)
+                .ToList();
+            if (items.Zip(review.Items).Any(pair => pair.First.Text != pair.Second.Text))
+            {
+                review.Items = items;
+                changed = true;
+            }
+        }
+
+        const string winAt = "your win at the ";
+        Phrase? Reason(string reason) => reason.StartsWith(winAt, StringComparison.Ordinal)
+            ? Phrase.Of("your win at the {event}", ("event", reason[winAt.Length..]))
+            : null;
+        foreach (var offer in career.Offers.Where(o => o.ReasonText is null && Reason(o.Reason) is not null))
+        {
+            offer.ReasonText = Reason(offer.Reason);
+            changed = true;
+        }
+        foreach (var interest in career.Interest.Where(i => i.ReasonText is null && Reason(i.Reason) is not null))
+        {
+            interest.ReasonText = Reason(interest.Reason);
+            changed = true;
+        }
+        return changed;
     }
 
     /// <summary>

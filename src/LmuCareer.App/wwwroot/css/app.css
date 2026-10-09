@@ -2,6 +2,12 @@
 @font-face { font-family: "Barlow Condensed"; font-weight: 600; src: url("../fonts/BarlowCondensed-SemiBold.ttf"); }
 @font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url("../fonts/BarlowCondensed-Bold.ttf"); }
 
+/* Korean, Japanese and Chinese aren't in the app's fonts: Windows' own fonts for each fill in. */
+:root { --cjk: "Malgun Gothic", "Yu Gothic UI", "Microsoft YaHei UI", system-ui, sans-serif; }
+:root:lang(ja) { --cjk: "Yu Gothic UI", "Meiryo UI", "Malgun Gothic", system-ui, sans-serif; }
+:root:lang(zh-CN) { --cjk: "Microsoft YaHei UI", "Malgun Gothic", "Yu Gothic UI", system-ui, sans-serif; }
+:root:lang(zh-TW) { --cjk: "Microsoft JhengHei UI", "Microsoft YaHei UI", system-ui, sans-serif; }
+
 /* ---------- Theme tokens ---------- */
 
 :root,
@@ -66,7 +72,7 @@ html, body { margin: 0; height: 100%; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
+  font: 14px/1.45 "Segoe UI", var(--cjk);
   overflow-x: hidden;
   user-select: none;
 }
@@ -112,17 +118,17 @@ input, textarea { user-select: text; }
 .topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .topbar-right { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 
-.brand { font: 700 22px "Barlow Condensed"; letter-spacing: 0.02em; white-space: nowrap; }
+.brand { font: 700 22px "Barlow Condensed", var(--cjk); letter-spacing: 0.02em; white-space: nowrap; }
 .brand em { font-style: normal; color: var(--accent); margin-left: 2px; }
 
 .back { background: none; border: none; font-size: 30px; line-height: 1; padding: 0 2px 4px; color: var(--text-dim); }
 .back:hover { color: var(--text); }
-.crumb { font: 600 18px "Barlow Condensed"; text-transform: uppercase; padding-left: 12px;
+.crumb { font: 600 18px "Barlow Condensed", var(--cjk); text-transform: uppercase; padding-left: 12px;
   border-left: 1px solid var(--border-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crumb:empty { display: none; }
 
 .tabs { display: flex; gap: 26px; }
-.tab { background: none; border: none; padding: 14px 0 12px; font: 600 18px "Barlow Condensed";
+.tab { background: none; border: none; padding: 14px 0 12px; font: 600 18px "Barlow Condensed", var(--cjk);
   text-transform: uppercase; color: var(--text-dim); border-bottom: 2px solid transparent; position: relative; }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--text); border-bottom-color: var(--text); }
@@ -137,16 +143,16 @@ input, textarea { user-select: text; }
 
 .view { width: min(1180px, calc(100vw - 48px)); margin: 0 auto; padding: 84px 0 64px; }
 
-.display { font-family: "Barlow Condensed"; text-transform: uppercase; }
-h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin: 0; line-height: 1; }
-.section-title { font: 600 26px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim);
+.display { font-family: "Barlow Condensed", var(--cjk); text-transform: uppercase; }
+h1, h2, h3 { font-family: "Barlow Condensed", var(--cjk); text-transform: uppercase; margin: 0; line-height: 1; }
+.section-title { font: 600 26px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim);
   margin: 0 0 14px; }
 
 .hero { display: flex; align-items: center; gap: 22px; margin-bottom: 30px; }
 .hero-mark { min-width: 120px; padding-right: 22px; border-right: 1px solid var(--border-soft);
-  font: 700 26px/1 "Barlow Condensed"; text-transform: uppercase; color: var(--accent); }
+  font: 700 26px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--accent); }
 .hero-title { font-size: 60px; font-weight: 600; }
-.hero-sub { font: 700 34px/1.1 "Barlow Condensed"; text-transform: uppercase; letter-spacing: 0.06em;
+.hero-sub { font: 700 34px/1.1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.06em;
   color: transparent; -webkit-text-stroke: 1px var(--text-dim); margin-top: 4px; }
 .hero-facts { color: var(--text-dim); font-size: 12px; margin-top: 6px; display: flex; gap: 14px; }
 
@@ -167,7 +173,7 @@ h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin:
 .card.clickable:hover { background: var(--panel-hover); transform: translateY(-2px); }
 .card.selected { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .card h3 { font-size: 24px; font-weight: 600; }
-.card-title { font: 600 26px/1 "Barlow Condensed"; text-transform: uppercase; }
+.card-title { font: 600 26px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; }
 
 .new-card { min-height: 220px; display: flex; flex-direction: column; justify-content: flex-end;
   background: linear-gradient(160deg, var(--accent-soft), transparent 55%), var(--panel); }
@@ -175,8 +181,8 @@ h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin:
 
 /* ---------- Buttons ---------- */
 
-.btn { border: none; border-radius: 2px; padding: 7px 22px 6px; font: 600 21px "Barlow Condensed";
-  text-transform: uppercase; background: var(--button-bg); color: var(--button-text); }
+.btn { border: none; border-radius: 2px; padding: 7px 22px 6px; font: 600 21px "Barlow Condensed", var(--cjk);
+  text-transform: uppercase; background: var(--button-bg); color: var(--button-text); white-space: nowrap; }
 .btn:hover:not(:disabled) { background: var(--accent); color: #fff; }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); padding: 5px 16px 4px;
@@ -186,14 +192,14 @@ h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin:
 .btn.small { font-size: 15px; padding: 3px 12px 2px; }
 
 .pills { display: inline-flex; gap: 2px; }
-.pill { border: none; background: transparent; padding: 4px 10px 3px; font: 600 15px "Barlow Condensed";
+.pill { border: none; background: transparent; padding: 4px 10px 3px; white-space: nowrap; font: 600 15px "Barlow Condensed", var(--cjk);
   text-transform: uppercase; color: var(--text); border-radius: 2px; }
 .pill:hover { background: var(--border-soft); }
 .pill.active { background: var(--button-bg); color: var(--button-text); }
 
 /* ---------- Class chips ---------- */
 
-.chip { display: inline-block; padding: 1px 6px 0; border-radius: 3px; font: 700 14px "Barlow Condensed";
+.chip { display: inline-block; padding: 1px 6px 0; border-radius: 3px; font: 700 14px "Barlow Condensed", var(--cjk);
   color: #fff; letter-spacing: 0.03em; }
 .chip.Hyper { background: var(--hy); } .chip.LMP2 { background: var(--p2); }
 .chip.LMP3 { background: var(--p3); } .chip.GT3 { background: var(--gt3); } .chip.GTE { background: var(--gte); }
@@ -202,21 +208,21 @@ h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin:
 
 .class-tile { width: 76px; height: 64px; border: 2px solid var(--border); border-radius: 8px; padding: 6px 7px;
   background: var(--panel); text-align: left; position: relative; }
-.class-tile b { font: 700 30px/1 "Barlow Condensed"; display: block; }
-.class-tile small { font: 600 12px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim); }
+.class-tile b { font: 700 30px/1 "Barlow Condensed", var(--cjk); display: block; }
+.class-tile small { font: 600 12px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); }
 .class-tile.active { border-color: var(--accent); background: var(--accent-soft); }
 
 /* ---------- Setting rows ---------- */
 
 .rows { border-top: 1px solid var(--border-soft); }
-.rows-title { font: 600 26px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim);
+.rows-title { font: 600 26px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim);
   display: flex; justify-content: space-between; margin: 22px 0 6px; }
 .setting { display: grid; grid-template-columns: 1fr auto; align-items: center; min-height: 36px;
   border-bottom: 1px solid var(--border-soft); padding: 4px 2px; gap: 16px; }
 .setting .label { font-weight: 600; }
 .setting .label small { display: block; font-weight: 400; color: var(--text-dim); font-size: 12px; }
 .setting .value { display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-weight: 600; }
-.setting .value.big { font: 600 22px "Barlow Condensed"; text-transform: uppercase; }
+.setting .value.big { font: 600 22px "Barlow Condensed", var(--cjk); text-transform: uppercase; }
 .lmu-path { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.04em; }
 
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
@@ -234,22 +240,22 @@ h1, h2, h3 { font-family: "Barlow Condensed"; text-transform: uppercase; margin:
 .toggle.on::after { left: 18px; background: #fff; }
 
 .field { display: flex; flex-direction: column; gap: 4px; }
-.field label { font: 600 14px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.03em; }
+.field label { font: 600 14px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.03em; }
 .input { background: var(--panel-solid); border: 1px solid var(--border-soft); border-radius: 3px; padding: 7px 10px; }
 .input:focus { outline: none; border-color: var(--accent); }
-.input.big { font: 600 22px "Barlow Condensed"; text-transform: uppercase; }
+.input.big { font: 600 22px "Barlow Condensed", var(--cjk); text-transform: uppercase; }
 select.input { padding: 6px 8px; }
 
 /* ---------- Tables ---------- */
 
 .table { width: 100%; border-collapse: collapse; }
-.table th { font: 600 14px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim); text-align: left;
+.table th { font: 600 14px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); text-align: left;
   padding: 6px 8px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
 .table td { padding: 7px 8px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
 .table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .table tr.me td { background: var(--accent-soft); font-weight: 600; }
 .table tr.me td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
-.table .pos { font: 700 18px "Barlow Condensed"; width: 40px; }
+.table .pos { font: 700 18px "Barlow Condensed", var(--cjk); width: 40px; }
 .table .wrap { white-space: normal; }
 
 /* ---------- Calendar and season builder ---------- */
@@ -259,14 +265,14 @@ select.input { padding: 6px 8px; }
 .round-row:hover { background: var(--border-soft); }
 .round-row.dragging { opacity: 0.4; }
 .round-row.drop-target { box-shadow: inset 0 2px 0 var(--accent); }
-.round-num { font: 700 24px "Barlow Condensed"; color: var(--text-dim); text-align: center; }
-.round-month { font: 600 16px "Barlow Condensed"; text-transform: uppercase; color: var(--text-dim); }
-.round-name { font: 600 21px/1.05 "Barlow Condensed"; text-transform: uppercase; }
+.round-num { font: 700 24px "Barlow Condensed", var(--cjk); color: var(--text-dim); text-align: center; }
+.round-month { font: 600 16px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); }
+.round-name { font: 600 21px/1.05 "Barlow Condensed", var(--cjk); text-transform: uppercase; }
 .round-meta { color: var(--text-dim); font-size: 12px; }
 .round-settings { display: flex; gap: 14px; color: var(--text-dim); font-size: 12px; align-items: center; }
 .round-settings b { color: var(--text); font-weight: 600; }
 .handle { cursor: grab; color: var(--text-faint); font-size: 18px; }
-.state { font: 600 15px "Barlow Condensed"; text-transform: uppercase; padding: 1px 8px; border-radius: 3px;
+.state { font: 600 15px "Barlow Condensed", var(--cjk); text-transform: uppercase; padding: 1px 8px; border-radius: 3px;
   border: 1px solid var(--border-soft); color: var(--text-dim); }
 .state.Armed { border-color: var(--accent); color: var(--accent); }
 .state.Completed { border-color: var(--good); color: var(--good); }
@@ -277,27 +283,27 @@ select.input { padding: 6px 8px; }
 .car-strip { display: flex; align-items: center; gap: 12px; margin: -8px 0 26px; padding: 8px 14px;
   background: var(--panel); border: 1px solid var(--border-soft); border-left: 3px solid var(--accent); border-radius: 6px; }
 .car-strip .lmu-path { margin-right: 4px; }
-.car-strip .car-name { font: 600 22px/1 "Barlow Condensed"; text-transform: uppercase; }
-.car-strip .car-number { font: 700 22px/1 "Barlow Condensed"; color: var(--accent); }
+.car-strip .car-name { font: 600 22px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; }
+.car-strip .car-number { font: 700 22px/1 "Barlow Condensed", var(--cjk); color: var(--accent); }
 
 /* ---------- Off-season: reputation and offers ---------- */
 
 .rep { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
-.rep-figures { display: flex; align-items: baseline; gap: 10px; font: 600 30px/1.1 "Barlow Condensed"; }
+.rep-figures { display: flex; align-items: baseline; gap: 10px; font: 600 30px/1.1 "Barlow Condensed", var(--cjk); }
 .rep-figures b { color: var(--accent); font-weight: 700; }
 .rep-figures .muted { font-size: 18px; text-transform: uppercase; }
 .rep-bar { position: relative; height: 6px; margin-top: 8px; background: var(--border-soft); border-radius: 3px; }
 .rep-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s; }
 .rep-mark { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--text); }
 
-.offer .offer-kind { font: 700 13px "Barlow Condensed"; text-transform: uppercase; letter-spacing: 0.05em;
+.offer .offer-kind { font: 700 13px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-dim); border: 1px solid var(--border-soft); border-radius: 3px; padding: 1px 6px 0; }
 .offer.promotion { border-color: var(--accent); background: linear-gradient(160deg, var(--accent-soft), transparent 60%), var(--panel); }
 .offer.promotion .offer-kind { color: var(--accent); border-color: var(--accent); }
 .offer:hover .btn { background: var(--accent); color: #fff; }
 
 .deal h3 { font-size: 22px; }
-.deal-status { font: 700 13px "Barlow Condensed"; text-transform: uppercase; letter-spacing: 0.05em;
+.deal-status { font: 700 13px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em;
   padding: 1px 6px 0; border-radius: 3px; border: 1px solid var(--border-soft); color: var(--text-dim); }
 .deal-status.Met { color: var(--good); border-color: var(--good); }
 .deal-status.Failed { color: var(--bad); border-color: var(--bad); }
@@ -311,11 +317,11 @@ select.input { padding: 6px 8px; }
 .notice.info { border-left-color: var(--p2); }
 .notice.good { border-left-color: var(--good); }
 .notice.bad { border-left-color: var(--bad); }
-.notice b { font-family: "Barlow Condensed"; text-transform: uppercase; font-size: 17px; letter-spacing: 0.02em; }
+.notice b { font-family: "Barlow Condensed", var(--cjk); text-transform: uppercase; font-size: 17px; letter-spacing: 0.02em; }
 
 .checklist-step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 8px 0;
   border-bottom: 1px solid var(--border-soft); }
-.checklist-step .n { font: 700 20px "Barlow Condensed"; color: var(--accent); }
+.checklist-step .n { font: 700 20px "Barlow Condensed", var(--cjk); color: var(--accent); }
 
 /* ---------- Modal and toast ---------- */
 

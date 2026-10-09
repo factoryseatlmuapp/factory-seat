@@ -88,15 +88,15 @@ public static class Progression
         int? position = index >= 0 ? index + 1 : null;
 
         var items = new List<ReputationItem>();
-        void Add(string label, decimal points)
+        void Add(Phrase label, decimal points)
         {
             points = Math.Round(points, 1);
-            if (points != 0) items.Add(new ReputationItem(label, points));
+            if (points != 0) items.Add(ReputationItem.For(label, points));
         }
 
         if (completed.Count > 0)
         {
-            Add(position is int p ? $"Championship P{p}" : "Not classified in the championship", w * (position switch
+            Add(position is int p ? Phrase.Of("Championship P{n}", ("n", p)) : Phrase.Of("Not classified in the championship"), w * (position switch
             {
                 1 => 12,
                 2 => 9,
@@ -109,46 +109,50 @@ public static class Progression
             var met = position <= target;
             if (met)
             {
-                Add($"Team target met (top {target})", 6 * w);
-                if (position <= target - 3) Add($"Beat the target by {target - position} places", 3 * w);
+                Add(Phrase.Of("Team target met (top {n})", ("n", target)), 6 * w);
+                if (position <= target - 3) Add(Phrase.Of("Beat the target by {n} places", ("n", target - position)), 3 * w);
             }
             else
             {
                 var missedBy = position is int q ? q - target : int.MaxValue;
-                Add($"Team target missed (top {target})", (missedBy > 5 ? -10 : -6) * w);
+                Add(Phrase.Of("Team target missed (top {n})", ("n", target)), (missedBy > 5 ? -10 : -6) * w);
             }
         }
 
         // Each race's result. Big events (double points: the 24-hour races) make a name.
         var mine = completed.Select(r => (Round: r, Me: r.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer))).Where(x => x.Me is not null).ToList();
         foreach (var (round, me) in mine.Where(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight >= 2))
-            Add($"Won the {round.EventName}", 5);
+            Add(Phrase.Of("Won the {event}", ("event", round.EventName)), 5);
         var wins = mine.Count(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight < 2);
-        Add(Plural(wins, "class win", "class wins"), 2 * wins);
+        Add(Phrase.Count(wins, "{n} class win", "{n} class wins"), 2 * wins);
         var podiums = mine.Count(x => x.Me!.ClassRank is 2 or 3);
-        Add(Plural(podiums, "podium", "podiums"), podiums);
+        Add(Phrase.Count(podiums, "{n} podium", "{n} podiums"), podiums);
         var poles = mine.Count(x => x.Me!.ClassPole);
-        Add(Plural(poles, "pole", "poles"), 0.5m * poles);
+        Add(Phrase.Count(poles, "{n} pole", "{n} poles"), 0.5m * poles);
         var dnfs = mine.Count(x => x.Me!.Entry.Status == FinishStatus.Dnf);
-        Add(Plural(dnfs, "DNF", "DNFs"), -2 * dnfs);
+        Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), -2 * dnfs);
         var dqs = mine.Count(x => x.Me!.Entry.Status == FinishStatus.Dq);
-        Add(Plural(dqs, "disqualification", "disqualifications"), -4 * dqs);
+        Add(Phrase.Count(dqs, "{n} disqualification", "{n} disqualifications"), -4 * dqs);
         var penalties = completed.Sum(r => r.Result!.PlayerPenalties);
-        Add(Plural(penalties, "penalty", "penalties"), -0.5m * penalties);
-        if (completed.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add("Clean season", 3);
+        Add(Phrase.Count(penalties, "{n} penalty", "{n} penalties"), -0.5m * penalties);
+        if (completed.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3);
 
         // Guest drives sit outside the championship, but a result there gets noticed.
         foreach (var round in season.Rounds.Where(r => r.Guest && r.State == RoundState.Completed && r.Result is not null))
         {
             var me = round.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer);
             if (me is null) continue;
-            var team = round.GuestCar?.TeamName is { Length: > 0 } t ? $" for {t}" : "";
+            var guestEvent = ("event", (object?)round.EventName);
+            var team = ("team", (object?)round.GuestCar?.TeamName);
+            var hasTeam = round.GuestCar?.TeamName is { Length: > 0 };
             Add(me.ClassRank switch
             {
-                1 => $"Guest win: {round.EventName}{team}",
-                <= 3 => $"Guest podium: {round.EventName}{team}",
-                not null => $"Guest drive finished: {round.EventName}",
-                _ => $"Guest drive {(me.Entry.Status == FinishStatus.Dq ? "disqualified" : "retired")}: {round.EventName}",
+                1 => hasTeam ? Phrase.Of("Guest win: {event} for {team}", guestEvent, team) : Phrase.Of("Guest win: {event}", guestEvent),
+                <= 3 => hasTeam ? Phrase.Of("Guest podium: {event} for {team}", guestEvent, team) : Phrase.Of("Guest podium: {event}", guestEvent),
+                not null => Phrase.Of("Guest drive finished: {event}", guestEvent),
+                _ => me.Entry.Status == FinishStatus.Dq
+                    ? Phrase.Of("Guest drive disqualified: {event}", guestEvent)
+                    : Phrase.Of("Guest drive retired: {event}", guestEvent),
             }, me.ClassRank switch
             {
                 1 => round.PointsWeight >= 2 ? 6 : 4,
@@ -162,20 +166,26 @@ public static class Progression
         foreach (var deal in season.Sponsors)
         {
             var objective = Sponsorship.Describe(deal);
-            if (Sponsorship.Progress(season, deal).Status == ObjectiveStatus.Met) Add($"{deal.Name}: {objective}", deal.Reward);
-            else items.Add(new ReputationItem($"{deal.Name}: missed ({objective})", 0));
+            var sponsor = ("sponsor", (object?)deal.Name);
+            if (Sponsorship.Progress(season, deal).Status == ObjectiveStatus.Met)
+                Add(Phrase.Of("{sponsor}: {objective}", sponsor).With("objective", objective), deal.Reward);
+            else items.Add(ReputationItem.For(Phrase.Of("{sponsor}: missed ({objective})", sponsor).With("objective", objective), 0));
             if (deal.RunningLivery)
             {
                 var (custom, counted) = Sponsorship.LiveryRounds(season);
-                if (Sponsorship.LiveryRun(season)) Add($"Ran the {deal.Name} livery ({custom} of {counted} rounds)", Sponsorship.LiveryBonus);
-                else items.Add(new ReputationItem($"{deal.Name} livery not seen: your custom car ran {custom} of {counted} rounds", 0));
+                if (Sponsorship.LiveryRun(season))
+                    Add(Phrase.Of("Ran the {sponsor} livery ({custom} of {counted} rounds)", sponsor, ("custom", custom), ("counted", counted)), Sponsorship.LiveryBonus);
+                else items.Add(ReputationItem.For(Phrase.Of("{sponsor} livery not seen: your custom car ran {custom} of {counted} rounds",
+                    sponsor, ("custom", custom), ("counted", counted)), 0));
             }
         }
 
         var total = items.Sum(i => i.Points);
         var change = Math.Clamp(total, -MaxLoss, MaxGain);
         if (change != total)
-            items.Add(new ReputationItem(change > 0 ? $"Reputation grows at most {MaxGain} a season" : $"Reputation falls at most {MaxLoss} a season", change - total));
+            items.Add(ReputationItem.For(change > 0
+                ? Phrase.Of("Reputation grows at most {n} a season", ("n", MaxGain))
+                : Phrase.Of("Reputation falls at most {n} a season", ("n", MaxLoss)), change - total));
 
         return new SeasonReview
         {
@@ -230,8 +240,10 @@ public static class Progression
             CarFolder = chosen!.Folder,
             Tier = team.Tier,
             Numbers = team.Numbers,
-            Reason = $"your win at the {round.EventName}",
         };
+        var reason = Phrase.Of("your win at the {event}", ("event", round.EventName));
+        interest.Reason = reason.ToString();
+        interest.ReasonText = reason;
         career.Interest.Add(interest);
         return interest;
     }
@@ -337,6 +349,7 @@ public static class Progression
             var offer = Offer(Ladder.ToList().IndexOf(interest.CarClass) > ladderIndex ? OfferKind.Promotion : OfferKind.Move,
                 team, car, TargetFor(interest.Tier));
             offer.Reason = interest.Reason;
+            offer.ReasonText = interest.ReasonText;
             offers.Add(offer);
         }
 
@@ -379,9 +392,9 @@ public static class Progression
     {
         var finished = career.CurrentSeason;
         if (finished.Review is null) throw new InvalidOperationException("The season hasn't been reviewed yet.");
-        var offer = career.Offers.FirstOrDefault(o => o.Id == offerId) ?? throw new KeyNotFoundException("That offer isn't on the table any more.");
+        var offer = career.Offers.FirstOrDefault(o => o.Id == offerId) ?? throw new PlayerError("That offer isn't on the table any more.");
         var car = catalog.Car(offer.CarFolder) ?? throw new KeyNotFoundException($"No car \"{offer.CarFolder}\".");
-        if (rounds.Count == 0) throw new InvalidOperationException("The season needs at least one round.");
+        if (rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
 
         var reSign = offer.Kind == OfferKind.ReSign;
         var next = new Season
@@ -410,8 +423,6 @@ public static class Progression
         career.Interest = [];
         return next;
     }
-
-    private static string Plural(int count, string one, string many) => count == 1 ? $"1 {one}" : $"{count} {many}";
 
     /// <summary>The same career and season always get the same offers.</summary>
     internal static int Seed(Career career) =>

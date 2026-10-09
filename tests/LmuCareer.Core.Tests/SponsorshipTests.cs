@@ -87,14 +87,14 @@ public class SponsorshipTests
 
         Sponsorship.Sign(season, ids[0]);
         Sponsorship.Sign(season, ids[1]);
-        Assert.Throws<InvalidOperationException>(() => Sponsorship.Sign(season, ids[2]));
+        Assert.ThrowsAny<InvalidOperationException>(() => Sponsorship.Sign(season, ids[2]));
 
         Sponsorship.Drop(season, ids[1]);
         Sponsorship.Sign(season, ids[2]);
         Assert.Equal([ids[0], ids[2]], season.Sponsors.Select(s => s.SponsorId));
 
         season.Rounds[0] = Counted(1, 1);
-        Assert.Throws<InvalidOperationException>(() => Sponsorship.Drop(season, ids[0]));
+        Assert.ThrowsAny<InvalidOperationException>(() => Sponsorship.Drop(season, ids[0]));
     }
 
     [Fact]

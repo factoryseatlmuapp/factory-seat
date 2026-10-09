@@ -22,6 +22,7 @@ public sealed class ApiHost
 
     private readonly MainWindow _window;
     private readonly AppSettings _settings = AppSettings.Load();
+    private readonly Locales _locales = Locales.Load();
     private readonly CareerStore _store = new(CareerStore.DefaultRoot);
     private readonly ContentCatalog _catalog = ContentCatalog.Default;
     private readonly ResultsWatcher _watcher;
@@ -98,7 +99,14 @@ public sealed class ApiHost
         catch (Exception ex) when (ex is InvalidOperationException or IOException or JsonException
             or KeyNotFoundException or UnauthorizedAccessException or InvalidDataException or ArgumentException)
         {
-            return JsonSerializer.Serialize(new { id, ok = false, error = ex.Message }, Json);
+            // A problem the player can fix comes with its message as a phrase, for the page to translate.
+            return JsonSerializer.Serialize(new { id, ok = false, error = ex.Message, phrase = (ex as PlayerError)?.Phrase }, Json);
+        }
+        catch (Exception ex)
+        {
+            // A bug: logged for bug reports, and answered, so the page doesn't wait forever.
+            Log($"App error: {ex}");
+            return JsonSerializer.Serialize(new { id, ok = false, error = ex.Message, phrase = (Phrase?)null }, Json);
         }
     }
 
@@ -111,6 +119,7 @@ public sealed class ApiHost
         "browseLmu" => BrowseLmu(),
         "setLmuRoot" => SetLmuRoot(Str(args, "path")),
         "setPrefs" => SetPrefs(args),
+        "openLocales" => OpenLocales(),
         "setTitleBar" => SetTitleBar(args.GetProperty("dark").GetBoolean()),
         "catalog" => CatalogView(),
         "defaultSeason" => CalendarBuilder.DefaultSeason(_catalog, Str(args, "carClass"), DriverRating.Silver,
@@ -167,7 +176,7 @@ public sealed class ApiHost
     }
 
     private string ResultsFolder => _install?.ResultsFolder
-        ?? throw new InvalidOperationException("Choose your Le Mans Ultimate folder in Settings first.");
+        ?? throw new PlayerError("Choose your Le Mans Ultimate folder in Settings first.");
 
     private object? WatchCareer(string id)
     {
@@ -192,7 +201,49 @@ public sealed class ApiHost
         careers = _store.List(),
         features = new { aiDriverSwaps = Features.AiDriverSwaps },
         version = typeof(ApiHost).Assembly.GetName().Version?.ToString(3),
+        locale = LocaleView(),
     };
+
+    private string Language => _locales.Resolve(_settings.Language, _settings.LmuRoot);
+
+    /// <summary>The language to show and its translations, and the languages to choose from in Settings.</summary>
+    private object LocaleView()
+    {
+        var language = Language;
+        return new
+        {
+            language,
+            choice = _settings.Language,
+            lmuLanguage = Locales.SteamCode(_settings.LmuRoot),
+            available = _locales.Available().Select(l => new { code = l.Code, name = l.Name }),
+            strings = _locales.Strings(language),
+            problems = _locales.Problems,
+        };
+    }
+
+    /// <summary>
+    /// Opens the folder players put translation files in, with a note on where to start the first
+    /// time: the template and instructions are on GitHub.
+    /// </summary>
+    private static object? OpenLocales()
+    {
+        Directory.CreateDirectory(Locales.OwnFolder);
+        var readme = Path.Combine(Locales.OwnFolder, "README.txt");
+        if (!File.Exists(readme))
+        {
+            File.WriteAllText(readme,
+                "Translations for Factory Seat. Each language is one file here, named for its code (de.json, pt-BR.json).\r\n" +
+                "A file for a language the app already has only needs the strings you want to change.\r\n\r\n" +
+                "The template with every string, and how to translate it:\r\n" +
+                "https://github.com/factoryseatlmuapp/factory-seat/tree/main/src/LmuCareer.App/locales\r\n\r\n" +
+                "Restart the app (or pick the language again in Settings) to see your changes.\r\n");
+        }
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Locales.OwnFolder}\"") { UseShellExecute = true });
+        return null;
+    }
+
+    /// <summary>Text the app shows itself, outside the page.</summary>
+    private string T(string text) => _locales.Text(Language, text);
 
     private static object LmuView(string? root) => new
     {
@@ -209,7 +260,7 @@ public sealed class ApiHost
 
     private object BrowseLmu()
     {
-        var dialog = new OpenFolderDialog { Title = "Choose your Le Mans Ultimate folder" };
+        var dialog = new OpenFolderDialog { Title = T("Choose your Le Mans Ultimate folder") };
         if (dialog.ShowDialog(_window) != true) return new { path = (string?)null, valid = false };
         return new { path = dialog.FolderName, valid = LmuInstall.LooksLikeInstall(dialog.FolderName) };
     }
@@ -217,7 +268,7 @@ public sealed class ApiHost
     private object SetLmuRoot(string path)
     {
         if (!LmuInstall.LooksLikeInstall(path))
-            throw new InvalidOperationException("That folder doesn't look like a Le Mans Ultimate install. It should contain Installed and UserData folders.");
+            throw new PlayerError("That folder doesn't look like a Le Mans Ultimate install. It should contain Installed and UserData folders.");
         UseInstall(path);
         _settings.LmuRoot = path;
         _settings.Save();
@@ -227,6 +278,7 @@ public sealed class ApiHost
     private AppSettings SetPrefs(JsonElement args)
     {
         if (args.TryGetProperty("theme", out var theme)) _settings.Theme = theme.GetString() ?? "system";
+        if (args.TryGetProperty("language", out var language)) _settings.Language = language.GetString() is { Length: > 0 } code ? code : "auto";
         if (args.TryGetProperty("soundVolume", out var volume)) _settings.SoundVolume = Math.Clamp(volume.GetDouble(), 0, 1);
         if (args.TryGetProperty("muted", out var muted)) _settings.Muted = muted.GetBoolean();
         if (args.TryGetProperty("checkForUpdates", out var updates)) _settings.CheckForUpdates = updates.GetBoolean();
@@ -287,7 +339,7 @@ public sealed class ApiHost
             Hours: custom.GetProperty("hours").GetDouble(),
             Folder: Str(custom, "folder"),
             Layout: Str(custom, "layout"));
-        if (customEvent.Name.Trim().Length == 0) throw new InvalidOperationException("Give the custom event a name.");
+        if (customEvent.Name.Trim().Length == 0) throw new PlayerError("Give the custom event a name.");
         return CalendarBuilder.RoundFor(_catalog, customEvent, carClass, DriverRating.Silver, minutes);
     }
 
@@ -297,7 +349,7 @@ public sealed class ApiHost
         var carFolder = Str(args, "carFolder");
         var car = _catalog.Cars.FirstOrDefault(c => c.Folder == carFolder) ?? throw new KeyNotFoundException($"No car \"{carFolder}\".");
         var name = Str(args, "name").Trim();
-        if (name.Length == 0) throw new InvalidOperationException("Give the career a name.");
+        if (name.Length == 0) throw new PlayerError("Give the career a name.");
 
         var rounds = args.GetProperty("rounds").EnumerateArray().Select(r => RoundFor(Merge(r, carClass))).ToList();
 
@@ -325,7 +377,7 @@ public sealed class ApiHost
                 Rounds = CalendarBuilder.Number(rounds),
             },
         };
-        if (career.CurrentSeason.Rounds.Count == 0) throw new InvalidOperationException("The season needs at least one round.");
+        if (career.CurrentSeason.Rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
 
         _store.Save(career);
         return new { id = career.Id };
@@ -362,7 +414,8 @@ public sealed class ApiHost
             _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList());
         var guests = GuestDrives.EnsureOffers(career, _catalog, _install);
         var customTeam = CareerActions.RecognizeCustomTeam(career);
-        if (sponsors || guests || customTeam) _store.Save(career);
+        var phrases = CareerActions.AddPhrases(career);
+        if (sponsors || guests || customTeam || phrases) _store.Save(career);
         return CareerView(career);
     }
 
@@ -433,9 +486,9 @@ public sealed class ApiHost
         var career = Load(args);
         var dialog = new SaveFileDialog
         {
-            Title = "Export career",
+            Title = T("Export career"),
             FileName = string.Concat(career.Name.Split(Path.GetInvalidFileNameChars())) + ".career.json",
-            Filter = "Career save (*.career.json)|*.career.json",
+            Filter = T("Career save") + " (*.career.json)|*.career.json",
         };
         if (dialog.ShowDialog(_window) != true) return new { exported = false };
         _store.Export(career.Id, dialog.FileName);
@@ -444,7 +497,11 @@ public sealed class ApiHost
 
     private object ImportCareer()
     {
-        var dialog = new OpenFileDialog { Title = "Import career", Filter = "Career save (*.career.json)|*.career.json|All files|*.*" };
+        var dialog = new OpenFileDialog
+        {
+            Title = T("Import career"),
+            Filter = T("Career save") + " (*.career.json)|*.career.json|" + T("All files") + "|*.*",
+        };
         if (dialog.ShowDialog(_window) != true) return new { imported = false };
         var career = _store.Import(dialog.FileName);
         return new { imported = true, id = career.Id };
@@ -482,6 +539,7 @@ public sealed class ApiHost
         kind = check.Session.Kind,
         verdict = check.Verdict,
         reasons = check.Reasons,
+        wrongCar = check.WrongCar,
         track = check.Session.TrackCourse,
         complete = check.Session.IsComplete,
         player = check.Session.Player is { } p ? new { p.Name, p.CarType, p.CarNumber, p.ClassPosition, p.Status, p.Laps } : null,

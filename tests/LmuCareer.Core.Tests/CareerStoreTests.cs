@@ -69,6 +69,41 @@ public sealed class CareerStoreTests : IDisposable
     }
 
     [Fact]
+    public void Saved_text_keeps_its_phrases_and_saves_from_before_translations_still_load()
+    {
+        var career = CareerWithRace("GT3 rookie", "R1.xml");
+        var reason = Phrase.Of("your win at the {event}", ("event", "Sebring 12 Hours"));
+        career.CurrentSeason.Review = new SeasonReview
+        {
+            Items =
+            [
+                ReputationItem.For(Phrase.Count(2, "{n} podium", "{n} podiums"), 2),
+                ReputationItem.For(Phrase.Of("{sponsor}: {objective}", ("sponsor", "Motul")).With("objective", Phrase.Count(1, "a pole", "{n} poles")), 3),
+            ],
+        };
+        career.Offers = [new TeamOffer { Id = "o1", TeamName = "Sample Racing", Reason = reason.ToString(), ReasonText = reason }];
+        _store.Save(career);
+
+        var loaded = _store.Load(career.Id).Career;
+        var items = loaded.CurrentSeason.Review!.Items;
+        Assert.Equal(["2 podiums", "Motul: a pole"], items.Select(i => i.Label));
+        Assert.Equal(["2 podiums", "Motul: a pole"], items.Select(i => i.Text!.ToString()));
+        Assert.Equal("your win at the Sebring 12 Hours", loaded.Offers[0].ReasonText!.ToString());
+
+        // A 1.0 save: the same text, without the phrases.
+        var path = Directory.GetFiles(Path.Combine(_root, "careers"), "*.career.json").Single();
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!;
+        foreach (var item in json["currentSeason"]!["review"]!["items"]!.AsArray()) item!.AsObject().Remove("text");
+        json["offers"]![0]!.AsObject().Remove("reasonText");
+        File.WriteAllText(path, json.ToJsonString());
+
+        var old = _store.Load(career.Id).Career;
+        Assert.Equal(["2 podiums", "Motul: a pole"], old.CurrentSeason.Review!.Items.Select(i => i.Label));
+        Assert.All(old.CurrentSeason.Review.Items, i => Assert.Null(i.Text));
+        Assert.Null(old.Offers[0].ReasonText);
+    }
+
+    [Fact]
     public void Lists_careers_with_their_progress()
     {
         _store.Save(CareerWithRace("GT3 rookie", "R1.xml"));

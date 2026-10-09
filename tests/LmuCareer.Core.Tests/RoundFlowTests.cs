@@ -54,7 +54,7 @@ public class RoundFlowTests
         var check = Check(session(), minutesAfterArming);
 
         Assert.Equal(MatchVerdict.Ignored, check.Verdict);
-        Assert.Equal([reason], check.Reasons);
+        Assert.Equal([reason], check.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class RoundFlowTests
         var check = RoundMatcher.Check(session, ArmedAt.AddMinutes(45), ArmedRound(), Car, claimedBy: "Hypercar run");
 
         Assert.Equal(MatchVerdict.Ignored, check.Verdict);
-        Assert.Equal(["already counted in the career \"Hypercar run\""], check.Reasons);
+        Assert.Equal(["already counted in the career \"Hypercar run\""], check.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class RoundFlowTests
         Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
         Assert.Equal(
             ["car number #7 for Team, career car is #69", "race length 20 min, briefing says 30", "fuel x1, briefing says x3.5"],
-            check.Reasons);
+            check.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class RoundFlowTests
 
         Assert.Equal(MatchVerdict.Match, elms.Verdict);
         Assert.Equal(MatchVerdict.Ignored, grandPrix.Verdict);
-        Assert.Equal(["wrong track (Circuit de Spa-Francorchamps, layoutSpa)"], grandPrix.Reasons);
+        Assert.Equal(["wrong track (Circuit de Spa-Francorchamps, layoutSpa)"], grandPrix.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public class RoundFlowTests
 
         var learned = RoundMatcher.Check(ligier, ArmedAt.AddHours(1), ArmedRound(), lmp3);
         Assert.Equal(MatchVerdict.NearMiss, learned.Verdict);
-        Assert.Equal(["first race in this car: LMU calls it \"Ligier JS P325\""], learned.Reasons);
+        Assert.Equal(["first race in this car: LMU calls it \"Ligier JS P325\""], learned.Reasons.Select(r => r.ToString()));
         Assert.Equal(MatchVerdict.Ignored, RoundMatcher.Check(gt3, ArmedAt.AddHours(1), ArmedRound(), lmp3).Verdict);
     }
 
@@ -125,7 +125,7 @@ public class RoundFlowTests
         var check = RoundMatcher.Check(race, ArmedAt.AddHours(1), ArmedRound(), noNumber);
 
         Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
-        Assert.Equal(["first race of the season: you raced as #87 for Akkodis ASP Team"], check.Reasons);
+        Assert.Equal(["first race of the season: you raced as #87 for Akkodis ASP Team"], check.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public class RoundFlowTests
         var stock = RoundMatcher.Check(Weekend().Car("Me", player: true, number: "87", team: "Akkodis ASP Team", vehicle: "Akkodis ASP Team 2026 #87:LM").Parse(),
             ArmedAt.AddHours(1), ArmedRound(), custom);
         Assert.Equal(MatchVerdict.NearMiss, stock.Verdict);
-        Assert.Equal(["raced #87 for Akkodis ASP Team, not your custom team car"], stock.Reasons);
+        Assert.Equal(["raced #87 for Akkodis ASP Team, not your custom team car"], stock.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -182,17 +182,17 @@ public class RoundFlowTests
         CareerActions.ChangeCar(career, catalog.Cars.Single(c => c.Folder == "LexusRCF_GT3_2024"));
         Assert.Equal(("Lexus RCF LMGT3", "69"), (career.CurrentSeason.Car.CarType, career.CurrentSeason.Car.CarNumber));
 
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.ThrowsAny<InvalidOperationException>(() =>
             CareerActions.ChangeCar(career, catalog.Cars.Single(c => c.Folder == "Toyota_GR10_2023")));
 
         career.CurrentSeason.Rounds[0].State = RoundState.Completed;
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.ThrowsAny<InvalidOperationException>(() =>
             CareerActions.ChangeCar(career, catalog.Cars.Single(c => c.Folder == "BMW_M4_LMGT3_2023")));
 
         // From the second season the car comes with the seat, even before a round counts.
         career.PastSeasons.Add(career.CurrentSeason);
         career.CurrentSeason = new Season { Number = 2, Car = career.CurrentSeason.Car, Rounds = [new Round { Number = 1 }] };
-        Assert.Throws<InvalidOperationException>(() =>
+        Assert.ThrowsAny<InvalidOperationException>(() =>
             CareerActions.ChangeCar(career, catalog.Cars.Single(c => c.Folder == "BMW_M4_LMGT3_2023")));
     }
 

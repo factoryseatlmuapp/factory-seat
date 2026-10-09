@@ -130,16 +130,16 @@ public static class Sponsorship
 
     public static void Sign(Season season, string sponsorId)
     {
-        if (!CanSign(season)) throw new InvalidOperationException("Sponsors sign before the season's first round counts.");
+        if (!CanSign(season)) throw new PlayerError("Sponsors sign before the season's first round counts.");
         var offer = season.SponsorOffers?.FirstOrDefault(o => o.SponsorId == sponsorId) ?? throw new KeyNotFoundException("That deal isn't on offer.");
         if (season.Sponsors.Any(s => s.SponsorId == sponsorId)) return;
-        if (season.Sponsors.Count >= MaxDeals) throw new InvalidOperationException($"You can carry {MaxDeals} personal sponsors. Drop one first.");
+        if (season.Sponsors.Count >= MaxDeals) throw new PlayerError("You can carry {n} personal sponsors. Drop one first.", ("n", MaxDeals));
         season.Sponsors.Add(offer);
     }
 
     public static void Drop(Season season, string sponsorId)
     {
-        if (!CanSign(season)) throw new InvalidOperationException("The season has started; the deal runs to the end of it.");
+        if (!CanSign(season)) throw new PlayerError("The season has started; the deal runs to the end of it.");
         season.Sponsors.RemoveAll(s => s.SponsorId == sponsorId);
     }
 
@@ -171,17 +171,19 @@ public static class Sponsorship
     }
 
     /// <summary>The objective in words, e.g. "3 podiums" or "a podium at the Le Mans 24 Hours".</summary>
-    public static string Describe(SponsorDeal deal) => deal.Objective switch
+    public static Phrase Describe(SponsorDeal deal) => deal.Objective switch
     {
-        ObjectiveKind.FinishEveryRound => "finish every round",
-        ObjectiveKind.Podiums => deal.Count == 1 ? "a podium" : $"{deal.Count} podiums",
-        ObjectiveKind.Wins => deal.Count == 1 ? "a class win" : $"{deal.Count} class wins",
-        ObjectiveKind.Poles => deal.Count == 1 ? "a pole" : $"{deal.Count} poles",
-        ObjectiveKind.PodiumAt => $"a podium at the {deal.EventName}",
-        ObjectiveKind.ChampionshipTop => deal.Count == 1 ? "win the championship" : $"top {deal.Count} in the championship",
-        ObjectiveKind.CleanSeason => "a clean season (no DQ, at most one penalty)",
-        ObjectiveKind.BeatRival => $"beat {deal.Rival} in the championship",
-        _ => deal.Objective.ToString(),
+        ObjectiveKind.FinishEveryRound => Phrase.Of("finish every round"),
+        ObjectiveKind.Podiums => Phrase.Count(deal.Count, "a podium", "{n} podiums"),
+        ObjectiveKind.Wins => Phrase.Count(deal.Count, "a class win", "{n} class wins"),
+        ObjectiveKind.Poles => Phrase.Count(deal.Count, "a pole", "{n} poles"),
+        ObjectiveKind.PodiumAt => Phrase.Of("a podium at the {event}", ("event", deal.EventName)),
+        ObjectiveKind.ChampionshipTop => deal.Count == 1
+            ? Phrase.Of("win the championship")
+            : Phrase.Of("top {n} in the championship", ("n", deal.Count)),
+        ObjectiveKind.CleanSeason => Phrase.Of("a clean season (no DQ, at most one penalty)"),
+        ObjectiveKind.BeatRival => Phrase.Of("beat {rival} in the championship", ("rival", deal.Rival)),
+        _ => Phrase.Of(deal.Objective.ToString()),
     };
 
     /// <summary>Where the objective stands now. At the end of the season nothing is left in progress.</summary>

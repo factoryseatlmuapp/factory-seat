@@ -3,14 +3,15 @@ import { h, put, clear, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, toast } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
 import { packChecklist } from "./packs.js";
+import { t, mark } from "../i18n.js";
 
 // New career: Driver, Content (DLC owned), Car, then the season builder.
 
 const TABS = [
-  { id: "driver", label: "Driver" },
-  { id: "content", label: "Content" },
-  { id: "car", label: "Car" },
-  { id: "season", label: "Season" },
+  { id: "driver", label: mark("Driver") },
+  { id: "content", label: mark("Content") },
+  { id: "car", label: mark("Car") },
+  { id: "season", label: mark("Season") },
 ];
 
 const CLASSES = [
@@ -41,7 +42,7 @@ export async function newCareerView(view) {
 
   function show(next) {
     tab = next;
-    setChrome({ crumb: "New career", back: "#/careers", tabs: TABS, active: tab, onTab: show });
+    setChrome({ crumb: t("New career"), back: "#/careers", tabs: TABS.map((x) => ({ ...x, label: t(x.label) })), active: tab, onTab: show });
     clear(view);
     ({ driver, content, car, season })[tab]();
   }
@@ -50,26 +51,26 @@ export async function newCareerView(view) {
     return h("div", { class: "row", style: { marginTop: "28px" } }, h("div", { class: "spacer" }), ...buttons);
   }
 
-  const next = (to) => h("button", { class: "btn", onclick: () => show(to) }, "Continue");
+  const next = (to) => h("button", { class: "btn", onclick: () => show(to) }, t("Continue"));
 
   // ---------- Driver ----------
 
   function driver() {
-    const name = h("input", { class: "input big", value: draft.name, placeholder: "e.g. My GT3 career", maxlength: "40",
+    const name = h("input", { class: "input big", value: draft.name, placeholder: t("e.g. My GT3 career"), maxlength: "40",
       oninput: (e) => { draft.name = e.target.value; } });
-    const driverName = h("input", { class: "input", value: draft.driverName, placeholder: "As shown in LMU", maxlength: "60",
+    const driverName = h("input", { class: "input", value: draft.driverName, placeholder: t("As shown in LMU"), maxlength: "60",
       oninput: (e) => { draft.driverName = e.target.value; } });
 
-    put(view, 
+    put(view,
       h("div", { class: "hero" },
-        h("div", { class: "hero-mark" }, "Driver"),
+        h("div", { class: "hero-mark" }, t("Driver")),
         h("div", {},
-          h("h1", { class: "hero-title" }, "New career"),
-          h("div", { class: "hero-facts" }, "You start as a Silver-rated rookie. Results earn you better seats."))),
+          h("h1", { class: "hero-title" }, t("New career")),
+          h("div", { class: "hero-facts" }, t("You start as a Silver-rated rookie. Results earn you better seats.")))),
       h("div", { class: "card stack", style: { maxWidth: "720px" } },
-        h("div", { class: "field" }, h("label", {}, "Career name"), name),
-        h("div", { class: "field" }, h("label", {}, "Your driver name in LMU"), driverName,
-          h("small", { class: "faint" }, "Optional. Shown in the standings; races are matched by your car, not your name."))),
+        h("div", { class: "field" }, h("label", {}, t("Career name")), name),
+        h("div", { class: "field" }, h("label", {}, t("Your driver name in LMU")), driverName,
+          h("small", { class: "faint" }, t("Optional. Shown in the standings; races are matched by your car, not your name.")))),
       footer(next("content")));
     name.focus();
   }
@@ -81,13 +82,13 @@ export async function newCareerView(view) {
 
     put(view,
       h("div", { class: "hero" },
-        h("div", { class: "hero-mark" }, "Content"),
+        h("div", { class: "hero-mark" }, t("Content")),
         h("div", {},
-          h("h1", { class: "hero-title" }, "What do you own?"),
-          h("div", { class: "hero-facts" }, "Tick the DLC packs you've bought. The default calendar and car list only use what you own."))),
+          h("h1", { class: "hero-title" }, t("What do you own?")),
+          h("div", { class: "hero-facts" }, t("Tick the DLC packs you've bought. The default calendar and car list only use what you own.")))),
       h("div", { class: "notice info", style: { marginBottom: "18px", maxWidth: "820px" } },
-        h("b", {}, "Why the app can't check this itself"),
-        h("div", {}, "LMU installs every pack's files whether you own it or not, so they're all on your PC either way. If you pick a track or car you don't own, you won't be able to run that round and your career can't move past it.")),
+        h("b", {}, t("Why the app can't check this itself")),
+        h("div", {}, t("LMU installs every pack's files whether you own it or not, so they're all on your PC either way. If you pick a track or car you don't own, you won't be able to run that round and your career can't move past it."))),
       h("div", { style: { maxWidth: "820px" } }, packChecklist(cat, draft.ownedPacks, change)),
       footer(next("car")));
   }
@@ -108,21 +109,21 @@ export async function newCareerView(view) {
     const number = h("input", { class: "input big", value: draft.carNumber, maxlength: "3", style: { width: "110px" },
       placeholder: "—",
       oninput: (e) => { draft.carNumber = e.target.value.replace(/\D/g, ""); e.target.value = draft.carNumber; } });
-    const team = h("input", { class: "input", value: draft.teamName, maxlength: "60", placeholder: "Learned from your first race",
+    const team = h("input", { class: "input", value: draft.teamName, maxlength: "60", placeholder: t("Learned from your first race"),
       oninput: (e) => { draft.teamName = e.target.value; } });
 
-    put(view, 
+    put(view,
       h("div", { class: "hero" },
-        h("div", { class: "hero-mark" }, "Car"),
+        h("div", { class: "hero-mark" }, t("Car")),
         h("div", {},
-          h("h1", { class: "hero-title" }, "Your first seat"),
-          h("div", { class: "hero-facts" }, "Careers start in LMGT3 and move up through team offers between seasons. Want to start higher? Any class works."))),
+          h("h1", { class: "hero-title" }, t("Your first seat")),
+          h("div", { class: "hero-facts" }, t("Careers start in LMGT3 and move up through team offers between seasons. Want to start higher? Any class works.")))),
       h("div", { class: "row", style: { marginBottom: "18px" } },
         CLASSES.map((c) => {
           const locked = c.id === "LMP3" && !hasLmp3;
           return h("button", {
             class: "class-tile" + (c.id === draft.carClass ? " active" : ""),
-            disabled: locked, title: locked ? "LMP3 cars come with the European Le Mans packs" : null,
+            disabled: locked, title: locked ? t("LMP3 cars come with the European Le Mans packs") : null,
             onclick: () => pickClass(c.id),
           }, h("b", {}, chip(c.id).textContent), h("small", {}, c.label));
         })),
@@ -136,16 +137,15 @@ export async function newCareerView(view) {
           },
             h("div", { class: "row" }, h("h3", {}, c.name), h("div", { class: "spacer" }), chip(c.class)),
             h("div", { class: "faint", style: { marginTop: "6px" } },
-              owned ? (c.carTypes.length ? c.carTypes.join(" / ") : "LMU's name for it is learned on your first race")
-                : `Needs ${cat.packs.find((p) => p.id === c.pack)?.name ?? "a DLC pack"}`));
+              owned ? (c.carTypes.length ? c.carTypes.join(" / ") : t("LMU's name for it is learned on your first race"))
+                : t("Needs {pack}", { pack: cat.packs.find((p) => p.id === c.pack)?.name ?? t("a DLC pack") })));
         })),
       h("div", { class: "grid-2", style: { marginTop: "24px", maxWidth: "820px" } },
-        h("div", { class: "field" }, h("label", {}, "Car number (optional)"), number,
+        h("div", { class: "field" }, h("label", {}, t("Car number (optional)")), number,
           h("small", { class: "faint" },
-            "Have a custom team in Race Control? Enter its number. Racing a real team's livery? Leave it blank: " +
-            "your first race tells the app which number and team you drive for.")),
-        h("div", { class: "field" }, h("label", {}, "Team name (optional)"), team,
-          h("small", { class: "faint" }, "Comes from LMU's results either way; this only fills it in early."))),
+            t("Have a custom team in Race Control? Enter its number. Racing a real team's livery? Leave it blank: your first race tells the app which number and team you drive for."))),
+        h("div", { class: "field" }, h("label", {}, t("Team name (optional)")), team,
+          h("small", { class: "faint" }, t("Comes from LMU's results either way; this only fills it in early.")))),
       footer(next("season")));
   }
 
@@ -157,15 +157,15 @@ export async function newCareerView(view) {
       carClass: draft.carClass,
       ownedPacks: draft.ownedPacks,
       draft,
-      mark: "Season 1",
-      confirmLabel: "Create career",
+      mark: t("Season {number}", { number: 1 }),
+      confirmLabel: t("Create career"),
       onConfirm: create,
     });
   }
 
   async function create(rounds) {
-    if (!draft.name.trim()) { toast("Give the career a name on the Driver tab.", { error: true }); return show("driver"); }
-    if (!draft.carFolder) { toast("Pick a car on the Car tab.", { error: true }); return show("car"); }
+    if (!draft.name.trim()) { toast(t("Give the career a name on the Driver tab."), { error: true }); return show("driver"); }
+    if (!draft.carFolder) { toast(t("Pick a car on the Car tab."), { error: true }); return show("car"); }
 
     const result = await attempt(call("createCareer", {
       name: draft.name,

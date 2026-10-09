@@ -18,7 +18,7 @@ window.chrome?.webview?.addEventListener("message", (event) => {
   if (!waiting) return;
   pending.delete(reply.id);
   if (reply.ok) waiting.resolve(reply.result);
-  else waiting.reject(new Error(reply.error));
+  else waiting.reject(Object.assign(new Error(reply.error), { phrase: reply.phrase ?? null }));
 });
 
 /** Subscribes to an app event; returns a function that unsubscribes. */

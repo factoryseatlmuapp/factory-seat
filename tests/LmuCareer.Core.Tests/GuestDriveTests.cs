@@ -98,7 +98,7 @@ public class GuestDriveTests
 
             var evaluation = CareerActions.CheckArmedRound(store, career, results.FullName);
             Assert.Equal(RoundStatus.NeedsConfirmation, evaluation.Status);
-            Assert.Equal(["first race of the season: you raced as #59 for " + offer.TeamName], evaluation.Race!.Reasons);
+            Assert.Equal(["first race of the season: you raced as #59 for " + offer.TeamName], evaluation.Race!.Reasons.Select(r => r.ToString()));
 
             CareerActions.AcceptArmedRound(store, career, evaluation, takeDnf: false, acceptDifferences: true, DateTimeOffset.Now);
 
@@ -107,7 +107,7 @@ public class GuestDriveTests
 
             // A guest drive doesn't start the season: sponsors can still sign, but it can't be withdrawn now.
             Assert.True(Sponsorship.CanSign(career.CurrentSeason));
-            Assert.Throws<InvalidOperationException>(() => GuestDrives.Withdraw(career, offer.Id));
+            Assert.ThrowsAny<InvalidOperationException>(() => GuestDrives.Withdraw(career, offer.Id));
         }
         finally
         {
