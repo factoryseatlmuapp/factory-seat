@@ -196,8 +196,10 @@ internal static class CareerCommands
     {
         var career = Find(store, name);
         var round = career.CurrentSeason.ArmedRound ?? throw Fail("No round is armed; run `career arm` first.");
-        var evaluation = CareerActions.CheckArmedRound(store, career, dir);
-        Console.WriteLine($"Round {round.Number} ({round.EventName}): {evaluation.Status}");
+        // LMU keeps race weekend saves at UserData\Saves\Race Weekend Saves, next to UserData\Log\Results.
+        var saves = Path.GetFullPath(Path.Combine(dir, "..", "..", "Saves", "Race Weekend Saves"));
+        var evaluation = CareerActions.CheckArmedRound(store, career, dir, Directory.Exists(saves) ? saves : null);
+        Console.WriteLine($"Round {round.Number} ({round.EventName}): {evaluation.Status}{(evaluation.SavedAs is { } savedAs ? $" (saved as \"{savedAs}\")" : "")}");
         if (evaluation.Race is { } race)
             Console.WriteLine($"  race:       {race.FileName} ({race.Verdict}{(race.Reasons.Count > 0 ? ": " + string.Join("; ", race.Reasons) : "")})");
         if (evaluation.Qualifying is { } quali)

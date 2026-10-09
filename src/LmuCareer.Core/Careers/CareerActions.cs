@@ -7,17 +7,15 @@ namespace LmuCareer.Core.Careers;
 /// <summary>The steps of running a round that touch the results folder and the save.</summary>
 public static class CareerActions
 {
-    /// <summary>A race-weekend save this long before a race that ended early means "saved to finish later".</summary>
-    public static readonly TimeSpan SaveWindow = TimeSpan.FromMinutes(10);
-
     /// <summary>
     /// Checks every results file written since the armed round was started. Older files are never
     /// read: they can't count.
     /// </summary>
     /// <param name="savesFolder">
     /// LMU's race weekend saves (UserData\Saves\Race Weekend Saves). LMU logs a race saved to
-    /// finish later exactly like one that was quit, so a save written just before the results file
-    /// is what tells them apart.
+    /// finish later exactly like one that was quit, so a save written since the round started is
+    /// what tells them apart, however long after it the player left (sat in the menus, or loaded
+    /// the save another day and backed out without saving again).
     /// </param>
     public static RoundEvaluation CheckArmedRound(CareerStore store, Career career, string resultsFolder, string? savesFolder = null)
     {
@@ -69,14 +67,13 @@ public static class CareerActions
         return evaluation;
     }
 
-    /// <summary>The race weekend save written since the round started and shortly before the race's results, by name.</summary>
+    /// <summary>The newest race weekend save written since the round started and before the race's results, by name.</summary>
     private static string? SaveBefore(string? savesFolder, DateTimeOffset armedAt, DateTimeOffset raceWrittenAt)
     {
         if (savesFolder is null || !Directory.Exists(savesFolder)) return null;
         var save = new DirectoryInfo(savesFolder).EnumerateFiles("*.json")
             .Where(f => f.LastWriteTimeUtc >= armedAt.UtcDateTime
-                && f.LastWriteTimeUtc <= raceWrittenAt.UtcDateTime.AddMinutes(1)
-                && f.LastWriteTimeUtc >= raceWrittenAt.UtcDateTime - SaveWindow)
+                && f.LastWriteTimeUtc <= raceWrittenAt.UtcDateTime.AddMinutes(1))
             .MaxBy(f => f.LastWriteTimeUtc);
         if (save is null) return null;
 

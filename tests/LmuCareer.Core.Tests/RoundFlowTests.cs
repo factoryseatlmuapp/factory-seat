@@ -198,8 +198,11 @@ public class RoundFlowTests
 
     [Theory]
     [InlineData(-2, "SavedToResume")]   // saved in the pits two minutes before leaving: finish it later
+    [InlineData(-30, "SavedToResume")]  // saved, then sat in the menus half an hour before leaving
+    [InlineData(-85, "SavedToResume")]  // loaded an earlier save of this weekend and backed out without saving again
     [InlineData(null, "QuitEarly")]     // no save at all: a real quit
     [InlineData(-120, "QuitEarly")]     // only a save from before the weekend started
+    [InlineData(5, "QuitEarly")]        // a save written after the race's results belongs to something later
     public void A_race_saved_part_way_waits_to_be_finished_instead_of_asking_for_a_dnf(int? saveMinutesBeforeQuit, string expected)
     {
         var root = Directory.CreateTempSubdirectory("lmucareer-save-");
