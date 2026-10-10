@@ -3,7 +3,7 @@ import { h, put, clear, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, toast } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
 import { packChecklist } from "./packs.js";
-import { t, mark } from "../i18n.js";
+import { t, lmu, mark } from "../i18n.js";
 
 // New career: Driver, Content (DLC owned), Car, then the season builder.
 
@@ -158,6 +158,7 @@ export async function newCareerView(view) {
       ownedPacks: draft.ownedPacks,
       draft,
       mark: t("Season {number}", { number: 1 }),
+      note: t("Factory Seat plans each race; you set it up and drive it in LMU's {mode}, and the result comes back here.", { mode: lmu("Race Weekend") }),
       confirmLabel: t("Create career"),
       onConfirm: create,
     });

@@ -209,7 +209,7 @@ export async function careerView(view, id, tab) {
             round.pointsWeight !== 1 && !round.guest ? h("span", {}, t("Points x{n}", { n: number(round.pointsWeight) })) : null)),
         map ? h("div", { class: "spacer" }) : null,
         map ? h("figure", { class: "hero-map" }, trackSvg(map), h("figcaption", {}, maps.attribution)) : null),
-      round.guest ? guestNotice(round) : null,
+      round.guest ? guestNotice(round) : firstRace(isArmed),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "row", style: { alignItems: "baseline", marginBottom: "14px" } },
@@ -230,13 +230,37 @@ export async function careerView(view, id, tab) {
             setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
             setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") }))),
         h("div", {},
-          h("div", { class: "section-title" }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
+          h("div", { class: "section-title" }, t("Race weekend")),
+          weekendPanel(round, isArmed),
+          h("div", { class: "section-title", style: { marginTop: "24px" } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
           pacePanel(),
-          h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Race weekend")),
-          weekendPanel(round, isArmed),
           sponsorPanel(),
           guestPanel())));
+  }
+
+  /** Until a career's first race counts: the app plans the race, the player sets it up and drives it in LMU. */
+  function firstRace(isArmed) {
+    const key = `intro:${id}`;
+    const hidden = (() => { try { return localStorage.getItem(key) === "hidden"; } catch { return false; } })();
+    if (hidden || !canChangeCar()) return null;
+
+    const card = h("div", { class: "card quiet", style: { marginBottom: "24px" } },
+      h("div", { class: "row", style: { marginBottom: "6px" } },
+        h("h3", {}, t("Your first race in 3 steps")),
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost small", onclick: () => {
+          try { localStorage.setItem(key, "hidden"); } catch { /* shown again next time */ }
+          card.remove();
+        } }, t("Got it"))),
+      h("div", { class: "grid-3" },
+        [
+          [isArmed ? "✓" : 1, t("Start the race weekend"), t("Press {button} on the right. Only races that finish after that count.", { button: t("Start race weekend") })],
+          [2, t("Set it up in LMU yourself"), t("Factory Seat doesn't change the game. In LMU's {mode}, pick the circuit, car and settings listed below, and tick each one off.", { mode: lmu("Race Weekend") })],
+          [3, t("Race, and leave this app open"), t("When the race ends, the result pops up here. Long race? Save it in LMU and finish it another day.")],
+        ].map(([n, title, text]) => h("div", { class: "checklist-step" },
+          h("div", { class: "n" }, n), h("div", {}, h("b", {}, title), h("div", { class: "muted" }, text))))));
+    return card;
   }
 
   function carRow(car, tick) {
@@ -430,7 +454,7 @@ export async function careerView(view, id, tab) {
       h("div", { class: "faint", style: { fontSize: "12px", marginTop: "2px" } }, progressText(d)),
       h("div", { class: "row", style: { marginTop: "8px" } },
         h("button", { class: "toggle" + (d.deal.runningLivery ? " on" : ""), "data-sound": "none", onclick: setLivery,
-          title: t("Paint your custom team car in their colours. Counts if you race that car in at least half the rounds.") }),
+          title: t("Racing your custom team car in their colours? Turn this on. You paint the livery yourself in LMU; it counts if you race that car in at least half the rounds.") }),
         h("span", { class: "faint", style: { fontSize: "12px" } }, t("Running their livery (+1)"),
           data.liveryRounds?.counted
             ? " · " + t("custom car {a} of {b} rounds", { a: data.liveryRounds.custom, b: data.liveryRounds.counted }) : ""),

@@ -16,7 +16,7 @@ const SHORT_SEASON = 6;
  * onConfirm receives the round specs to send to the app: [{ eventId | custom, minutes }].
  */
 export async function seasonBuilder(view, options) {
-  const { cat, carClass, ownedPacks, draft, mark: heroMark, intro = null, confirmLabel, onConfirm } = options;
+  const { cat, carClass, ownedPacks, draft, mark: heroMark, intro = null, note = null, confirmLabel, onConfirm } = options;
   const events = new Map(cat.events.map((e) => [e.id, e]));
   const tracks = new Map(cat.tracks.map((track) => [track.folder, track]));
   const owns = (pack) => pack === null || pack === "base" || ownedPacks.includes(pack);
@@ -111,7 +111,9 @@ export async function seasonBuilder(view, options) {
       h("button", { class: "btn ghost small", onclick: addEvent }, t("+ Add event"))),
     list,
     summary,
-    h("div", { class: "row", style: { marginTop: "28px" } }, h("div", { class: "spacer" }),
+    h("div", { class: "row", style: { marginTop: "28px" } },
+      note ? h("div", { class: "muted", style: { maxWidth: "560px" } }, note) : null,
+      h("div", { class: "spacer" }),
       h("button", { class: "btn", "data-sound": "confirm", onclick: confirm }, confirmLabel)));
   render();
 

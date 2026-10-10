@@ -3,6 +3,8 @@
 ## 1.1.0 (in progress)
 
 - Factory Seat speaks your language: Korean, German, French, Spanish and Brazilian Portuguese, picked from LMU's own language in Steam (or in Settings › Language). Briefings use the exact names LMU gives its settings in that language. Translations are files anyone can fix or add to; see `src/LmuCareer.App/locales`. Thanks to arch642 for the Korean translation.
+- A new career's briefing opens with "Your first race in 3 steps": start the race weekend here, set the race up yourself in LMU's Race Weekend, then race with the app open. It goes away once your first race counts, or when you press Got it. The Race weekend panel (the Start race weekend button) is now at the top of the right column.
+- Adding your own brand, and the sponsor livery switch, now say plainly that Factory Seat doesn't paint cars: you make the livery in LMU, and the brand brings its sponsor deals.
 - The briefing has a tick box on each setting, so you can tick them off as you set them in LMU, with a count of how many are done. It's only a helper: nothing waits on it. Ticks are kept until the round counts.
 - The briefing's Fuel Usage and Tyre Wear now say "Real" at x1, as LMU's event screen does, and point to that screen.
 - A race you saved to finish later is recognised however long you sat in the menus before leaving, and when you load the save another day and back out without saving again. Before, it had to be saved within 10 minutes of leaving, or you got asked whether to rerun or take a DNF.

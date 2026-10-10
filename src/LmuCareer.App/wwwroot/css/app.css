@@ -7,6 +7,8 @@
 :root:lang(ja) { --cjk: "Yu Gothic UI", "Meiryo UI", "Malgun Gothic", system-ui, sans-serif; }
 :root:lang(zh-CN) { --cjk: "Microsoft YaHei UI", "Malgun Gothic", "Yu Gothic UI", system-ui, sans-serif; }
 :root:lang(zh-TW) { --cjk: "Microsoft JhengHei UI", "Microsoft YaHei UI", system-ui, sans-serif; }
+/* Korean wraps between words, as it's written with spaces; the default breaks words mid-syllable run. */
+:root:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
 
 /* ---------- Theme tokens ---------- */
 

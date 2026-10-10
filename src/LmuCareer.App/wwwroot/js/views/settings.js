@@ -158,6 +158,7 @@ export async function openSettings() {
     showModal([
       h("h2", {}, brand ? t("Edit your brand") : t("Add your own brand")),
       h("p", { class: "muted" }, t("A sponsor for a livery you've designed. It joins the sponsor pool and calls when you're in a car it suits. Pick no cars and it suits any car.")),
+      h("p", { class: "faint" }, t("Factory Seat doesn't paint cars. You make the livery yourself in LMU; adding the brand here only brings its sponsor deals.")),
       h("div", { class: "grid-2" },
         h("div", { class: "field" }, h("label", {}, t("Brand")), name),
         h("div", { class: "field" }, h("label", {}, t("Home region")), region)),
