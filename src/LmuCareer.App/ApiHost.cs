@@ -161,10 +161,9 @@ public sealed class ApiHost
     private object? CheckForUpdate()
     {
         if (!_settings.CheckForUpdates) return null;
-        var current = typeof(ApiHost).Assembly.GetName().Version ?? new Version(0, 0);
         _ = Task.Run(async () =>
         {
-            if (await Updates.LatestRelease() is not { } latest || latest.Version <= current) return;
+            if (await Updates.LatestRelease() is not { } latest || !Updates.IsNewer(latest.Version)) return;
             _window.Dispatcher.Invoke(() => _window.PostEvent(JsonSerializer.Serialize(new
             {
                 @event = "updateAvailable",
@@ -201,7 +200,7 @@ public sealed class ApiHost
         detectedLmu = _install is null ? DetectLmu() : null,
         careers = _store.List(),
         features = new { aiDriverSwaps = Features.AiDriverSwaps },
-        version = typeof(ApiHost).Assembly.GetName().Version?.ToString(3),
+        version = Updates.CurrentLabel,
         locale = LocaleView(),
     };
 
@@ -441,7 +440,7 @@ public sealed class ApiHost
     {
         try
         {
-            BriefingFile.For(career, ContentCatalog.Default, typeof(ApiHost).Assembly.GetName().Version?.ToString(3), DateTimeOffset.Now)
+            BriefingFile.For(career, ContentCatalog.Default, Updates.CurrentLabel, DateTimeOffset.Now)
                 .Write(CareerStore.DefaultRoot);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
