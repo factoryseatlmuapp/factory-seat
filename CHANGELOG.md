@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.0 (in progress)
+## 1.1.0
 
 - Factory Seat speaks your language: Korean, German, French, Spanish and Brazilian Portuguese, picked from LMU's own language in Steam (or in Settings › Language). Briefings use the exact names LMU gives its settings in that language. Translations are files anyone can fix or add to; see `src/LmuCareer.App/locales`. Thanks to arch642 for the Korean translation and review.
 - A new career's briefing opens with "Your first race in 3 steps": start the race weekend here, set the race up yourself in LMU's Race Weekend, then race with the app open. It goes away once your first race counts, or when you press Got it. The Race weekend panel (the Start race weekend button) is now at the top of the right column.
