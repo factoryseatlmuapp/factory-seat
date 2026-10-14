@@ -93,21 +93,57 @@ public class GuestDriveTests
                 Fuel = round.FuelMultiplier,
                 Tires = round.TireMultiplier,
             }
-                .Car("Me", carClass: round.GuestCar.CarClass, carType: guestCarType, player: true, number: "59", team: offer.TeamName)
+                .Car("Me", carClass: round.GuestCar.CarClass, carType: guestCarType, player: true, number: offer.Numbers[^1], team: offer.TeamName)
                 .Build().Save(Path.Combine(results.FullName, "R1.xml"));
 
+            // The team's own number is the right car: nothing to confirm (issue #10).
             var evaluation = CareerActions.CheckArmedRound(store, career, results.FullName);
-            Assert.Equal(RoundStatus.NeedsConfirmation, evaluation.Status);
-            Assert.Equal(["first race of the season: you raced as #59 for " + offer.TeamName], evaluation.Race!.Reasons.Select(r => r.ToString()));
+            Assert.Equal(RoundStatus.Ready, evaluation.Status);
 
-            CareerActions.AcceptArmedRound(store, career, evaluation, takeDnf: false, acceptDifferences: true, DateTimeOffset.Now);
+            CareerActions.AcceptArmedRound(store, career, evaluation, takeDnf: false, acceptDifferences: false, DateTimeOffset.Now);
 
-            Assert.Equal("59", round.GuestCar!.CarNumber);
+            Assert.Equal(offer.Numbers[^1], round.GuestCar!.CarNumber);
             Assert.Equal(seasonCar, career.CurrentSeason.Car);
 
             // A guest drive doesn't start the season: sponsors can still sign, but it can't be withdrawn now.
             Assert.True(Sponsorship.CanSign(career.CurrentSeason));
             Assert.ThrowsAny<InvalidOperationException>(() => GuestDrives.Withdraw(career, offer.Id));
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void A_guest_race_under_another_number_asks_first()
+    {
+        var root = Directory.CreateTempSubdirectory("lmucareer-guest-");
+        try
+        {
+            var store = new CareerStore(Path.Combine(root.FullName, "saves"));
+            var results = Directory.CreateDirectory(Path.Combine(root.FullName, "Results"));
+            var career = Upcoming(50);
+            GuestDrives.EnsureOffers(career, Catalog, install: null, seed: 1);
+            var offer = career.CurrentSeason.GuestOffers!.Single(o => o.EventId == "daytona-24");
+            var round = GuestDrives.Accept(career, offer.Id, minutes: 30, Catalog);
+            RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now.AddMinutes(-5));
+
+            new ResultsXml
+            {
+                Course = "Daytona International Speedway",
+                TrackData = @"C:\LMU\Installed\Locations\Daytona_2026\1.0\layoutDaytona.mas",
+                RaceMinutes = round.RaceMinutes,
+                Fuel = round.FuelMultiplier,
+                Tires = round.TireMultiplier,
+            }
+                .Car("Me", carClass: round.GuestCar!.CarClass, carType: round.GuestCar.CarType, player: true, number: "999", team: "Someone Else")
+                .Build().Save(Path.Combine(results.FullName, "R1.xml"));
+
+            var evaluation = CareerActions.CheckArmedRound(store, career, results.FullName);
+            Assert.Equal(RoundStatus.NeedsConfirmation, evaluation.Status);
+            Assert.Equal([$"raced #999, {offer.TeamName} runs #{string.Join(" / #", offer.Numbers)}"],
+                evaluation.Race!.Reasons.Select(r => r.ToString()));
         }
         finally
         {

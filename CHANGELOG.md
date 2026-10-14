@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- A guest drive raced in the team's car, under its number, now counts straight away. Before, the first guest race asked you to confirm "first race of the season: you raced as #…", because the guest car didn't have a number yet. Raced under another number, it now says which numbers the team runs. (#10)
+- When a team from the class above calls you after a big result, you still get an offer from a team in your own class at the end of the season. Before, that call could take the only seat in your class, so a promoted driver whose team didn't keep them saw only step-up offers.
+
 ## 1.1.0
 
 - Factory Seat speaks your language: Korean, German, French, Spanish and Brazilian Portuguese, picked from LMU's own language in Steam (or in Settings › Language). Briefings use the exact names LMU gives its settings in that language. Translations are files anyone can fix or add to; see `src/LmuCareer.App/locales`. Thanks to arch642 for the Korean translation and review.

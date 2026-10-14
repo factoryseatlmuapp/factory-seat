@@ -82,7 +82,14 @@ public static class RoundMatcher
         var number = ("number", (object?)player.CarNumber);
         var team = ("team", (object?)player.TeamName);
         var hasTeam = player.TeamName.Length > 0;
-        if (car.CarNumber.Length == 0)
+        if (round.Guest && car.CarNumber.Length == 0 && round.GuestNumbers.Count > 0)
+        {
+            // A guest drive is in a real team's car: any of its numbers on LMU's grid is the right livery.
+            if (!round.GuestNumbers.Contains(player.CarNumber))
+                differences.Add(Phrase.Of("raced #{number}, {team} runs #{numbers}", number,
+                    ("team", car.TeamName), ("numbers", string.Join(" / #", round.GuestNumbers))));
+        }
+        else if (car.CarNumber.Length == 0)
             differences.Add(hasTeam
                 ? Phrase.Of("first race of the season: you raced as #{number} for {team}", number, team)
                 : Phrase.Of("first race of the season: you raced as #{number}", number));

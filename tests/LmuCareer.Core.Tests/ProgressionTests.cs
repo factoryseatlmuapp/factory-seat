@@ -275,6 +275,24 @@ public class ProgressionTests
     }
 
     [Fact]
+    public void A_step_up_team_calling_never_takes_away_the_seat_in_your_own_class()
+    {
+        // Promoted on reputation, let go by the team, and an LMP3 team noticed a big win: that call
+        // used to fill the one GT3 seat on offer, leaving only step-up seats.
+        var career = CareerWith(40, "GT3", Season(6, _ => 10));
+        career.Interest.Add(new TeamInterest
+        {
+            TeamName = "Sample Prototypes", CarClass = "LMP3", CarFolder = "Ligier_JSP325_2025", Tier = 2, Reason = "your win at the Le Mans 24 Hours",
+        });
+
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        Assert.DoesNotContain(career.Offers, o => o.Kind == OfferKind.ReSign);
+        Assert.Contains(career.Offers, o => o.Kind == OfferKind.Promotion && o.TeamName == "Sample Prototypes");
+        Assert.Contains(career.Offers, o => o.Kind == OfferKind.Move && o.CarClass == "GT3");
+    }
+
+    [Fact]
     public void The_pace_check_compares_best_laps_with_the_fastest_ai_in_class()
     {
         // In the test races best laps are 100.5 + position: a winner is 1 s quicker than P2.

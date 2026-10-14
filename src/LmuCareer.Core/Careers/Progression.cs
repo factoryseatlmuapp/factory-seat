@@ -356,7 +356,10 @@ public static class Progression
         // Under contract, the only other calls are step-up seats.
         var ladderClass = Ladder.Contains(currentClass) ? currentClass : "GT3";
         var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
-        AddFrom(OfferKind.Move, ladderClass, BestTier(reputation, ladderClass), Math.Max(0, moves - career.Interest.Count));
+        // A step up is never forced: a player out of contract always has a seat in their own class.
+        var sameClass = offers.Count(o => o.CarClass == ladderClass);
+        AddFrom(OfferKind.Move, ladderClass, BestTier(reputation, ladderClass),
+            Math.Max(moves > 0 && sameClass == 0 ? 1 : 0, moves - career.Interest.Count));
         if (promoted) AddFrom(OfferKind.Promotion, next!, BestTier(reputation, next!), 2);
 
         return offers.Take(5).ToList();

@@ -493,6 +493,7 @@
     "wrong track ({track})": "",
     "no player car in the session": "",
     "first race in this car: LMU calls it \"{car}\"": "",
+    "raced #{number}, {team} runs #{numbers}": "",
     "first race of the season: you raced as #{number} for {team}": "",
     "first race of the season: you raced as #{number}": "",
     "raced #{number} for {team}, not your custom team car": "",

@@ -493,6 +493,7 @@
     "wrong track ({track})": "mauvais circuit ({track})",
     "no player car in the session": "aucune voiture de joueur dans la session",
     "first race in this car: LMU calls it \"{car}\"": "première course avec cette voiture : LMU l'appelle « {car} »",
+    "raced #{number}, {team} runs #{numbers}": "course avec le #{number}, {team} engage le #{numbers}",
     "first race of the season: you raced as #{number} for {team}": "première course de la saison : vous avez couru avec le #{number} pour {team}",
     "first race of the season: you raced as #{number}": "première course de la saison : vous avez couru avec le #{number}",
     "raced #{number} for {team}, not your custom team car": "course avec le #{number} pour {team}, pas avec la voiture de votre équipe personnalisée",

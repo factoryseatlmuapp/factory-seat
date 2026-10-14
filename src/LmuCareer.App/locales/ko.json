@@ -494,6 +494,7 @@
     "wrong track ({track})": "다른 트랙 ({track})",
     "no player car in the session": "세션에 플레이어 차량이 없음",
     "first race in this car: LMU calls it \"{car}\"": "이 차량의 첫 레이스: LMU에서의 이름은 \"{car}\"",
+    "raced #{number}, {team} runs #{numbers}": "#{number}(으)로 출전, {team}의 차량 번호는 #{numbers}",
     "first race of the season: you raced as #{number} for {team}": "시즌 첫 레이스: {team} 소속 #{number}(으)로 출전",
     "first race of the season: you raced as #{number}": "시즌 첫 레이스: #{number}(으)로 출전",
     "raced #{number} for {team}, not your custom team car": "커스텀 팀 차량이 아닌 {team} 소속 #{number}(으)로 출전",
