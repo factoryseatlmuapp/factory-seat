@@ -22,15 +22,15 @@ public enum InterviewTone { Humble, Confident, BlameTeam }
 public sealed class InterviewOption
 {
     public InterviewTone Tone { get; set; }
-    public Phrase Line { get; set; } = Phrase.Of("");
-    public Phrase Effect { get; set; } = Phrase.Of("");
+    public Phrase Line { get; set; } = new Phrase("");
+    public Phrase Effect { get; set; } = new Phrase("");
 }
 
 /// <summary>The interview question in an inbox message, and how it was answered.</summary>
 public sealed class InterviewQuestion
 {
     public Moment Moment { get; set; }
-    public Phrase Question { get; set; } = Phrase.Of("");
+    public Phrase Question { get; set; } = new Phrase("");
     public List<InterviewOption> Options { get; set; } = [];
     public InterviewTone? Answer { get; set; }
 

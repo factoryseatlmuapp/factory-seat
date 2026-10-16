@@ -86,9 +86,27 @@ function pick(n, one, other) {
   return typeof own === "string" ? own : n === 1 ? one : other;
 }
 
+/**
+ * A value the app wrote into a phrase, in the language's own number format: the app writes "2.397"
+ * and "2:25.166"; German reads "2,397" and "2:25,166". Keeps the decimals it was written with, and
+ * leaves alone anything that only looks like a number (a car number like "007").
+ */
+function localValue(value) {
+  if (typeof value !== "string") return value;
+  const plain = /^(−|-)?(0|[1-9]\d*)(?:\.(\d+))?$/.exec(value);
+  const lap = /^(\d+):(\d{2}\.\d+)$/.exec(value);
+  const format = (n, decimals) => new Intl.NumberFormat(language, { useGrouping: false, minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
+  if (plain) return (plain[1] ?? "") + format(Number(`${plain[2]}.${plain[3] ?? "0"}`), plain[3]?.length ?? 0);
+  if (lap) {
+    const seconds = format(Number(lap[2]), lap[2].split(".")[1].length);
+    return `${lap[1]}:${seconds.padStart(lap[2].length, "0")}`;
+  }
+  return value;
+}
+
 /** A phrase from the app: { text, args, one, parts }, where parts are phrases filling placeholders. */
 function phrase(p) {
-  const args = { ...(p.args ?? {}) };
+  const args = Object.fromEntries(Object.entries(p.args ?? {}).map(([name, value]) => [name, localValue(value)]));
   for (const [name, part] of Object.entries(p.parts ?? {})) args[name] = phrase(part);
   return p.one != null ? fill(pick(Number(args.n), p.one, p.text), args) : fill(translation(p.text), args);
 }

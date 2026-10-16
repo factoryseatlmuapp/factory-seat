@@ -42,8 +42,8 @@ public sealed class InboxMessage
 
     public DateTimeOffset At { get; set; }
     public bool Read { get; set; }
-    public Phrase From { get; set; } = Phrase.Of("");
-    public Phrase Subject { get; set; } = Phrase.Of("");
+    public Phrase From { get; set; } = new Phrase("");
+    public Phrase Subject { get; set; } = new Phrase("");
     public List<Phrase> Body { get; set; } = [];
 
     /// <summary>For an interview: the question, the answers on offer, and the one given.</summary>

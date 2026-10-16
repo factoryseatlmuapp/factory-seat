@@ -23,7 +23,10 @@
     "Round {number}": "",
     "{a} or {b}": "",
     "Previous": "",
-    "Next": ""
+    "Next": "",
+    "{n} of {total}": "",
+    "Skip": "",
+    "Done": ""
   },
   "Teams, offers and reputation": {
     "Front-runner": "",
@@ -164,7 +167,6 @@
     "Custom event": "",
     "Any track and layout, with your own name and real race length.": "",
     "Create custom event": "",
-    "Done": "",
     "{eventName} added as round {n}.": "",
     "You haven't ticked this pack": "",
     "{track} comes with {pack}. If you don't own it, you won't be able to run this round, and your career can't move past it.": "",
@@ -670,7 +672,6 @@
     "That offer isn't on the table any more.": ""
   },
   "Inbox (messages after each race)": {
-    "": "",
     "Your race engineer": "",
     "Debrief: {event}": "",
     "Started P{grid} and were disqualified.": "",
@@ -770,6 +771,22 @@
     "Talked big after the {event}, then missed the podium": "",
     "Promised a comeback after the {event}, then missed the target again": "",
     "Blamed the team again after the {event}": ""
+  },
+  "Before the race (what's at stake)": {
+    "No points on the board yet: this is where your championship starts.": "",
+    "You're P{n} in the championship with {points} points.": "",
+    "{rival} is {gap} ahead in P{n}: out of reach this round, with {max} points for a win.": "",
+    "{rival} is {gap} ahead in P{n}: beat them and you're past.": "",
+    "{rival} is {gap} ahead in P{n}: you need to win with them out of the points.": "",
+    "{rival} is {gap} ahead in P{n}: win with them P{finish} or lower and you're past.": "",
+    "{rival} is {gap} behind in P{n}: you stay ahead of them whatever happens this round.": "",
+    "{rival} is {gap} behind in P{n}: finish P{finish} or better and you stay ahead, whatever they do.": "",
+    "{rival} is {gap} behind in P{n}: beat them and you stay ahead.": "",
+    "Double points: {max} for a class win.": "",
+    "Points x{weight}: {max} for a class win.": "",
+    "You talked big after the {event}: miss the podium here and it costs 2 reputation.": "",
+    "You promised a comeback after the {event}: miss the team's target here and it costs 2 reputation.": "",
+    "{sponsor} wants a podium here: {reward} reputation riding on it.": ""
   },
   "Sponsors": {
     "Sponsors sign before the season's first round counts.": "",
