@@ -43,6 +43,7 @@ internal static class CareerCommands
             ["skip", var name] => Update(store, name, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw Fail("No rounds left."))),
             ["check", var name, var dir] => Check(store, name, dir, flags),
             ["delete", var name] => Delete(store, name),
+            ["demo", var source, var target] => Demo(store, source, target, options),
             _ => Help(),
         };
     }
@@ -59,6 +60,9 @@ internal static class CareerCommands
             lmucareer career disarm|skip <name>
             lmucareer career check <name> <results folder> [--accept] [--dnf] [--despite]
             lmucareer career delete <name>
+            lmucareer career demo <source> <name> --to <folder> --driver "<name>" --team "<team>" --number <n> [--results <folder>]
+                                        a copy of a career for screenshots and videos: the player's name, team
+                                        and number swapped, nothing armed, the inbox replayed round by round
               --home <folder> keeps saves somewhere other than %AppData%\LmuCareer
             """);
         return 1;
@@ -232,6 +236,70 @@ internal static class CareerCommands
         change(career);
         store.Save(career);
         return Show(store, name);
+    }
+
+    /// <summary>
+    /// Copies a career into another save folder with the player's identity swapped, for screenshots
+    /// and videos: driver name, team and car number everywhere they appear (results, race events,
+    /// standings, mail). The armed round is disarmed so the copy never watches for results, and the
+    /// inbox is written again one round at a time, so each message sees the season as it stood then.
+    /// </summary>
+    private static int Demo(CareerStore store, string sourceName, string name, Dictionary<string, List<string>> options)
+    {
+        var to = One(options, "to") ?? throw Fail("Say where the copy goes: --to <folder>.");
+        var driver = One(options, "driver") ?? throw Fail("--driver is required.");
+        var team = One(options, "team") ?? throw Fail("--team is required.");
+        var number = One(options, "number") ?? throw Fail("--number is required.");
+
+        var source = Find(store, sourceName);
+        // A career from before 1.2 gets its debrief data first, read from LMU's results folder (only in memory: the source save isn't touched).
+        if (One(options, "results") is { } results) Debriefs.Backfill(source, results);
+        var oldDriver = source.DriverName;
+        var oldTeams = source.PastSeasons.Append(source.CurrentSeason)
+            .SelectMany(s => new[] { s.Car.TeamName, s.Contract?.TeamName ?? "" })
+            .Where(t => t.Length > 0).Distinct().ToList();
+        if (oldDriver.Length == 0) throw Fail("The source career has no driver name to swap.");
+
+        // Names are swapped in the save's text: they turn up in results, race events and phrases alike.
+        var temp = Path.Combine(Path.GetTempPath(), "lmucareer-demo-" + Guid.NewGuid().ToString("N"));
+        var tempStore = new CareerStore(temp);
+        tempStore.Save(source);
+        var file = Path.Combine(temp, "careers", $"{source.Id:N}.career.json");
+        var json = File.ReadAllText(file).Replace(oldDriver, driver);
+        foreach (var oldTeam in oldTeams) json = json.Replace(oldTeam, team);
+        File.WriteAllText(file, json);
+        var career = tempStore.Load(source.Id).Career;
+        Directory.Delete(temp, recursive: true);
+
+        career.Id = Guid.NewGuid();
+        career.Name = name;
+        foreach (var season in career.PastSeasons.Append(career.CurrentSeason))
+        {
+            season.Car = season.Car with { CarNumber = number };
+            foreach (var result in season.Rounds.Select(r => r.Result).OfType<RoundResult>())
+                result.Entries = result.Entries.Select(e => e.Entry.IsPlayer ? e with { Entry = e.Entry with { CarNumber = number } } : e).ToList();
+        }
+        if (career.CurrentSeason.ArmedRound is { } armed) RoundFlow.Disarm(armed);
+
+        // The inbox, replayed: each counted round in turn, with the ones after it not yet run.
+        career.Inbox.Clear();
+        var counted = career.CurrentSeason.Rounds.Where(r => r.State == RoundState.Completed && r.Result is not null)
+            .Select(r => (Round: r, r.Result)).ToList();
+        foreach (var (round, _) in counted) { round.State = RoundState.Upcoming; round.Result = null; }
+        foreach (var (round, result) in counted)
+        {
+            round.State = RoundState.Completed;
+            round.Result = result;
+            Inbox.AfterRace(career, round, result!.AcceptedAt);
+        }
+        // Earlier rounds' mail has been read; the last round's waits.
+        var last = counted.LastOrDefault().Round?.Number;
+        foreach (var m in career.Inbox.Where(m => m.Round != last)) m.Read = true;
+        career.InboxStarted = true;
+
+        new CareerStore(to).Save(career);
+        Console.WriteLine($"Saved '{name}' to {to}: {career.Inbox.Count} messages, {Inbox.Unread(career)} unread.");
+        return 0;
     }
 
     private static Career Find(CareerStore store, string name)
