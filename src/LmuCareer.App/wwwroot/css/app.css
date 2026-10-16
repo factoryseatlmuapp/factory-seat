@@ -367,6 +367,16 @@ select.input { padding: 6px 8px; }
 .debrief-fact b { font: 700 22px "Barlow Condensed", var(--cjk); font-variant-numeric: tabular-nums; }
 .debrief-table { max-width: 640px; }
 .inbox-waiting { color: var(--accent); }
+.results-panel { padding: 8px 16px 14px; border-bottom: 1px solid var(--border-soft); background: rgba(0, 0, 0, 0.12); }
+.results-table td, .results-table th { padding: 5px 8px; }
+.laps-table td, .laps-table th { padding: 4px 8px; }
+.laps-table tr.pit-lap td { background: rgba(255, 255, 255, 0.04); }
+.pit-flag { color: var(--accent); font: 700 13px "Barlow Condensed", var(--cjk); }
+.best-class { color: #c77dff; font-weight: 700; }
+.best-mine { color: var(--good); font-weight: 700; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: -1px; }
+.swatch.best-class { background: #c77dff; }
+.swatch.best-mine { background: var(--good); }
 .stakes p { margin: 0 0 8px; }
 .stakes p:last-child { margin-bottom: 0; }
 .approach { display: grid; gap: 10px; max-width: 420px; margin-top: 6px; }

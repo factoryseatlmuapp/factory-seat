@@ -148,6 +148,7 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
+        "roundAnalysis" => RoundAnalysis(args),
         "answerInterview" => Change(args, c => Paddock.Answer(c, Str(args, "messageId"),
             Enum.Parse<InterviewTone>(Str(args, "tone")))),
         "answerApproach" => Change(args, c => Sponsorship.AnswerApproach(c, Str(args, "messageId"),
@@ -158,6 +159,7 @@ public sealed class ApiHost
         "sponsorLivery" => Change(args, c => Sponsorship.SetLivery(c.CurrentSeason, Str(args, "sponsorId"),
             args.TryGetProperty("running", out var running) && running.GetBoolean())),
         "startNextSeason" => StartNextSeason(args),
+        "startFreeSeason" => StartFreeSeason(args),
         "changeCar" => Change(args, c => CareerActions.ChangeCar(c,
             _catalog.Cars.FirstOrDefault(car => car.Folder == Str(args, "carFolder"))
                 ?? throw new KeyNotFoundException($"No car \"{Str(args, "carFolder")}\"."))),
@@ -407,6 +409,7 @@ public sealed class ApiHost
             LastPlayedAt = now,
             DriverName = Str(args, "driverName").Trim(),
             Nationality = Nationality(args.TryGetProperty("nationality", out var nationality) ? nationality.GetString() ?? "" : ""),
+            ChampionshipOnly = args.TryGetProperty("championshipOnly", out var championshipOnly) && championshipOnly.GetBoolean(),
             OwnedContent = Strings(args, "ownedPacks").ToList(),
             CurrentSeason = new Season
             {
@@ -443,6 +446,26 @@ public sealed class ApiHost
     {
         var loaded = _store.Load(Guid.Parse(Str(args, "id")));
         return loaded.Career;
+    }
+
+    /// <summary>A counted round's lap analysis: the debrief's figures, the player's laps and the AI's class bests.</summary>
+    private object? RoundAnalysis(JsonElement args)
+    {
+        var career = Load(args);
+        var seasonNumber = args.GetProperty("season").GetInt32();
+        var roundNumber = args.GetProperty("round").GetInt32();
+        var round = career.PastSeasons.Append(career.CurrentSeason).FirstOrDefault(s => s.Number == seasonNumber)?
+            .Rounds.FirstOrDefault(r => r.Number == roundNumber)
+            ?? throw new KeyNotFoundException("No such round.");
+        var me = round.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer)?.Entry;
+        if (me is null) return null;
+        return new
+        {
+            eventName = round.EventName,
+            report = DebriefReport.For(round),
+            laps = me.LapRecords,
+            classBest = round.Result!.Debrief?.ClassBests.FirstOrDefault(b => b.CarClass == me.CarClass),
+        };
     }
 
     /// <summary>Marks a message read (or all, with no messageId). Reading mail isn't playing: the career keeps its place in the list.</summary>
@@ -511,7 +534,7 @@ public sealed class ApiHost
             progress = Sponsorship.Progress(career.CurrentSeason, d),
         }),
         sponsorOffers = (career.CurrentSeason.SponsorOffers ?? []).Select(d => new { deal = d, text = Sponsorship.Describe(d) }),
-        canSignSponsors = Sponsorship.CanSign(career.CurrentSeason),
+        canSignSponsors = !career.ChampionshipOnly && Sponsorship.CanSign(career.CurrentSeason),
         pace = PaceCheck.Summarize(career.CurrentSeason),
         roundPace = career.CurrentSeason.Rounds.Select(PaceCheck.For).OfType<RoundPace>(),
         liveryRounds = Sponsorship.LiveryRounds(career.CurrentSeason) is var (custom, counted) ? new { custom, counted } : null,
@@ -523,7 +546,7 @@ public sealed class ApiHost
         // The next race's stakes, history here, practice and AI Strength advice.
         preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next) : null,
         // The season review worked out now, until the real one is written.
-        projectedReputation = career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
+        projectedReputation = !career.ChampionshipOnly && career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
             ? Progression.Review(career.CurrentSeason, career.Reputation) is var review ? review.ReputationAfter - review.ReputationBefore : (decimal?)null
             : null,
         // The numbers behind each debrief in the inbox, by "season-round".
@@ -566,6 +589,20 @@ public sealed class ApiHost
         var rounds = args.GetProperty("rounds").EnumerateArray().Select(r => RoundFor(Merge(r, offer.CarClass))).ToList();
 
         Progression.StartNextSeason(career, offer.Id, rounds, _catalog);
+        career.LastPlayedAt = DateTimeOffset.Now;
+        _store.Save(career);
+        return new { id = career.Id };
+    }
+
+    /// <summary>A championship-only career's next season: any car, on the calendar from the season builder.</summary>
+    private object StartFreeSeason(JsonElement args)
+    {
+        var career = Load(args);
+        var car = _catalog.Cars.FirstOrDefault(c => c.Folder == Str(args, "carFolder"))
+            ?? throw new KeyNotFoundException($"No car \"{Str(args, "carFolder")}\".");
+        var rounds = args.GetProperty("rounds").EnumerateArray().Select(r => RoundFor(Merge(r, car.Class))).ToList();
+
+        Progression.StartFreeSeason(career, car, Str(args, "carNumber"), Str(args, "teamName"), rounds);
         career.LastPlayedAt = DateTimeOffset.Now;
         _store.Save(career);
         return new { id = career.Id };

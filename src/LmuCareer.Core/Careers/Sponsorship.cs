@@ -57,7 +57,7 @@ public static class Sponsorship
         IReadOnlyList<SponsorInfo>? ownSponsors = null, int? seed = null, string language = "en")
     {
         var season = career.CurrentSeason;
-        if (season.SponsorOffers is not null || !CanSign(season)) return false;
+        if (career.ChampionshipOnly || season.SponsorOffers is not null || !CanSign(season)) return false;
         season.SponsorOffers = MakeOffers(career, catalog, builtLiveries, ownSponsors ?? [],
             new Random(seed ?? Progression.Seed(career) ^ 0x5B0B), language).ToList();
         season.SponsorRules = CurrentRules;
@@ -406,7 +406,7 @@ public static class Sponsorship
         IReadOnlyList<SponsorInfo> ownSponsors, string language, DateTimeOffset now, int? seed = null)
     {
         var season = career.CurrentSeason;
-        if (season.SponsorRules < CurrentRules || round.Guest || season.Sponsors.Count >= MaxDeals) return null;
+        if (career.ChampionshipOnly || season.SponsorRules < CurrentRules || round.Guest || season.Sponsors.Count >= MaxDeals) return null;
         var left = season.ChampionshipRounds.Where(r => r.Number > round.Number && r.State is RoundState.Upcoming or RoundState.Armed).ToList();
         if (left.Count == 0 || !BeatExpectations(career, round)) return null;
 

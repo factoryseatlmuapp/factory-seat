@@ -22,7 +22,7 @@ public static class GuestDrives
     public static bool EnsureOffers(Career career, ContentCatalog catalog, LmuInstall? install, int? seed = null)
     {
         var season = career.CurrentSeason;
-        if (season.GuestOffers is not null || !Sponsorship.CanSign(season)) return false;
+        if (career.ChampionshipOnly || season.GuestOffers is not null || !Sponsorship.CanSign(season)) return false;
         season.GuestOffers = MakeOffers(career, catalog, install, new Random(seed ?? Progression.Seed(career) ^ 0x6E57)).ToList();
         return true;
     }

@@ -356,6 +356,12 @@ public sealed class Career
     /// <summary>The driver's country, as an ISO code ("US", "DE"): local sponsors come from it. Null on careers from before 1.2 until it's set.</summary>
     public string? Nationality { get; set; }
 
+    /// <summary>
+    /// Seasons and points only, picked when the career is made: no reputation, sponsors, offers,
+    /// guest drives or interviews, and any car between seasons.
+    /// </summary>
+    public bool ChampionshipOnly { get; set; }
+
     public DriverRating Rating { get; set; } = DriverRating.Silver;
     public decimal Reputation { get; set; }
 

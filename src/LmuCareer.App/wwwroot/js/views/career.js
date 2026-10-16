@@ -152,7 +152,8 @@ export async function careerView(view, id, tab) {
       h("div", { class: "spacer" }),
       h("span", { class: "faint" }, t("Target: {target}", { target: midSentence(target(season().contract?.targetPosition ?? 6)) })),
       season().contract?.seasonsLeft > 1 ? h("span", { class: "faint" }, t("Contracted through next season")) : null,
-      h("span", { class: "faint" }, t("Reputation {n}", { n: Math.round(data.career.reputation) })),
+      data.career.championshipOnly ? h("span", { class: "faint" }, t("Championship only"))
+        : h("span", { class: "faint" }, t("Reputation {n}", { n: Math.round(data.career.reputation) })),
       canChange ? h("button", { class: "btn ghost small", onclick: changeCar }, t("Change car")) : null);
   }
 
@@ -497,6 +498,7 @@ export async function careerView(view, id, tab) {
   }
 
   function sponsorPanel() {
+    if (data.career.championshipOnly) return null;
     const signedIds = data.sponsors.map((d) => d.deal.sponsorId);
     const open = data.canSignSponsors ? data.sponsorOffers.filter((o) => !signedIds.includes(o.deal.sponsorId)) : [];
     if (!data.sponsors.length && !open.length) return null;
@@ -804,6 +806,7 @@ export async function careerView(view, id, tab) {
   // ---------- Off-season ----------
 
   function offSeason() {
+    if (data.career.championshipOnly) return championshipOffSeason();
     const review = season().review;
     const ladder = data.ladder;
     const before = Math.round(review.reputationBefore);
@@ -843,6 +846,30 @@ export async function careerView(view, id, tab) {
           data.career.offers.length
             ? h("div", { class: "stack" }, data.career.offers.map(offerCard))
             : h("div", { class: "empty" }, t("No offers.")))));
+  }
+
+  /** Championship only: the season's result, then on to any car for the next one. */
+  function championshipOffSeason() {
+    const review = season().review;
+    put(view,
+      h("div", { class: "hero" },
+        h("div", { class: "hero-mark" }, t("Season {number}", { number: season().number })),
+        h("div", {},
+          h("h1", { class: "hero-title" }, t("Season complete")),
+          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified")))),
+      h("div", { class: "grid-2", style: { gridTemplateColumns: "1fr 1fr", alignItems: "start" } },
+        h("div", {},
+          h("div", { class: "section-title" }, t("Season review")),
+          h("div", { class: "notice " + (review.targetMet ? "good" : "bad") },
+            h("b", {}, review.targetMet ? t("Target met") : t("Target missed")),
+            h("div", {}, t("{team} asked for: {target}.", { team: teamName() || t("The team"), target: midSentence(target(review.targetPosition)) }))),
+          h("div", { class: "faint", style: { marginTop: "10px" } }, t("The full table is on the Standings tab."))),
+        h("div", {},
+          h("div", { class: "section-title" }, t("Season {n}", { n: season().number + 1 })),
+          h("div", { class: "card clickable offer", onclick: () => go(`#/next/${id}/free`) },
+            h("h3", {}, t("Build the next season")),
+            h("div", { class: "muted" }, t("Any class, any car, your calendar.")),
+            h("div", { class: "row", style: { marginTop: "10px" } }, h("div", { class: "spacer" }), h("span", { class: "btn small" }, t("Start")))))));
   }
 
   function offerCard(offer) {
@@ -1107,8 +1134,10 @@ export async function careerView(view, id, tab) {
     put(view,
       h("div", { class: "grid-2", style: { gridTemplateColumns: "320px 1fr", alignItems: "start" } },
         h("div", {},
-          h("div", { class: "section-title" }, t("Reputation")),
-          h("div", { class: "card quiet" },
+          h("div", { class: "section-title" }, data.career.championshipOnly ? t("Championship only") : t("Reputation")),
+          data.career.championshipOnly
+            ? h("div", { class: "card quiet muted" }, t("Seasons and points: no reputation, sponsors, offers or interviews. You pick the car for each season."))
+            : h("div", { class: "card quiet" },
             h("div", { class: "rep-figures", style: { fontSize: "44px" } }, h("b", {}, Math.round(data.career.reputation)),
               h("span", { class: "muted" }, standing(data.career.reputation))),
             repBar(data.career.reputation, data.ladder.threshold),
@@ -1168,7 +1197,13 @@ export async function careerView(view, id, tab) {
           const month = events.get(r.eventId)?.month;
           const map = mapFor(r);
           const pace = paceOf(r);
-          return h("div", { class: "round-row", style: { gridTemplateColumns: "34px 56px 44px 1fr auto auto" } },
+          const results = h("div", { class: "round-results", hidden: true });
+          const toggle = me ? h("button", { class: "btn ghost small", onclick: (e) => {
+            results.hidden = !results.hidden;
+            if (!results.hidden && !results.firstChild) put(results, fullResults(r));
+            e.currentTarget.textContent = results.hidden ? t("Results") : t("Hide");
+          } }, t("Results")) : null;
+          return h("div", {}, h("div", { class: "round-row", style: { gridTemplateColumns: "34px 56px 44px 1fr auto auto auto" } },
             h("div", { class: "round-num" }, r.number),
             h("div", { class: "round-month" }, month ? monthName(month) : ""),
             h("div", { class: "mini-map" }, map ? trackSvg(map) : null),
@@ -1181,8 +1216,105 @@ export async function careerView(view, id, tab) {
                 t(" · {points} pts", { points: number(driverPoints(me)) }), r.result.quitEarly ? t(" · quit early") : "",
                 pace ? h("span", { class: "faint", title: t("Your best lap against the fastest AI in class") },
                   ` · ${pace.gap > 0 ? "+" : "−"}${number(Math.abs(pace.gap), 1)} s`) : null) : null),
-            h("span", { class: `state ${r.state}` }, ROUND_STATES[r.state] ? t(ROUND_STATES[r.state]) : r.state));
+            h("span", { class: `state ${r.state}` }, ROUND_STATES[r.state] ? t(ROUND_STATES[r.state]) : r.state),
+            toggle ?? h("span")), results);
         })));
+  }
+
+  /** A counted round's classification, class by class with the player's first, from what the round saved. */
+  function fullResults(r) {
+    const entries = r.result.entries;
+    const mine = playerEntry(r)?.entry.carClass;
+    const classes = [...new Set(entries.map((e) => e.entry.carClass))].sort((a, b) => (a === mine ? -1 : b === mine ? 1 : 0));
+    const lapsText = (n) => tn(n, "+{n} lap", "+{n} laps");
+    const gapText = (e, leader) => {
+      if (e.entry.status === "Dnf") return t("DNF");
+      if (e.entry.status === "Dq") return t("DQ");
+      if (!e.classRank) return t("NC");
+      if (e === leader) return tn(e.entry.laps, "{n} lap", "{n} laps");
+      if (e.entry.laps < leader.entry.laps) return lapsText(leader.entry.laps - e.entry.laps);
+      const gap = e.entry.finishTimeSeconds != null && leader.entry.finishTimeSeconds != null ? e.entry.finishTimeSeconds - leader.entry.finishTimeSeconds : null;
+      return gap == null ? "–" : `+${number(gap, 3)}`;
+    };
+    return h("div", { class: "results-panel" },
+      h("div", { class: "row", style: { alignItems: "center", marginBottom: "6px" } },
+        h("div", { class: "faint" }, t("Full classification")),
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn small", onclick: () => openAnalysis(season().number, r.number) }, t("Lap analysis"))),
+      classes.map((c) => {
+        const rows = entries.filter((e) => e.entry.carClass === c)
+          .sort((a, b) => (a.classRank ?? 999) - (b.classRank ?? 999) || a.entry.classPosition - b.entry.classPosition);
+        const leader = rows.find((e) => e.classRank === 1) ?? rows[0];
+        return h("div", { style: { overflowX: "auto", marginBottom: "10px" } },
+          h("div", { style: { margin: "8px 0 4px" } }, chip(c)),
+          h("table", { class: "table results-table" },
+            h("thead", {}, h("tr", {},
+              h("th", {}, t("Pos")), h("th", {}, t("No.")), h("th", {}, t("Driver")), h("th", {}, t("Team")), h("th", {}, t("Car")),
+              h("th", { class: "num" }, t("Gap")), h("th", { class: "num" }, t("Best lap")), h("th", { class: "num" }, t("Stops")), h("th", { class: "num" }, t("Pts")))),
+            h("tbody", {}, rows.map((e) => h("tr", { class: e.entry.isPlayer ? "me" : "" },
+              h("td", { class: "pos" }, e.classRank ?? "–"),
+              h("td", { class: "muted" }, e.entry.carNumber ? `#${e.entry.carNumber}` : ""),
+              h("td", {}, e.entry.name, e.classPole ? h("span", { class: "faint", title: t("Class pole") }, " ●") : null),
+              h("td", { class: "muted" }, e.entry.teamName),
+              h("td", { class: "muted" }, carName(e.entry.carType)),
+              h("td", { class: "num" }, gapText(e, leader)),
+              h("td", { class: "num" }, lapTime(e.entry.bestLapSeconds)),
+              h("td", { class: "num muted" }, e.entry.pitstops),
+              h("td", { class: "num" }, points(e) ? number(points(e)) : ""))))));
+      }));
+  }
+
+  /** The player's laps in a counted round: every lap's time and sectors, with the bests marked, and the debrief's figures. */
+  async function openAnalysis(seasonNumber, roundNumber) {
+    const a = await attempt(call("roundAnalysis", { id, season: seasonNumber, round: roundNumber }));
+    if (!a) return;
+    const laps = a.laps;
+    const timed = laps.filter((l) => l.lapTimeSeconds > 0);
+    const myBest = (pick) => Math.min(...timed.map(pick).filter((v) => v > 0));
+    const pb = { lap: myBest((l) => l.lapTimeSeconds), s1: myBest((l) => l.sector1), s2: myBest((l) => l.sector2), s3: myBest((l) => l.sector3) };
+    const ai = a.classBest ?? {};
+    const highlight = (value, mine, aiBest) => (value == null || !(value > 0) ? ""
+      : aiBest && value <= aiBest && value === mine ? "best-class" : value === mine ? "best-mine" : "");
+    const cell = (value, cls, digits = 3) => h("td", { class: "num " + cls }, value == null ? "–" : number(value, digits));
+    const hasEnergy = laps.some((l) => l.energy != null);
+    const r = a.report;
+
+    showModal([
+      h("h2", {}, t("Lap analysis: {event}", { event: a.eventName })),
+      r ? debriefTables(r) : null,
+      r && r.hasDetail ? h("div", { class: "debrief-facts" },
+        [[t("Penalties"), r.penalties], [t("Track limits strikes"), r.trackLimitStrikes], [t("Laps deleted"), r.invalidatedLaps],
+          [t("Contacts"), r.contacts.filter((c) => c.impact >= 500).length]]
+          .map(([label, value]) => h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, label), h("b", {}, value)))) : null,
+      h("div", { class: "row faint", style: { gap: "16px", margin: "10px 0 6px", fontSize: "12px" } },
+        h("span", {}, h("span", { class: "swatch best-class" }), " ", t("Quicker than the best AI in class")),
+        h("span", {}, h("span", { class: "swatch best-mine" }), " ", t("Your best"))),
+      h("div", { style: { maxHeight: "50vh", overflow: "auto" } },
+        h("table", { class: "table laps-table" },
+          h("thead", {}, h("tr", {},
+            h("th", { class: "num" }, t("Lap")), h("th", { class: "num" }, t("Pos")), h("th", { class: "num" }, t("Time")),
+            h("th", { class: "num" }, t("S1")), h("th", { class: "num" }, t("S2")), h("th", { class: "num" }, t("S3")),
+            h("th", { class: "num" }, t("km/h")), h("th", { class: "num" }, t("Fuel")), hasEnergy ? h("th", { class: "num" }, t("Energy")) : null,
+            h("th", { class: "num", title: t("Tread left, average of the four tyres") }, t("Tyres")), h("th", {}, t("Compound")), h("th", {}, ""))),
+          h("tbody", {}, laps.map((l) => h("tr", { class: l.pit ? "pit-lap" : "" },
+            h("td", { class: "num" }, l.number),
+            h("td", { class: "num muted" }, l.classPosition ?? "–"),
+            h("td", { class: "num " + highlight(l.lapTimeSeconds, pb.lap, ai.lapSeconds) }, lapTime(l.lapTimeSeconds)),
+            cell(l.sector1, highlight(l.sector1, pb.s1, ai.sector1)),
+            cell(l.sector2, highlight(l.sector2, pb.s2, ai.sector2)),
+            cell(l.sector3, highlight(l.sector3, pb.s3, ai.sector3)),
+            cell(l.topSpeedKph, "muted", 1),
+            h("td", { class: "num muted" }, l.fuel == null ? "–" : `${Math.round(l.fuel * 100)}%`),
+            hasEnergy ? h("td", { class: "num muted" }, l.energy == null ? "–" : `${Math.round(l.energy * 100)}%`) : null,
+            h("td", { class: "num muted" }, l.wear ? `${Math.round(((l.wear.frontLeft + l.wear.frontRight + l.wear.rearLeft + l.wear.rearRight) / 4) * 100)}%` : "–"),
+            h("td", { class: "muted" }, l.frontCompound ? lmu(l.frontCompound) : "–"),
+            h("td", { class: "pit-flag" }, l.pit ? t("PIT") : "")))))),
+      laps.length && !laps.some((l) => l.sector1 != null)
+        ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "8px" } },
+          t("Sector times, fuel and tyres are kept for races counted in 1.2 or later, and for older races whose results file was still in LMU's folder."))
+        : null,
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ], { wide: true });
   }
 
   // ---------- Standings ----------

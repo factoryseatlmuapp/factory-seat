@@ -73,7 +73,7 @@ public static class Inbox
         // Newest last: what tops the inbox and the strip on Next race goes in last. The interview
         // waits for an answer, so it's on top; then the debrief.
         var season = career.CurrentSeason;
-        if (!round.Guest && ReputationSoFar(career, season, round, now) is { } reputation) Add(career, reputation);
+        if (!round.Guest && !career.ChampionshipOnly && ReputationSoFar(career, season, round, now) is { } reputation) Add(career, reputation);
 
         Add(career, TeamPrincipal(season, round, now));
         if (Paddock.Press(career, round, now) is { } press) Add(career, press);

@@ -67,6 +67,18 @@ public static class Progression
         if (!season.IsFinished) throw new InvalidOperationException("The season isn't over yet.");
         if (season.Review is not null) return false;
 
+        if (career.ChampionshipOnly)
+        {
+            // The championship and the target, nothing paid: there's no reputation to move, and the
+            // next season is the player's to pick.
+            var review = Review(season, career.Reputation);
+            review.Items = [];
+            review.ReputationAfter = review.ReputationBefore;
+            season.Review = review;
+            career.Offers = [];
+            return true;
+        }
+
         season.Review = Review(season, career.Reputation);
         career.Reputation = season.Review.ReputationAfter;
         career.Rating = RatingFor(career.Reputation);
@@ -215,6 +227,7 @@ public static class Progression
     public static TeamInterest? NoticeResult(Career career, Round round, ContentCatalog catalog, LmuInstall? install)
     {
         const int MaxInterest = 2;
+        if (career.ChampionshipOnly) return null;
         var me = round.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer);
         if (me?.ClassRank != 1 || round.PointsWeight < 1.5m || career.Interest.Count >= MaxInterest) return null;
 
@@ -426,6 +439,37 @@ public static class Progression
                 SeasonsLeft = Math.Max(1, offer.Seasons),
             },
             Rounds = CalendarBuilder.Number(rounds),
+        };
+
+        career.PastSeasons.Add(finished);
+        career.CurrentSeason = next;
+        career.Offers = [];
+        career.Interest = [];
+        return next;
+    }
+
+    /// <summary>
+    /// Championship-only careers pick the next season freely: any class, car, number and team, on
+    /// the calendar from the season builder.
+    /// </summary>
+    public static Season StartFreeSeason(Career career, CarInfo car, string carNumber, string teamName, IReadOnlyList<Round> rounds)
+    {
+        if (!career.ChampionshipOnly) throw new InvalidOperationException("Only a championship-only career picks its next season freely.");
+        var finished = career.CurrentSeason;
+        if (finished.Review is null) throw new InvalidOperationException("The season hasn't been reviewed yet.");
+        if (rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
+
+        var next = new Season
+        {
+            Number = finished.Number + 1,
+            Car = new CareerCar(car.CarTypes.FirstOrDefault() ?? "", car.Class, carNumber.Trim(), teamName.Trim())
+            {
+                OtherCarTypes = car.CarTypes.Skip(1).ToList(),
+                Folder = car.Folder,
+            },
+            Contract = new Contract { TeamName = teamName.Trim(), Tier = 2, TargetPosition = DefaultTarget },
+            Rounds = CalendarBuilder.Number(rounds),
+            SponsorRules = Sponsorship.CurrentRules,
         };
 
         career.PastSeasons.Add(finished);

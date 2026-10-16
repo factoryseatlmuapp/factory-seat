@@ -147,7 +147,7 @@ public static class Paddock
     /// <summary>One question after a big moment in a championship round; null when there's nothing to ask.</summary>
     public static InboxMessage? Interview(Career career, Round round, DateTimeOffset now)
     {
-        if (round.Guest) return null;
+        if (round.Guest || career.ChampionshipOnly) return null;
         var moments = MomentsOf(career, round);
         // Asked about: wins and the lead, a podium or a retirement at a big round, losing the lead. A comeback makes the news but isn't asked about.
         var askable = moments.Where(m => m switch
