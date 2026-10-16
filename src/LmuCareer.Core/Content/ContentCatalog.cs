@@ -49,13 +49,21 @@ public sealed record SponsorInfo(
     string Id,
     string Name,
     // "backer": a real sports car sponsor, open to any car. "mashup": a brand with little racing
-    // history, matched to the cars from its home region (a livery idea).
+    // history, matched to the cars from its home region (a livery idea). "local": an independently
+    // owned regional brand that backs drivers from its own country (1.2).
     string Kind,
     // Reputation the sponsor looks for before calling; prestige brands want an established name.
     int MinReputation,
     // Mashups only: the car folders it suits (none: any car). Spec prototype classes (LMP2, LMP3) suit any sponsor.
     IReadOnlyList<string> Cars,
-    string Region);
+    string Region)
+{
+    /// <summary>For a local brand: its country, as an ISO code ("US", "GB", "KR").</summary>
+    public string Country { get; init; } = "";
+
+    /// <summary>The name in its own script, for players in that language (성심당 for Sungsimdang).</summary>
+    public string? LocalName { get; init; }
+}
 
 /// <summary>What the app knows about LMU's tracks, cars, DLC packs, teams, sponsors and real-world events.</summary>
 public sealed record ContentCatalog(

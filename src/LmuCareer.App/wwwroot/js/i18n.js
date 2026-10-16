@@ -58,6 +58,15 @@ export function monthName(month) {
   return new Intl.DateTimeFormat(language, { month: "short" }).format(new Date(2026, month - 1, 15));
 }
 
+/** A country's name in the app's language, from its ISO code ("DE" → "Germany"). */
+export function countryName(code) {
+  try {
+    return new Intl.DisplayNames([language], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 export function dateTime(value) {
   return new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }

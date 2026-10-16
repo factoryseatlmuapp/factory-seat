@@ -80,6 +80,14 @@ export function trackSvg(map, className = "") {
   return svg;
 }
 
+/** A country picker: every country the app knows, by its name in the app's language. */
+export function countrySelect(value, onChange, { countries, nameOf, none }) {
+  const sorted = [...countries].sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+  return h("select", { class: "input", onchange: (e) => onChange(e.target.value) },
+    h("option", { value: "", selected: !value }, none),
+    sorted.map((code) => h("option", { value: code, selected: code === value }, nameOf(code))));
+}
+
 export function chip(carClass) {
   const names = { Hyper: "HY", LMP2: "P2", LMP3: "P3", GT3: "GT3", GTE: "GTE" };
   return h("span", { class: `chip ${carClass}` }, names[carClass] ?? carClass);

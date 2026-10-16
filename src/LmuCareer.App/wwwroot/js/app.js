@@ -1,8 +1,8 @@
 import { call, onEvent } from "./api.js";
-import { h, put, clear, trackSvg } from "./dom.js";
+import { h, put, clear, trackSvg, countrySelect } from "./dom.js";
 import { configureSound, sound } from "./sound.js";
 import { applyTheme } from "./theme.js";
-import { setLocale, t, number } from "./i18n.js";
+import { setLocale, t, number, countryName } from "./i18n.js";
 import { setupView } from "./views/setup.js";
 import { careersView } from "./views/careers.js";
 import { newCareerView } from "./views/newCareer.js";
@@ -35,6 +35,11 @@ export function setChrome({ crumb = "", back = null, tabs = [], active = null, o
       onclick: () => onTab?.(tab.id),
     }, tab.label, tab.count ? h("span", { class: "count" }, tab.count) : tab.dot ? h("span", { class: "dot" }) : null));
   }
+}
+
+/** A nationality picker over every country the app knows, named in the app's language. */
+export function countryPicker(value, onChange) {
+  return countrySelect(value, onChange, { countries: state.countries ?? [], nameOf: countryName, none: t("Not set") });
 }
 
 // ---------- Modal, confirm and toast ----------

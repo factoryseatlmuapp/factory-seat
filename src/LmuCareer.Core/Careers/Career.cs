@@ -267,6 +267,21 @@ public sealed class SponsorDeal
 
     /// <summary>The player says they run the sponsor's livery: worth a little extra, met or not.</summary>
     public bool RunningLivery { get; set; }
+
+    /// <summary>For a deal signed mid-season: how many rounds its objective covers ("2 podiums in the last 4 rounds"); 0 for the whole season.</summary>
+    public int OverRounds { get; set; }
+
+    /// <summary>A local brand: a small deal with a simple objective.</summary>
+    public bool Local { get; set; }
+
+    /// <summary>The sponsor's name in its own script, when it has one (Korean brands).</summary>
+    public string? LocalName { get; set; }
+
+    /// <summary>
+    /// For a deal signed mid-season: the round it was signed after. Its objective counts only the
+    /// rounds after that one; 0 for a deal signed before the season.
+    /// </summary>
+    public int SignedAfterRound { get; set; }
 }
 
 public sealed class Season
@@ -286,6 +301,12 @@ public sealed class Season
 
     /// <summary>Deals on offer before the season's first round counts; null until they're made.</summary>
     public List<SponsorDeal>? SponsorOffers { get; set; }
+
+    /// <summary>
+    /// 2 for a season whose sponsors run on 1.2's rules (offers that grow with reputation, local
+    /// brands, approaches mid-season); 0 for one that started before them.
+    /// </summary>
+    public int SponsorRules { get; set; }
 
     /// <summary>Interview answers given this season, settled at its review.</summary>
     public List<InterviewAnswer> Interviews { get; set; } = [];
@@ -328,6 +349,9 @@ public sealed class Career
 
     /// <summary>The player's driver name in LMU; informational, since matching goes by car.</summary>
     public string DriverName { get; set; } = "";
+
+    /// <summary>The driver's country, as an ISO code ("US", "DE"): local sponsors come from it. Null on careers from before 1.2 until it's set.</summary>
+    public string? Nationality { get; set; }
 
     public DriverRating Rating { get; set; } = DriverRating.Silver;
     public decimal Reputation { get; set; }

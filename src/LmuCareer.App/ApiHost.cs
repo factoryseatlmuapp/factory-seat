@@ -147,6 +147,9 @@ public sealed class ApiHost
         "readMessage" => ReadMessage(args),
         "answerInterview" => Change(args, c => Paddock.Answer(c, Str(args, "messageId"),
             Enum.Parse<InterviewTone>(Str(args, "tone")))),
+        "answerApproach" => Change(args, c => Sponsorship.AnswerApproach(c, Str(args, "messageId"),
+            args.TryGetProperty("sign", out var sign) && sign.GetBoolean())),
+        "setNationality" => Change(args, c => c.Nationality = Nationality(Str(args, "nationality"))),
         "signSponsor" => Change(args, c => Sponsorship.Sign(c.CurrentSeason, Str(args, "sponsorId"))),
         "dropSponsor" => Change(args, c => Sponsorship.Drop(c.CurrentSeason, Str(args, "sponsorId"))),
         "sponsorLivery" => Change(args, c => Sponsorship.SetLivery(c.CurrentSeason, Str(args, "sponsorId"),
@@ -208,8 +211,27 @@ public sealed class ApiHost
         return null;
     }
 
+    /// <summary>A country the app knows (an ISO code from <see cref="Countries"/>), or null.</summary>
+    private static string? Nationality(string code) =>
+        Countries.Contains(code.Trim(), StringComparer.OrdinalIgnoreCase) ? code.Trim().ToUpperInvariant() : null;
+
+    /// <summary>Every country Windows has a region for, as ISO codes; the page names them in the app's language.</summary>
+    private static readonly IReadOnlyList<string> Countries = System.Globalization.CultureInfo.GetCultures(System.Globalization.CultureTypes.SpecificCultures)
+        .Select(c => { try { return new System.Globalization.RegionInfo(c.Name).TwoLetterISORegionName; } catch (ArgumentException) { return ""; } })
+        .Where(c => c.Length == 2 && char.IsLetter(c[0]) && char.IsLetter(c[1]))
+        .Distinct().Order().ToList();
+
+    /// <summary>The nationality a new career starts with: the Windows region, read on this PC only.</summary>
+    private static string? DefaultNationality()
+    {
+        try { return Nationality(System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName); }
+        catch (ArgumentException) { return null; }
+    }
+
     private object Init() => new
     {
+        countries = Countries,
+        defaultNationality = DefaultNationality(),
         settings = _settings,
         lmu = LmuView(_settings.LmuRoot),
         detectedLmu = _install is null ? DetectLmu() : null,
@@ -381,6 +403,7 @@ public sealed class ApiHost
             CreatedAt = now,
             LastPlayedAt = now,
             DriverName = Str(args, "driverName").Trim(),
+            Nationality = Nationality(args.TryGetProperty("nationality", out var nationality) ? nationality.GetString() ?? "" : ""),
             OwnedContent = Strings(args, "ownedPacks").ToList(),
             CurrentSeason = new Season
             {
@@ -442,7 +465,7 @@ public sealed class ApiHost
     {
         var career = Load(args);
         var sponsors = Sponsorship.EnsureOffers(career, _catalog, _settings.BuiltLiveries,
-            _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList());
+            _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList(), language: Language);
         var guests = GuestDrives.EnsureOffers(career, _catalog, _install);
         var customTeam = CareerActions.RecognizeCustomTeam(career);
         var phrases = CareerActions.AddPhrases(career);
@@ -587,9 +610,11 @@ public sealed class ApiHost
             acceptDifferences: args.TryGetProperty("acceptDifferences", out var despite) && despite.GetBoolean(),
             DateTimeOffset.Now);
 
-        // A big win can get the player noticed by a better team.
+        // A big win can get the player noticed by a better team, and a result above expectations by a sponsor.
         var noticed = round is null ? null : Progression.NoticeResult(career, round, _catalog, _install);
-        if (noticed is not null) _store.Save(career);
+        var approach = round is null ? null : Sponsorship.Approach(career, round, _catalog, _settings.BuiltLiveries,
+            _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList(), Language, DateTimeOffset.Now);
+        if (noticed is not null || approach is not null) _store.Save(career);
         return new { view = CareerView(career), noticed };
     }
 

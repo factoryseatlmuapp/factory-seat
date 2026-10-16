@@ -1,6 +1,6 @@
 import { call } from "../api.js";
 import { h, put, clear, chip } from "../dom.js";
-import { setChrome, go, attempt, catalog, toast } from "../app.js";
+import { setChrome, go, attempt, catalog, toast, state, countryPicker } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
 import { packChecklist } from "./packs.js";
 import { t, lmu, mark } from "../i18n.js";
@@ -27,6 +27,7 @@ export async function newCareerView(view) {
   const draft = {
     name: "",
     driverName: "",
+    nationality: state.defaultNationality ?? "",
     ownedPacks: [],
     carClass: "GT3",
     carFolder: null,
@@ -70,7 +71,10 @@ export async function newCareerView(view) {
       h("div", { class: "card stack", style: { maxWidth: "720px" } },
         h("div", { class: "field" }, h("label", {}, t("Career name")), name),
         h("div", { class: "field" }, h("label", {}, t("Your driver name in LMU")), driverName,
-          h("small", { class: "faint" }, t("Optional. Shown in the standings; races are matched by your car, not your name.")))),
+          h("small", { class: "faint" }, t("Optional. Shown in the standings; races are matched by your car, not your name."))),
+        h("div", { class: "field" }, h("label", {}, t("Nationality")),
+          countryPicker(draft.nationality, (code) => { draft.nationality = code; }),
+          h("small", { class: "faint" }, t("Local sponsors come from your home country. You can change it later on the Career tab.")))),
       footer(next("content")));
     name.focus();
   }
@@ -171,6 +175,7 @@ export async function newCareerView(view) {
     const result = await attempt(call("createCareer", {
       name: draft.name,
       driverName: draft.driverName,
+      nationality: draft.nationality,
       ownedPacks: draft.ownedPacks,
       carClass: draft.carClass,
       carFolder: draft.carFolder,

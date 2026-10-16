@@ -20,6 +20,9 @@ public enum MessageKind
 
     /// <summary>One question after a big moment, answered in the inbox.</summary>
     Interview,
+
+    /// <summary>A sponsor offering a deal mid-season, signed or declined in the inbox.</summary>
+    SponsorApproach,
 }
 
 /// <summary>
@@ -47,6 +50,10 @@ public sealed class InboxMessage
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public InterviewQuestion? Interview { get; set; }
 
+    /// <summary>For a sponsor's mid-season offer: the deal, and what became of it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SponsorApproach? Approach { get; set; }
+
     public static string IdFor(int season, int round, MessageKind kind) => $"{season}-{round}-{kind}".ToLowerInvariant();
 }
 
@@ -59,8 +66,9 @@ public static class Inbox
     /// <summary>The mail for a round that just counted.</summary>
     public static void AfterRace(Career career, Round round, DateTimeOffset now)
     {
-        // Questions from earlier rounds can't be answered once another race has counted.
+        // Questions and offers from earlier rounds can't be answered once another race has counted.
         Paddock.LapseOpenQuestions(career, round);
+        Sponsorship.LapseOpenApproaches(career, round);
 
         // Newest last: what tops the inbox and the strip on Next race goes in last. The interview
         // waits for an answer, so it's on top; then the debrief.
@@ -100,6 +108,9 @@ public static class Inbox
     {
         foreach (var m in career.Inbox.Where(m => messageId is null || m.Id == messageId)) m.Read = true;
     }
+
+    /// <summary>Puts a message in the inbox, on top; one written for the same round and kind is replaced.</summary>
+    public static void Deliver(Career career, InboxMessage message) => Add(career, message);
 
     private static void Add(Career career, InboxMessage message)
     {

@@ -1,10 +1,10 @@
 import { call, onEvent } from "../api.js";
 import { h, put, clear, setting, chip, trackSvg } from "../dom.js";
-import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack } from "../app.js";
+import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack, countryPicker } from "../app.js";
 import { sound } from "../sound.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed } from "./offers.js";
 import { packChecklist } from "./packs.js";
-import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence } from "../i18n.js";
+import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
 
@@ -48,6 +48,12 @@ function loadTicks(key) {
 function saveTicks(key, ticks) {
   try { if (ticks.size) localStorage.setItem(key, JSON.stringify([...ticks])); else localStorage.removeItem(key); } catch { /* not kept */ }
 }
+
+/** A sponsor's name as players in its own language know it (성심당 for a Korean player), else as written. */
+const sponsorName = (deal) => (deal.localName && currentLanguage().startsWith("ko") ? deal.localName : deal.name);
+
+/** A message still waiting on the player: an interview not answered, a sponsor's offer not signed or declined. */
+const waitingOn = (m) => (m.interview && m.interview.answer == null && !m.interview.lapsed) || m.approach?.status === "Open";
 
 /** Text the app saved in a career: its phrase when it has one, or the English it was saved in. */
 const saved = (phrase, english) => (phrase ? t(phrase) : english);
@@ -418,6 +424,7 @@ export async function careerView(view, id, tab) {
   function sponsorKind(sponsorId) {
     if (sponsorId.startsWith("own-")) return t("Your brand");
     const s = sponsorInfo(sponsorId);
+    if (s?.kind === "local") return t("Local · {region}", { region: s.region });
     if (!s || s.kind !== "mashup") return t("Backer");
     return state.settings.builtLiveries?.includes(sponsorId) ? t("Your livery") : t("Livery idea · {region}", { region: s.region });
   }
@@ -454,7 +461,7 @@ export async function careerView(view, id, tab) {
 
     return h("div", { class: "card quiet deal" },
       h("div", { class: "row" },
-        h("h3", {}, d.deal.name),
+        h("h3", {}, sponsorName(d.deal)),
         h("span", { class: `deal-status ${status}` }, tag),
         h("div", { class: "spacer" }),
         h("span", { class: "faint" }, t("+{n} rep", { n: number(+d.deal.reward) }))),
@@ -496,13 +503,13 @@ export async function careerView(view, id, tab) {
           const updated = await attempt(call("signSponsor", { id, sponsorId: o.deal.sponsorId }));
           if (!updated) return;
           data = updated;
-          toast(t("Signed with {name}.", { name: o.deal.name }));
+          toast(t("Signed with {name}.", { name: sponsorName(o.deal) }));
           if (data.sponsors.length >= 2) { closeModal(); show("briefing"); } else openSponsors();
         };
         return h("div", { class: "card quiet offer" + (isSigned ? " selected" : "") },
           h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(o.deal.sponsorId)), h("div", { class: "spacer" }),
             h("span", { class: "faint" }, t("+{n} rep", { n: number(+o.deal.reward) }))),
-          h("h3", { style: { margin: "8px 0 4px" } }, o.deal.name),
+          h("h3", { style: { margin: "8px 0 4px" } }, sponsorName(o.deal)),
           h("div", { class: "muted", style: { minHeight: "40px" } }, capitalize(t(o.text))),
           h("div", { class: "row", style: { marginTop: "10px" } }, h("div", { class: "spacer" }),
             isSigned ? h("span", { class: "faint" }, t("Signed"))
@@ -819,6 +826,22 @@ export async function careerView(view, id, tab) {
       threshold != null ? h("div", { class: "rep-mark", style: { left: `${threshold}%` }, title: t("{n} for the next class", { n: threshold }) }) : null);
   }
 
+  /** Where the driver is from: local sponsors come from there. Careers from before 1.2 are asked once it's missing. */
+  function nationalityCard() {
+    const save = async (code) => {
+      const updated = await attempt(call("setNationality", { id, nationality: code }));
+      if (updated) { data = updated; show("career"); }
+    };
+    const nationality = data.career.nationality;
+    return h("div", { class: nationality ? "card quiet" : "notice info" },
+      nationality ? null : h("b", {}, t("Where's your driver from?")),
+      h("div", { class: nationality ? "muted" : "" }, nationality
+        ? t("Local sponsors come from {country}.", { country: countryName(nationality) })
+        : t("Local sponsors come from your home country. Until it's set, they follow the app's language.")),
+      h("div", { style: { marginTop: "8px" } }, countryPicker(nationality ?? "", save)),
+      nationality ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } }, t("A change applies to offers made after it.")) : null);
+  }
+
   /** Changes which DLC packs the career counts as owned; the season already on the calendar stays as it is. */
   function editContent() {
     let owned = [...data.career.ownedContent];
@@ -845,7 +868,7 @@ export async function careerView(view, id, tab) {
   function inboxStrip() {
     const newest = [...data.career.inbox].reverse().find((m) => !m.read);
     if (!newest) return null;
-    const waiting = newest.interview && newest.interview.answer == null && !newest.interview.lapsed;
+    const waiting = waitingOn(newest);
     return h("button", { class: "inbox-strip", onclick: () => { openMessage = newest.id; show("inbox"); } },
       h("span", { class: "inbox-strip-label" }, t("Inbox")),
       h("span", { class: "faint" }, t(newest.from)),
@@ -872,13 +895,14 @@ export async function careerView(view, id, tab) {
         h("div", { class: "inbox-from" }, t(m.from)),
         h("div", { class: "inbox-subject" }, t(m.subject)),
         h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round }),
-          m.interview && m.interview.answer == null && !m.interview.lapsed ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
+          waitingOn(m) ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
 
     const drawDetail = () => put(clear(detail),
       h("div", { class: "faint" }, `${t(selected.from)} · ${dateTime(selected.at)}`),
       h("h2", { class: "inbox-title" }, t(selected.subject)),
       selected.interview ? null : selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
       selected.interview ? interviewBlock(selected) : null,
+      selected.approach ? approachBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
 
     /** The question, and either the three answers to pick from or the one given. */
@@ -896,6 +920,34 @@ export async function careerView(view, id, tab) {
             h("span", { class: "interview-line" }, `“${t(o.line)}”`),
             h("span", { class: "interview-effect" }, t(o.effect)))),
         ]);
+    }
+
+    /** A sponsor's offer: sign it or turn it down while it's open, or what became of it. */
+    function approachBlock(m) {
+      const a = m.approach;
+      const status = {
+        Signed: [h("b", {}, t("Signed")), h("div", {}, t("It's with your other deals on the Next race page, and pays at the season review if you meet it."))],
+        Declined: [h("b", {}, t("Turned down")), h("div", {}, t("No harm done."))],
+        Lapsed: [h("b", {}, t("Lapsed")), h("div", {}, t("Your next race counted before you answered."))],
+      }[a.status];
+      if (status) return h("div", { class: "notice" + (a.status === "Signed" ? " good" : "") }, status);
+      const full = data.sponsors.length >= 2;
+      const reply = async (sign) => {
+        const updated = await attempt(call("answerApproach", { id, messageId: m.id, sign }));
+        if (!updated) return;
+        if (sign) toast(t("Signed with {name}.", { name: sponsorName(a.deal) }));
+        openMessage = m.id;
+        show("inbox");
+      };
+      return h("div", { class: "approach" },
+        h("div", { class: "card quiet offer" },
+          h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(a.deal.sponsorId)), h("div", { class: "spacer" }),
+            h("span", { class: "faint" }, t("+{n} rep", { n: number(+a.deal.reward) }))),
+          h("h3", { style: { margin: "8px 0 4px" } }, sponsorName(a.deal))),
+        full ? h("div", { class: "faint" }, t("You already carry two personal sponsors this season.")) : null,
+        h("div", { class: "row", style: { gap: "10px" } },
+          h("button", { class: "btn", disabled: full, "data-sound": "confirm", onclick: () => reply(true) }, t("Sign")),
+          h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));
     }
 
     async function answer(m, tone) {
@@ -1001,6 +1053,8 @@ export async function careerView(view, id, tab) {
             h("div", { class: "faint", style: { fontSize: "12px" } },
               t("Driver rating: {n}", { n: RATINGS[data.career.rating] ? t(RATINGS[data.career.rating]) : data.career.rating })),
             nextStep()),
+          h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
+          nationalityCard(),
           h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your content")),
           h("div", { class: "card quiet" },
             h("div", { class: "muted" }, packs

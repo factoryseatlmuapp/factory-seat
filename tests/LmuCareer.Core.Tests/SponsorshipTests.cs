@@ -21,7 +21,7 @@ public class SponsorshipTests
     [Fact]
     public void Three_different_deals_are_offered_once_before_the_season()
     {
-        var career = Upcoming(8);
+        var career = Upcoming(8, reputation: 60);
 
         Assert.True(Sponsorship.EnsureOffers(career, Catalog, [], seed: 1));
         var offers = career.CurrentSeason.SponsorOffers!;
@@ -38,7 +38,8 @@ public class SponsorshipTests
         var calls = new Dictionary<string, int>();
         for (var seed = 0; seed < 200; seed++)
         {
-            var career = Upcoming(8, carType: "Ford Mustang LMGT3");
+            // 45: past a rookie's single local deal, short of the prestige brands.
+            var career = Upcoming(8, reputation: 45, carType: "Ford Mustang LMGT3");
             Sponsorship.EnsureOffers(career, Catalog, ["carhartt"], seed: seed);
             foreach (var offer in career.CurrentSeason.SponsorOffers!)
                 calls[offer.SponsorId] = calls.GetValueOrDefault(offer.SponsorId) + 1;
@@ -46,8 +47,9 @@ public class SponsorshipTests
 
         Assert.False(calls.ContainsKey("makita"));
         Assert.False(calls.ContainsKey("rolex"));
-        Assert.True(calls["carhartt"] > calls.GetValueOrDefault("faygo"));
-        Assert.True(calls["carhartt"] > 150);
+        // Two offers a season at 45: the built livery calls in about 45% of seasons, three times the unbuilt one.
+        Assert.True(calls["carhartt"] > 2 * calls.GetValueOrDefault("faygo"));
+        Assert.True(calls["carhartt"] > 65);
     }
 
     [Fact]
@@ -56,12 +58,12 @@ public class SponsorshipTests
         var mine = new SponsorInfo("own-greggs-pasty", "Pasty Power", "mashup", 0, [], "Cornwall");
         var calls = Enumerable.Range(0, 100).Count(seed =>
         {
-            var career = Upcoming(8, carType: "Ford Mustang LMGT3");
+            var career = Upcoming(8, reputation: 45, carType: "Ford Mustang LMGT3");
             Sponsorship.EnsureOffers(career, Catalog, ["own-greggs-pasty"], [mine], seed);
             return career.CurrentSeason.SponsorOffers!.Any(o => o.Name == "Pasty Power");
         });
 
-        Assert.True(calls > 75);
+        Assert.True(calls > 30);
     }
 
     [Fact]
@@ -80,7 +82,7 @@ public class SponsorshipTests
     [Fact]
     public void At_most_two_deals_signed_and_only_before_the_first_round_counts()
     {
-        var career = Upcoming(8);
+        var career = Upcoming(8, reputation: 60);
         Sponsorship.EnsureOffers(career, Catalog, [], seed: 1);
         var season = career.CurrentSeason;
         var ids = season.SponsorOffers!.Select(o => o.SponsorId).ToList();
@@ -142,6 +144,7 @@ public class SponsorshipTests
         Progression.EndSeason(career, Catalog, install: null, seed: 1);
         var stay = career.Offers.First(o => o.CarClass == "GT3");
         Progression.StartNextSeason(career, stay.Id, Enumerable.Range(1, 6).Select(n => new Round { Number = n }).ToList(), Catalog);
+        career.Reputation = 60;
 
         var offers = Enumerable.Range(0, 50).SelectMany(seed =>
         {
