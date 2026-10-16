@@ -57,9 +57,20 @@ public static class RoundMatcher
             });
         if (!session.IsSinglePlayer) return Ignored(Phrase.Of("multiplayer session"));
         if (!SameLayout(session, round))
+        {
+            // The right circuit on another layout looks like the right race: say so in the briefing's words.
+            if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase)
+                && Content.ContentCatalog.Default.Track(round.TrackFolder) is { } track)
+            {
+                return Ignored(Phrase.Of("you raced the {raced} layout of {track}; this round uses {needed}",
+                    ("raced", track.Layouts.GetValueOrDefault(session.LayoutFile) ?? session.LayoutFile),
+                    ("track", track.Name),
+                    ("needed", track.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile)));
+            }
             return Ignored(round.LayoutFile.Length > 0
                 ? Phrase.Of("wrong track ({track}, {layout})", ("track", session.TrackCourse), ("layout", session.LayoutFile))
                 : Phrase.Of("wrong track ({track})", ("track", session.TrackCourse)));
+        }
         if (session.Player is not { } player) return Ignored(Phrase.Of("no player car in the session"));
 
         var differences = new List<Phrase>();

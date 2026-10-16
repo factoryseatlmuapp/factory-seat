@@ -171,4 +171,4 @@ season.
 
 A race counts when LMU's results file matches the briefing: the same layout, car, race length, fuel
 usage and tyre wear. Time Scale and start time aren't in LMU's results, so they're never checked.
-A near miss (one setting off) asks the player whether to count it anyway.
+A near miss (the right layout and car with one or more settings off) asks the player whether to count it anyway.

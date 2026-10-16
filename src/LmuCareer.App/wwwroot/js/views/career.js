@@ -17,6 +17,9 @@ let noticed = null;
 // The message to open when the Inbox tab is reached from the strip on the Next race page.
 let openMessage = null;
 
+// The Race weekend panel's results area on the briefing, for news found when the career opens.
+let weekendResults = null;
+
 // A career's hub: the next race's briefing (or the off-season), the calendar, the standings and
 // the career so far.
 
@@ -250,8 +253,8 @@ export async function careerView(view, id, tab) {
             setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like. After you start the weekend, your engineer reads it for pace."), untickable: true }),
             setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid."), untickable: true }),
             setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true, tick: tick("length") }),
-            setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event settings"), tick: tick("fuel") }),
-            setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event settings"), tick: tick("tyres") }),
+            setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("fuel") }),
+            setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("tyres") }),
             setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
             setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") }))),
         h("div", {},
@@ -471,6 +474,7 @@ export async function careerView(view, id, tab) {
     }
 
     const results = h("div", { class: "stack" });
+    weekendResults = results;
     put(panel,
       h("div", { class: "notice info" }, h("b", {}, t("Weekend started")),
         h("div", {}, t("Started {date}. Go race in LMU and leave this app open in the background: it watches for your results and pops up when the race ends.", { date: dateTime(round.armedAt) }))),
@@ -687,7 +691,9 @@ export async function careerView(view, id, tab) {
     // Saved mid-race to finish later: nothing to decide yet, so a quiet note instead of a pop-up.
     if (evaluation.status === "SavedToResume") {
       dismissed.add(key);
-      toast(t("Race saved as \"{name}\". Finish it in LMU whenever you like and it'll count.", { name: evaluation.savedAs }));
+      toast(t("Race saved as \"{name}\". Don't start the weekend again: load the save in LMU, finish the race, and it counts.", { name: evaluation.savedAs }));
+      // On the briefing, the weekend panel keeps saying so after the toast has gone.
+      if (weekendResults?.isConnected) renderEvaluation(clear(weekendResults), evaluation);
       return;
     }
     const titles = { Ready: t("Race finished"), NeedsConfirmation: t("Race finished"), QuitEarly: t("Race ended early") };
@@ -766,7 +772,7 @@ export async function careerView(view, id, tab) {
         break;
       case "SavedToResume":
         put(results, h("div", { class: "notice info" }, h("b", {}, t("Saved to finish later")),
-          h("div", {}, t("You saved this race in LMU as \"{name}\". Load it from LMU's race weekend saves, finish it, and the result pops up here.", { name: evaluation.savedAs })),
+          h("div", {}, t("You saved this race in LMU as \"{name}\". Don't start the weekend again here: it's still running. In LMU, load \"{name}\" from the race weekend saves and finish the race; the result pops up here.", { name: evaluation.savedAs })),
           h("div", { class: "muted" }, raceLine)),
           h("div", { class: "row" }, h("div", { class: "spacer" }),
             h("span", { class: "faint", style: { fontSize: "12px" } }, t("Not coming back to it?")),

@@ -58,6 +58,21 @@ public class RoundFlowTests
     }
 
     [Fact]
+    public void The_right_circuit_on_another_layout_says_which_in_the_briefings_words()
+    {
+        var round = ArmedRound();
+        round.TrackFolder = "ImolaWEC_2024";
+        round.LayoutFile = "layoutImola";
+        var session = new ResultsXml { TrackData = @"C:\LMU\Installed\Locations\ImolaWEC_2024\1.0\layoutImolaELMS.mas" }
+            .Car("Me", player: true, number: "69").Parse();
+
+        var check = Check(session, round: round);
+
+        Assert.Equal(MatchVerdict.Ignored, check.Verdict);
+        Assert.Equal(["you raced the ELMS layout of Imola; this round uses Grand Prix"], check.Reasons.Select(r => r.ToString()));
+    }
+
+    [Fact]
     public void Files_counted_by_another_career_are_ignored()
     {
         var session = Weekend().Car("Me", player: true, number: "69").Parse();
@@ -96,7 +111,7 @@ public class RoundFlowTests
 
         Assert.Equal(MatchVerdict.Match, elms.Verdict);
         Assert.Equal(MatchVerdict.Ignored, grandPrix.Verdict);
-        Assert.Equal(["wrong track (Circuit de Spa-Francorchamps, layoutSpa)"], grandPrix.Reasons.Select(r => r.ToString()));
+        Assert.Equal(["you raced the Grand Prix layout of Circuit de Spa-Francorchamps; this round uses ELMS"], grandPrix.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]

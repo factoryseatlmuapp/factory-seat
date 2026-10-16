@@ -64,7 +64,7 @@ No. When you start a career you tick the packs you own, and calendars, cars and 
 That's SmartScreen. It shows for any installer that isn't code-signed, and code signing costs money a free fan project doesn't have. Choose **More info → Run anyway**. If you'd like to check first, every release lists the installer's SHA-256 checksum and a VirusTotal scan, and the full source is in this repo.
 
 **Can I save a race part-way and finish it later?**
-Yes. Save it in LMU as usual. When you leave the race, LMU writes a results file that looks like you quit. Factory Seat spots the save and waits instead of asking whether to count a DNF. Load the save from LMU's race weekend saves, finish the race, and the result pops up then.
+Yes. Save it in LMU as usual. When you leave the race, LMU writes a results file that looks like you quit. Factory Seat spots the save and waits instead of asking whether to count a DNF. Don't press **Start race weekend** again: the weekend is still running. Load the save from LMU's race weekend saves, finish the race, and the result pops up then.
 
 **Can my teammate drive a stint?**
 Not yet. LMU removed the AI takeover button in 2024, so you drive the whole race. The briefing gives you a pit plan instead of driver swaps. Your teammate shares the car's points.
@@ -73,7 +73,7 @@ Not yet. LMU removed the AI takeover button in 2024, so you drive the whole race
 Yes. Leave the car number and team blank when you start a career, and the app learns them from your first race. Race Control custom-team cars are recognised whatever number they run.
 
 **A race didn't count. Why?**
-A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If one setting is off, the app asks you. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
+A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If the track, layout and car are right but settings are off (race length, Fuel Usage, Tyre Wear), the app asks whether to count it anyway, however many are off. Fuel Usage, Tyre Wear and Time Scale only take effect from LMU's **Event Settings › Advanced** page. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
 
 ## Feedback and ideas
 
