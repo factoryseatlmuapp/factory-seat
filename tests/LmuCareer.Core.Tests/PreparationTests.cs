@@ -140,11 +140,11 @@ public class PreparationTests
         FuelMultiplier = 3.5, TireMultiplier = 3.5, State = RoundState.Armed, ArmedAt = ArmedAt,
     };
 
-    private static SessionCheck Practice(int minutesAfterArming, string carType = "Lexus RCF LMGT3", string course = "Circuit de la Sarthe", int laps = 10)
+    private static SessionCheck Practice(int minutesAfterArming, string carType = "Lexus RCF LMGT3", string course = "Circuit de la Sarthe", int laps = 10, int playerPos = 2)
     {
         var session = new ResultsXml { Session = "Practice1", Course = course }
-            .Car("Sam Sample", player: true, number: "69", carType: carType, classPos: 2, laps: laps)
-            .Car("Dan Harper", classPos: 1)
+            .Car("Sam Sample", player: true, number: "69", carType: carType, classPos: playerPos, laps: laps)
+            .Car("Dan Harper", classPos: playerPos == 1 ? 2 : 1)
             .Car("Hyper Fast", carClass: "Hyper", carType: "Toyota GR010", classPos: 1)
             .Parse();
         return RoundMatcher.Check(session, ArmedAt.AddMinutes(minutesAfterArming), Armed(), Car);
@@ -168,6 +168,8 @@ public class PreparationTests
     public void Practice_before_the_weekend_elsewhere_or_in_another_car_isnt_read()
     {
         Assert.Null(Preparation.ReadPractice([Practice(-10)], Armed(), Car));
+        // Quicker than the AI already: no target to chase.
+        Assert.Null(Preparation.ReadPractice([Practice(20, playerPos: 1)], Armed(), Car)!.TargetLap);
         Assert.Null(Preparation.ReadPractice([Practice(20, course: "Sebring International Raceway")], Armed(), Car));
         Assert.Null(Preparation.ReadPractice([Practice(20, carType: "Ford Mustang LMGT3")], Armed(), Car));
     }

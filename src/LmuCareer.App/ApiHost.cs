@@ -627,6 +627,7 @@ public sealed class ApiHost
     {
         status = evaluation.Status,
         savedAs = evaluation.SavedAs,
+        practiceChanged = evaluation.PracticeChanged,
         race = CheckView(evaluation.Race),
         qualifying = CheckView(evaluation.Qualifying),
         ignored = evaluation.Ignored.Select(CheckView),

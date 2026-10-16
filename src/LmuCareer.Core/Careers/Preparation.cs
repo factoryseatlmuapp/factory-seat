@@ -11,7 +11,7 @@ public sealed record TrackVisit(int Season, int Round, string EventName, int? Fi
 /// A practice session run after the round's weekend was started, read for pace: the player's best
 /// lap and the AI's. Practice earns nothing; it's information for the race.
 /// </summary>
-/// <param name="TargetLap">What the engineer asks for in the race: the AI's best practice lap.</param>
+/// <param name="TargetLap">What the engineer asks for in the race: the AI's best practice lap, when the player was slower than it; null when they were already quicker.</param>
 public sealed record PracticeRead(int Sessions, int Laps, double? PlayerBest, double? AiBest, string AiBestDriver, double? TargetLap)
 {
     public double? Gap => PlayerBest is { } mine && AiBest is { } ai ? Math.Round(mine - ai, 3) : null;
@@ -104,13 +104,14 @@ public static class Preparation
         var mine = sessions.Select(s => s.Player!).ToList();
         var ai = sessions.SelectMany(s => s.Entries.Where(e => !e.IsPlayer && e.CarClass == s.Player!.CarClass && e.BestLapSeconds > 0)).ToList();
         var fastest = ai.MinBy(e => e.BestLapSeconds);
+        var best = mine.Select(p => p.BestLapSeconds).Where(t => t > 0).Min();
         return new PracticeRead(
             sessions.Count,
             mine.Sum(p => p.Laps),
-            mine.Select(p => p.BestLapSeconds).Where(t => t > 0).Min(),
+            best,
             fastest?.BestLapSeconds,
             fastest?.Name ?? "",
-            fastest?.BestLapSeconds);
+            best > fastest?.BestLapSeconds ? fastest.BestLapSeconds : null);
     }
 
     // ---------- Pace advice for this track ----------

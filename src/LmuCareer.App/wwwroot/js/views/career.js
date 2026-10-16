@@ -122,7 +122,11 @@ export async function careerView(view, id, tab) {
   // Results written while the app was closed or another screen was open turn up on arrival.
   if (armed()) {
     call("checkRound", { id })
-      .then((evaluation) => { if (evaluation.status !== "Waiting" || wrongCarRace(evaluation)) announce(evaluation); })
+      .then((evaluation) => {
+        // Practice run while the app was closed: redraw the briefing with it (the next check finds nothing new).
+        if (evaluation.practiceChanged && tab === "briefing") return show("briefing");
+        if (evaluation.status !== "Waiting" || wrongCarRace(evaluation)) announce(evaluation);
+      })
       .catch(() => {});
   }
 
@@ -388,7 +392,7 @@ export async function careerView(view, id, tab) {
               h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, t("Best lap")), h("b", {}, lapTime(bestLap)))),
             h("p", { class: "muted" }, t("Last time: {event}, season {season}, {finish}.", { event: last.eventName, season: last.season, finish: finishText(last) })),
           ]
-          : h("p", {}, t("Your first race here in this class. A practice run helps: your engineer reads it for pace.")),
+          : h("p", {}, practice ? t("Your first race here in this class.") : t("Your first race here in this class. A practice run helps: your engineer reads it for pace.")),
         practice
           ? [
             h("p", {}, tn(practice.sessions, "Practice: {laps} laps. Your best {mine}, the fastest AI {ai}.", "Practice ({n} sessions): {laps} laps. Your best {mine}, the fastest AI {ai}.",
