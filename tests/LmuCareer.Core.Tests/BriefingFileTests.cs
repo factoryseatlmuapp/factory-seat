@@ -79,7 +79,9 @@ public sealed class BriefingFileTests : IDisposable
         Assert.Equal(108.2, practice.GetProperty("bestLap").GetDouble());
         Assert.Equal(107.9, practice.GetProperty("targetLap").GetDouble());
         Assert.Equal("Matched", practice.GetProperty("aiStrength").GetString());
+        Assert.Equal(0, practice.GetProperty("aiStrengthStep").GetInt32());
         Assert.Equal("Practice", next.GetProperty("pace").GetProperty("source").GetString());
+        Assert.Equal(0, next.GetProperty("pace").GetProperty("step").GetInt32());
         Assert.True(json.GetProperty("sponsors")[0].GetProperty("local").GetBoolean());
         Assert.Equal(0, json.GetProperty("sponsors")[0].GetProperty("signedAfterRound").GetInt32());
     }

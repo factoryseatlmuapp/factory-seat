@@ -57,6 +57,20 @@ public static class PaceCheck
         return new PaceSummary(paces[^1], gap, recent.Count, AdviceFor(gap));
     }
 
+    /// <summary>
+    /// The advice as a change to LMU's AI Strength slider, in points: "a few points" for too easy or
+    /// too hard, "a notch" for a bit. Factory Seat can't see where the slider is now, so it's a step,
+    /// not a setting.
+    /// </summary>
+    public static int StepFor(PaceAdvice advice) => advice switch
+    {
+        PaceAdvice.TooEasy => 3,
+        PaceAdvice.BitEasy => 1,
+        PaceAdvice.BitHard => -1,
+        PaceAdvice.TooHard => -3,
+        _ => 0,
+    };
+
     /// <summary>What a gap to the fastest AI (seconds a lap, negative when quicker) says about AI Strength.</summary>
     public static PaceAdvice AdviceFor(double gap) => gap switch
     {

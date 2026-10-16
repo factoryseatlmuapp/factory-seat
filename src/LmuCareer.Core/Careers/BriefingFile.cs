@@ -92,9 +92,10 @@ public sealed record BriefingFile(
             History = prep.History.Select(v => new BriefingVisit(v.Season, v.Round, v.EventName, v.Finish, v.Status, v.BestLap)).ToList(),
             Practice = prep.Practice is { } p
                 ? new BriefingPractice(p.Sessions, p.Laps, p.PlayerBest, p.AiBest, p.AiBestDriver.Length > 0 ? p.AiBestDriver : null, p.Gap, p.TargetLap,
-                    prep.Pace is { Source: PaceSource.Practice } fromPractice ? fromPractice.Advice : null)
+                    prep.Pace is { Source: PaceSource.Practice } fromPractice ? fromPractice.Advice : null,
+                    prep.Pace is { Source: PaceSource.Practice } practiceStep ? PaceCheck.StepFor(practiceStep.Advice) : null)
                 : null,
-            Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, pace.Source, pace.Gap, pace.Visits) : null,
+            Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, PaceCheck.StepFor(pace.Advice), pace.Source, pace.Gap, pace.Visits) : null,
         };
     }
 
@@ -225,7 +226,7 @@ public sealed record BriefingSponsor(string Name, ObjectiveKind Kind, string Obj
 
 /// <param name="Position">The player's place in the class drivers' standings; null before any points.</param>
 /// <param name="OpenBet">A confident interview answer this race settles.</param>
-/// <param name="Lines">The briefing's stakes, in English.</param>
+/// <param name="Lines">The briefing's stakes, in English, most important first: the championship position is always first.</param>
 public sealed record BriefingStakes(int? Position, decimal Points, BriefingRival? Ahead, BriefingRival? Behind, BriefingBet? OpenBet, IReadOnlyList<string> Lines);
 
 /// <param name="Gap">Points between the driver and the player, always positive.</param>
@@ -245,8 +246,10 @@ public sealed record BriefingVisit(int Season, int Round, string Event, int? Fin
 /// <param name="Gap">Best lap against the fastest AI in class, in seconds; negative when the player was quicker.</param>
 /// <param name="TargetLap">The engineer's target for the race when the player was slower than the AI; null otherwise.</param>
 /// <param name="AiStrength">The AI Strength advice practice gives: TooEasy, BitEasy, Matched, BitHard or TooHard.</param>
-public sealed record BriefingPractice(int Sessions, int Laps, double? BestLap, double? AiBestLap, string? AiBestDriver, double? Gap, double? TargetLap, PaceAdvice? AiStrength);
+/// <param name="AiStrengthStep">The same advice as points on LMU's AI Strength slider: +3, +1, 0, -1 or -3.</param>
+public sealed record BriefingPractice(int Sessions, int Laps, double? BestLap, double? AiBestLap, string? AiBestDriver, double? Gap, double? TargetLap, PaceAdvice? AiStrength, int? AiStrengthStep);
 
 /// <param name="Source">Practice (this weekend), Track (earlier races here, the latest counting most) or Season (recent rounds, kept small on a first visit).</param>
+/// <param name="Step">The advice as points on LMU's AI Strength slider: +3, +1, 0, -1 or -3.</param>
 /// <param name="Visits">Earlier races here it's based on (Track only).</param>
-public sealed record BriefingPace(PaceAdvice Advice, PaceSource Source, double Gap, int Visits);
+public sealed record BriefingPace(PaceAdvice Advice, int Step, PaceSource Source, double Gap, int Visits);

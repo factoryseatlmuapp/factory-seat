@@ -39,6 +39,26 @@ public class PreparationTests
         Assert.Equal("AI 3 is 3 behind in P3: beat them and you stay ahead.", lines[2]);
     }
 
+    [Theory]
+    [InlineData(PaceAdvice.TooEasy, 3)]
+    [InlineData(PaceAdvice.BitEasy, 1)]
+    [InlineData(PaceAdvice.Matched, 0)]
+    [InlineData(PaceAdvice.BitHard, -1)]
+    [InlineData(PaceAdvice.TooHard, -3)]
+    public void Pace_advice_is_a_step_on_the_ai_strength_slider(PaceAdvice advice, int step) =>
+        Assert.Equal(step, PaceCheck.StepFor(advice));
+
+    [Fact]
+    public void Stakes_lines_come_most_important_first()
+    {
+        // Companion apps show only the first line or two: position, then the rivals, then the rest.
+        var lines = Lines(Season(2, Counted(1, 2)));
+        Assert.StartsWith("You're P2 in the championship", lines[0]);
+        Assert.StartsWith("AI 1 is", lines[1]);
+        Assert.StartsWith("AI 3 is", lines[2]);
+        Assert.Equal("Double points: 50 for a class win.", lines[3]);
+    }
+
     [Fact]
     public void Stakes_say_what_finish_keeps_the_driver_behind_behind()
     {

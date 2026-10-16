@@ -97,9 +97,9 @@ can ignore them.
   "history": [],
   "practice": {
     "sessions": 1, "laps": 6, "bestLap": 245.9572, "aiBestLap": 249.2532, "aiBestDriver": "Richard Lietz",
-    "gap": -3.296, "targetLap": null, "aiStrength": "TooEasy"
+    "gap": -3.296, "targetLap": null, "aiStrength": "TooEasy", "aiStrengthStep": 3
   },
-  "pace": { "advice": "TooEasy", "source": "Practice", "gap": -3.296, "visits": 0 }
+  "pace": { "advice": "TooEasy", "step": 3, "source": "Practice", "gap": -3.296, "visits": 0 }
 },
 "sponsors": [
   { "name": "Motul", "...": "as above", "local": false, "signedAfterRound": 0 }
@@ -145,7 +145,10 @@ the first race decides it); `targetPosition` is the team's target in the class s
   ahead even if they win. `finish` is `null` when no result settles it; `settled` (behind only) means
   the player stays ahead whatever happens. `openBet` is a confident interview answer this race
   settles: `event` it was given after, `needs` (`podium`, or `target` for the team's target) and
-  `cost` in reputation. `lines` are the briefing's stakes, in English.
+  `cost` in reputation. `lines` are the briefing's stakes, in English, most important first:
+  `lines[0]` is always the championship position (or "no points on the board yet"), then the drivers
+  ahead and behind, then double points, an interview bet and a sponsor's podium ask, when they apply.
+  An overlay short on room can show just the first one or two.
 - `history` (1.2): earlier counted races at this layout in this class, newest first: `season`,
   `round`, `event`, `finish` (class position, `null` when not classified), `status` and `bestLap` in
   seconds. Empty on a first visit.
@@ -153,8 +156,10 @@ the first race decides it); `targetPosition` is the team's target in the class s
   been some. Lap times are in seconds: `bestLap` is the player's, `aiBestLap` the fastest AI in class
   (`aiBestDriver`), `gap` the difference (negative when the player was quicker). `targetLap` is the
   engineer's target for the race, only when the player was slower than the AI. `aiStrength` is the
-  advice it gives: `TooEasy`, `BitEasy`, `Matched`, `BitHard` or `TooHard`.
-- `pace` (1.2): AI Strength advice for this race, the same values as `aiStrength`, and where it comes
+  advice it gives: `TooEasy`, `BitEasy`, `Matched`, `BitHard` or `TooHard`, and `aiStrengthStep` the
+  same advice as points to move LMU's AI Strength slider: `3`, `1`, `0`, `-1` or `-3`.
+- `pace` (1.2): AI Strength advice for this race, the same values as `aiStrength`, `step` as points on
+  the slider (as `aiStrengthStep`), and where it comes
   from in `source`: `Practice` (this weekend), `Track` (earlier races here, the latest counting most;
   `visits` says how many) or `Season` (recent rounds elsewhere, kept to a small change on a first
   visit). `gap` is seconds a lap against the fastest AI. `null` before any race has counted.
