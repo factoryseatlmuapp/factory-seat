@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.2.0 (in progress)
+
+- **An Inbox between races.** After every race that counts, mail arrives: your race engineer's debrief, your team principal on the result against your contract, and your manager on what the season is worth so far. The Inbox tab shows how many are unread, and the newest is on the Next race page. A career from before 1.2 opens with mail for its last race.
+- **The engineer's debrief** is built from LMU's own lap data: where you started and finished, your best lap and each sector against the fastest AI in your class, every stint and how your pace held up, track limits, penalties, contacts and damage. It tells a slow end of stint from low fuel or energy apart from tyre wear.
+- **The press and one interview question.** A big result makes the headlines, and after the big moments (a win, the championship lead changing hands, a podium or retirement at a big race) the press asks one question. Humble is always safe; confident is a bet your next race settles; blaming the team works once a season. It's all paid in reputation at the season review, and each answer shows what it does before you pick.
+- **Sponsors through the season.** Season-start offers now grow with your reputation: a rookie gets one small deal from a local brand, an established driver up to three. A result above expectations brings a sponsor's offer mid-season, for the rounds left, which you sign or turn down in the Inbox.
+- **Local sponsors and your nationality.** A new tier of independent, regional brands (32 of them, in 8 countries) backs drivers from their own country. Pick your driver's nationality on New Career, or set it on the Career tab.
+- **What's at stake, before each race:** the championship maths ("finish P4 or better and you stay ahead, whatever they do"), the points weight, an interview bet the race settles, and a sponsor who wants a podium here.
+- **Preparation and practice.** The briefing shows your record at this track and layout, and a practice session run after you start the race weekend is read for pace: your best lap against the AI's, and a target lap. The pace check now uses practice first, then your earlier races here, then your season form.
+- **Full race results** for every counted round on the Calendar, class by class, including races run before 1.2. (#9)
+- **Lap analysis** from those results: every lap with its time, sectors, top speed, fuel, tyres and pit stops, with your bests and anything quicker than the best AI marked. (#14)
+- **Championship only,** picked on New Career: seasons and points, no reputation, sponsors, offers, guest drives or interviews, and any car you like for each season. (#5)
+- **Pit plans fit the car.** The planner now knows how long a tank lasts for each class at each track, measured from races, instead of one 50-minute guess. An LMP3 race at Imola no longer gets a planned stop it never needs. LMP3 is an estimate until it's measured; more measured numbers come in later updates.
+- A race on the right circuit but the wrong layout now says so in the briefing's words, like "you raced the ELMS layout of Imola; this round uses Grand Prix".
+- A race saved part-way says plainly not to start the weekend again: load the save in LMU and finish it. The briefing's Race weekend panel shows it too.
+- The briefing points Fuel Usage and Tyre Wear to LMU's Event Settings › Advanced, where they take effect.
+- When a new version is out, the app opens with a card saying what's in it, once, with Get it and Not now.
+- An opening animation, and a short tour of what's new the first time you open 1.2 (Settings › Show the tour again).
+- `briefing.json` for companion apps adds the stakes, your history at the track, practice and AI Strength advice. Nothing that was there changes. See `docs/briefing-json.md`.
+- All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.
+
 ## 1.1.1
 
 - A guest drive raced in the team's car, under its number, now counts straight away. Before, the first guest race asked you to confirm "first race of the season: you raced as #…", because the guest car didn't have a number yet. Raced under another number, it now says which numbers the team runs. (#10)
