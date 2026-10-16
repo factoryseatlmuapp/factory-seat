@@ -335,6 +335,44 @@ select.input { padding: 6px 8px; }
 
 /* ---------- Modal and toast ---------- */
 
+/* The what's-new tour (tour.js). */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-spot { position: fixed; border-radius: 10px; box-shadow: 0 0 0 9999px rgba(3, 5, 10, 0.72); outline: 2px solid var(--accent);
+  transition: left 300ms ease, top 300ms ease, width 300ms ease, height 300ms ease; pointer-events: none; }
+.tour-spot.still { transition: none; }
+.tour-card { position: fixed; width: min(380px, calc(100vw - 32px)); background: var(--panel-solid); border: 2px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
+.tour-card h3 { font: 700 22px "Barlow Condensed", var(--cjk); text-transform: uppercase; margin: 2px 0 6px; }
+.tour-card p { margin: 0 0 12px; }
+.tour-count { font-size: 12px; color: var(--text-faint); }
+
+/* The opening animation (index.html): prototype option 4, picked Oct 13. */
+.intro { position: fixed; inset: 0; z-index: 100; overflow: hidden; cursor: pointer;
+  background:
+    radial-gradient(ellipse 55% 70% at 78% 18%, var(--glow-red), transparent 70%),
+    radial-gradient(ellipse 60% 70% at 18% 100%, var(--glow-blue), transparent 70%),
+    var(--bg); }
+.intro.out { opacity: 0; transition: opacity 280ms ease-out; }
+.intro .stripe-top { transform: translate(-100%, -100%); }
+.intro .stripe-bottom { transform: translate(100%, 100%); }
+.intro.play .stripe-top, .intro.play .stripe-bottom { animation: intro-home 460ms cubic-bezier(.2,.8,.2,1) 1000ms forwards; }
+.intro-track { position: absolute; left: 50%; top: 50%; height: 62vh; transform: translate(-50%, -50%); overflow: visible; }
+.intro-track path { fill: none; stroke: var(--accent); stroke-width: 7; stroke-linejoin: round; stroke-linecap: round; }
+.intro.play .intro-track path { animation: intro-fade-track 300ms ease-out 850ms forwards; }
+.intro-car { fill: #fff; filter: drop-shadow(0 0 6px #fff); opacity: 0; }
+.intro.play .intro-car { animation: intro-car 850ms linear forwards; }
+.intro-mark { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; opacity: 0;
+  font: 700 clamp(56px, 9vw, 120px)/0.95 "Barlow Condensed", var(--cjk); letter-spacing: 0.01em; color: var(--text); }
+.intro-mark em { font-style: normal; color: var(--accent); }
+.intro.play .intro-mark { animation: intro-rise 460ms cubic-bezier(.2,.8,.2,1) 1000ms forwards; }
+.intro.reduced .intro-track { display: none; }
+.intro.reduced .intro-mark { opacity: 1; }
+.intro.reduced .stripe-top, .intro.reduced .stripe-bottom { transform: none; }
+@keyframes intro-home { to { transform: translate(0, 0); } }
+@keyframes intro-fade-track { to { opacity: 0.12; stroke-width: 4; } }
+@keyframes intro-car { 0%, 96% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes intro-rise { from { opacity: 0; transform: translate(-50%, -38%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
 .modal-layer { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;
   background: rgba(5, 8, 14, 0.62); backdrop-filter: blur(3px); }
 .modal { width: min(620px, calc(100vw - 48px)); max-height: calc(100vh - 80px); overflow: auto;

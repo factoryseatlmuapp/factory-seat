@@ -32,6 +32,9 @@ public sealed class AppSettings
     /// <summary>The newest version the update card has been shown for: it opens once per version.</summary>
     public string? UpdateCardSeen { get; set; }
 
+    /// <summary>The "what's new" tour that's been shown ("1.2"); null to show it again on the next career with mail.</summary>
+    public string? TourSeen { get; set; }
+
     /// <summary>Sponsors whose livery the player has built, by sponsor id: those sponsors call more often.</summary>
     public List<string> BuiltLiveries { get; set; } = [];
 

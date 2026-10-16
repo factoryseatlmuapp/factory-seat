@@ -39,6 +39,54 @@
   <div class="modal-layer" id="modal-layer" hidden></div>
   <div class="toast" id="toast" hidden></div>
 
+  <!-- The opening: the Le Mans lap draws itself, then the wordmark lands as the stripes slide in.
+       Inline so it starts while the app loads; a click or key skips it; with Windows' animation
+       effects off it shows the logo without motion. App start only. -->
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="stripe stripe-top"></div><div class="stripe stripe-bottom"></div>
+    <svg class="intro-track" viewBox="-10 -10 524 1020"><path d="M31.8 469.2 L39.4 462.0 L43.1 452.4 L38.1 412.9 L40.1 389.1 L18.8 310.1 L10.1 302.6 L6.3 285.4 L0.0 280.3 L3.6 183.9 L8.1 159.2 L15.4 138.1 L24.0 126.8 L48.9 111.1 L49.3 97.3 L76.6 79.4 L93.4 59.5 L105.7 54.1 L128.9 52.5 L135.1 49.7 L140.0 42.0 L143.2 25.9 L161.5 11.9 L194.1 0.1 L216.5 13.0 L231.3 26.0 L263.8 75.0 L277.3 101.2 L356.4 346.1 L352.2 363.9 L365.1 376.8 L368.6 383.9 L467.0 689.4 L481.1 700.4 L478.1 723.0 L492.4 774.7 L503.5 967.7 L496.3 999.0 L492.1 999.7 L364.2 964.5 L273.2 918.7 L185.3 852.6 L179.1 844.1 L171.4 819.8 L167.4 816.0 L161.3 816.4 L115.0 834.3 L111.7 833.4 L85.0 726.8 L48.8 653.2 L21.7 608.9 L23.8 591.0 L43.7 566.9 L47.5 554.7 L44.0 526.2 L27.0 508.2 L21.7 497.0 L22.7 481.5 L31.8 469.2 Z"/><circle class="intro-car" r="9"/></svg>
+    <div class="intro-mark">FACTORY <em>SEAT</em></div>
+  </div>
+  <script>
+    (function () {
+      const intro = document.getElementById("intro");
+      const LAP = 850, HOLD = 1700;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        removeEventListener("keydown", finish);
+        intro.classList.add("out");
+        setTimeout(() => intro.remove(), 300);
+      };
+      addEventListener("keydown", finish);
+      intro.addEventListener("pointerdown", finish);
+
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        intro.classList.add("reduced");
+        setTimeout(finish, 600);
+        return;
+      }
+      // The white dot rides the leading edge of the line, like a car on its lap.
+      const path = intro.querySelector("path"), car = intro.querySelector(".intro-car");
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+      const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+      const start = performance.now();
+      (function step(now) {
+        if (done) return;
+        const t = Math.min(1, (now - start) / LAP), at = len * ease(t), p = path.getPointAtLength(at);
+        path.style.strokeDashoffset = len - at;
+        car.setAttribute("cx", p.x);
+        car.setAttribute("cy", p.y);
+        if (t < 1) requestAnimationFrame(step);
+      })(start);
+      requestAnimationFrame(() => requestAnimationFrame(() => intro.classList.add("play")));
+      setTimeout(finish, HOLD);
+    })();
+  </script>
+
   <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { call } from "../api.js";
 import { h, put, clear, setting, stepper } from "../dom.js";
-import { state, showModal, closeModal, go, attempt, catalog } from "../app.js";
+import { state, showModal, closeModal, go, attempt, catalog, toast } from "../app.js";
 import { applyTheme } from "../theme.js";
 import { configureSound, sound } from "../sound.js";
 import { t } from "../i18n.js";
@@ -73,7 +73,9 @@ export async function openSettings() {
         setting(t("Check for new versions"), h("button", {
           class: "toggle" + (s.checkForUpdates ? " on" : ""), "data-sound": "none",
           onclick: () => save({ checkForUpdates: !s.checkForUpdates }),
-        }), { hint: t("When the app starts, it asks GitHub whether a newer release is out. That's the only time it goes online.") })),
+        }), { hint: t("When the app starts, it asks GitHub whether a newer release is out. That's the only time it goes online.") }),
+        setting(t("What's new tour"), h("button", { class: "btn ghost small", onclick: () => { save({ tourSeen: null }); toast(t("The tour runs the next time you open a career.")); } },
+          t("Show the tour again")), { hint: t("A short walk through what 1.2 added.") })),
 
       h("div", { class: "rows-title" }, "Le Mans Ultimate"),
       h("div", { class: "rows" },

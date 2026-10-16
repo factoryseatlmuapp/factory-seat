@@ -2,6 +2,7 @@ import { call, onEvent } from "../api.js";
 import { h, put, clear, setting, chip, trackSvg } from "../dom.js";
 import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack, countryPicker } from "../app.js";
 import { sound } from "../sound.js";
+import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed } from "./offers.js";
 import { packChecklist } from "./packs.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
@@ -19,6 +20,9 @@ let openMessage = null;
 
 // The Race weekend panel's results area on the briefing, for news found when the career opens.
 let weekendResults = null;
+
+// The "what's new" tour this version shows once.
+const TOUR = "1.2";
 
 // A career's hub: the next race's briefing (or the off-season), the calendar, the standings and
 // the career so far.
@@ -110,6 +114,13 @@ export async function careerView(view, id, tab) {
     ]);
   }
 
+  // What's new in 1.2, once: as soon as a career has mail to show it with (an updated career's
+  // first open, or a new player's first counted race). After the opening animation.
+  if (state.settings.tourSeen !== TOUR && !tourRunning() && data.career.inbox.length > 0) {
+    const waitForIntro = () => (document.getElementById("intro") ? setTimeout(waitForIntro, 200) : setTimeout(startTour, 400));
+    waitForIntro();
+  }
+
   // While this career is open, the app watches the results folder for it.
   call("watchCareer", { id }).catch(() => {});
   stopListening?.();
@@ -131,6 +142,27 @@ export async function careerView(view, id, tab) {
         if (evaluation.status !== "Waiting" || wrongCarRace(evaluation)) announce(evaluation);
       })
       .catch(() => {});
+  }
+
+  function startTour() {
+    if (tourRunning() || !location.hash.includes(id)) return;
+    const tabButton = (tabId) => document.querySelectorAll("#tabs .tab")[TABS.findIndex((x) => x.id === tabId)] ?? null;
+    runTour([
+      { target: () => tabButton("inbox"),
+        title: t("Your inbox"),
+        text: t("After every race, your engineer, your team principal and the press send mail. The red count is what you haven't read.") },
+      { before: async () => { openMessage = [...data.career.inbox].reverse().find((m) => m.kind === "Debrief")?.id ?? null; show("inbox"); },
+        target: () => document.querySelector(".inbox-detail"),
+        title: t("Your engineer's debrief"),
+        text: t("Pace against the best AI, sector by sector, every stint, track limits and contacts. Read it before the next race.") },
+      { before: async () => show("briefing"),
+        target: () => document.querySelector(".race-ahead"),
+        title: t("What's at stake"),
+        text: t("Before each race: the championship maths, your record at this track, and what your practice says about AI Strength.") },
+      { target: () => tabButton("calendar"),
+        title: t("Full results"),
+        text: t("Every counted round on the Calendar opens its full results, and a lap-by-lap analysis of your race.") },
+    ], () => call("setPrefs", { tourSeen: TOUR }).then((s) => { if (s) state.settings = s; }).catch(() => {}));
   }
 
   // ---------- Your car, on every tab ----------
@@ -407,7 +439,7 @@ export async function careerView(view, id, tab) {
             ? t("Run a practice now and your engineer reads it for pace.")
             : t("Start the weekend first: practice after that is read for pace."))));
 
-    return h("div", { class: "grid-2", style: { gridTemplateColumns: stakes ? "1fr 1fr" : "1fr", alignItems: "start", marginBottom: "24px" } }, stakes, ready);
+    return h("div", { class: "grid-2 race-ahead", style: { gridTemplateColumns: stakes ? "1fr 1fr" : "1fr", alignItems: "start", marginBottom: "24px" } }, stakes, ready);
   }
 
   /** You drive every lap; Fuel Usage puts the stops where the real race's would fall. */
@@ -991,7 +1023,7 @@ export async function careerView(view, id, tab) {
     const detail = h("div", { class: "inbox-detail card quiet" });
 
     const drawList = () => put(clear(list), messages.map((m) =>
-      h("button", { class: "inbox-item" + (m.read ? "" : " unread") + (m === selected ? " active" : ""), onclick: () => select(m) },
+      h("button", { class: "inbox-item" + (m.read ? "" : " unread") + (m === selected ? " active" : ""), "data-kind": m.kind, onclick: () => select(m) },
         h("div", { class: "inbox-from" }, t(m.from)),
         h("div", { class: "inbox-subject" }, t(m.subject)),
         h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round }),
