@@ -14,11 +14,15 @@ const dismissed = new Set();
 // A team that noticed the race just counted, to announce on the next screen.
 let noticed = null;
 
+// The message to open when the Inbox tab is reached from the strip on the Next race page.
+let openMessage = null;
+
 // A career's hub: the next race's briefing (or the off-season), the calendar, the standings and
 // the career so far.
 
 const TABS = [
   { id: "briefing", label: mark("Next race") },
+  { id: "inbox", label: mark("Inbox") },
   { id: "calendar", label: mark("Calendar") },
   { id: "standings", label: mark("Standings") },
   { id: "career", label: mark("Career") },
@@ -63,15 +67,16 @@ export async function careerView(view, id, tab) {
   const armed = () => season().rounds.find((r) => r.state === "Armed");
   const nextRound = () => armed() ?? season().rounds.find((r) => r.state === "Upcoming");
 
-  setChrome({
+  const chrome = () => setChrome({
     crumb: data.career.name,
     back: "#/careers",
     tabs: TABS.map((x) => x.id === "briefing" && !nextRound()
       ? { ...x, label: t("Off-season"), dot: data.career.offers.length > 0 }
-      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed() }),
+      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed(), count: x.id === "inbox" ? data.unread : 0 }),
     active: tab,
     onTab: show,
   });
+  chrome();
 
   const points = (entry) => entry.racePoints + entry.polePoints;
   const driverPoints = (entry) => (entry.driverEligible ? points(entry) : 0);
@@ -80,7 +85,7 @@ export async function careerView(view, id, tab) {
   const finish = (e) => (e.classRank ? t("P{n}", { n: e.classRank }) : { Dnf: t("DNF"), Dq: t("DQ") }[e.entry.status] ?? t("NC"));
 
   put(view, carStrip());
-  await ({ briefing, calendar, standings, career: history }[tab] ?? briefing)();
+  await ({ briefing, inbox, calendar, standings, career: history }[tab] ?? briefing)();
 
   if (noticed) {
     const n = noticed;
@@ -209,6 +214,7 @@ export async function careerView(view, id, tab) {
             round.pointsWeight !== 1 && !round.guest ? h("span", {}, t("Points x{n}", { n: number(round.pointsWeight) })) : null)),
         map ? h("div", { class: "spacer" }) : null,
         map ? h("figure", { class: "hero-map" }, trackSvg(map), h("figcaption", {}, maps.attribution)) : null),
+      inboxStrip(),
       round.guest ? guestNotice(round) : firstRace(isArmed),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
@@ -831,6 +837,122 @@ export async function careerView(view, id, tab) {
 
   // ---------- Career so far ----------
 
+  // ---------- Inbox ----------
+
+  /** The newest unread message, as a strip that opens it. */
+  function inboxStrip() {
+    const newest = [...data.career.inbox].reverse().find((m) => !m.read);
+    if (!newest) return null;
+    return h("button", { class: "inbox-strip", onclick: () => { openMessage = newest.id; show("inbox"); } },
+      h("span", { class: "inbox-strip-label" }, t("Inbox")),
+      h("span", { class: "faint" }, t(newest.from)),
+      h("span", {}, t(newest.subject)),
+      h("div", { class: "spacer" }),
+      data.unread > 1 ? h("span", { class: "faint" }, tn(data.unread, "{n} unread", "{n} unread")) : null,
+      h("span", { class: "inbox-strip-open" }, t("Read")));
+  }
+
+  function inbox() {
+    const messages = [...data.career.inbox].reverse();
+    if (!messages.length) {
+      put(view, h("div", { class: "empty" }, t("No mail yet. Your engineer's debrief arrives when your first race counts.")));
+      return;
+    }
+
+    let selected = messages.find((m) => m.id === openMessage) ?? messages.find((m) => !m.read) ?? messages[0];
+    openMessage = null;
+    const list = h("div", { class: "inbox-list" });
+    const detail = h("div", { class: "inbox-detail card quiet" });
+
+    const drawList = () => put(clear(list), messages.map((m) =>
+      h("button", { class: "inbox-item" + (m.read ? "" : " unread") + (m === selected ? " active" : ""), onclick: () => select(m) },
+        h("div", { class: "inbox-from" }, t(m.from)),
+        h("div", { class: "inbox-subject" }, t(m.subject)),
+        h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round })))));
+
+    const drawDetail = () => put(clear(detail),
+      h("div", { class: "faint" }, `${t(selected.from)} · ${dateTime(selected.at)}`),
+      h("h2", { class: "inbox-title" }, t(selected.subject)),
+      selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
+      selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
+
+    async function select(m) {
+      selected = m;
+      drawList();
+      drawDetail();
+      if (m.read) return;
+      m.read = true;
+      drawList();
+      const updated = await call("readMessage", { id, messageId: m.id }).catch(() => null);
+      if (updated) { data = updated; chrome(); }
+    }
+
+    async function readAll() {
+      messages.forEach((m) => { m.read = true; });
+      drawList();
+      const updated = await call("readMessage", { id }).catch(() => null);
+      if (updated) { data = updated; chrome(); }
+    }
+
+    put(view,
+      h("div", { class: "row", style: { alignItems: "baseline", marginBottom: "14px" } },
+        h("div", { class: "section-title", style: { margin: 0 } }, t("Inbox")),
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost small", onclick: readAll }, t("Mark all read"))),
+      h("div", { class: "inbox" }, list, detail));
+    select(selected);
+  }
+
+  /** A lap time as LMU shows it: 2:04.951, or 58.204 under a minute. */
+  function lapTime(seconds) {
+    if (seconds == null) return "–";
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds - minutes * 60;
+    return minutes > 0 ? `${minutes}:${number(rest, 3).padStart(6, "0")}` : number(rest, 3);
+  }
+
+  function signedGap(gap) {
+    return gap == null ? "–" : `${gap > 0 ? "+" : gap < 0 ? "−" : "±"}${number(Math.abs(gap), 3)}`;
+  }
+
+  /** The numbers behind the engineer's notes: the race in figures, sectors against the AI, and each stint. */
+  function debriefTables(r) {
+    if (!r) return null;
+    const fact = (label, value) => h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, label), h("b", {}, value));
+    const finishText = r.finishPosition ? t("P{n}", { n: r.finishPosition }) : { Dnf: t("DNF"), Dq: t("DQ") }[r.status] ?? t("NC");
+    const gapClass = (gap) => (gap == null ? "" : gap <= 0 ? "good-text" : "bad-text");
+
+    return h("div", { class: "debrief" },
+      h("div", { class: "debrief-facts" },
+        fact(t("Grid"), r.gridPosition ? t("P{n}", { n: r.gridPosition }) : "–"),
+        fact(t("Lap 1"), r.lap1Position ? t("P{n}", { n: r.lap1Position }) : "–"),
+        fact(t("Finish"), finishText),
+        fact(t("Laps"), r.laps),
+        fact(t("Stops"), r.pitStops),
+        fact(t("Best lap"), lapTime(r.bestLap)),
+        fact(t("Fastest AI"), lapTime(r.aiBestLap))),
+      r.sectors.length ? h("table", { class: "table debrief-table" },
+        h("thead", {}, h("tr", {}, h("th", {}, t("Sector")), h("th", { class: "num" }, t("You")), h("th", { class: "num" }, t("Best AI")), h("th", { class: "num" }, t("Gap")))),
+        h("tbody", {}, r.sectors.map((s) => h("tr", {},
+          h("td", {}, t("S{n}", { n: s.sector })),
+          h("td", { class: "num" }, s.mine == null ? "–" : number(s.mine, 3)),
+          h("td", { class: "num" }, s.aiBest == null ? "–" : number(s.aiBest, 3)),
+          h("td", { class: "num " + gapClass(s.gap) }, signedGap(s.gap)))))) : null,
+      r.stints.some((s) => s.average != null) ? h("table", { class: "table debrief-table" },
+        h("thead", {}, h("tr", {},
+          h("th", {}, t("Stint")), h("th", {}, t("Laps")), h("th", { class: "num" }, t("Average")), h("th", { class: "num" }, t("Best")),
+          h("th", { class: "num", title: t("Its last clean laps against its first: plus is slower") }, t("Drop-off")), h("th", {}, t("Tyres")))),
+        h("tbody", {}, r.stints.map((s) => h("tr", {},
+          h("td", { class: "pos" }, s.number),
+          h("td", { class: "muted" }, s.firstLap === s.lastLap ? `${s.firstLap}` : `${s.firstLap}–${s.lastLap}`),
+          h("td", { class: "num" }, lapTime(s.average)),
+          h("td", { class: "num" }, lapTime(s.best)),
+          h("td", { class: "num " + (s.dropOff >= 1 ? "bad-text" : "") }, s.dropOff == null ? "–" : signedGap(s.dropOff)),
+          h("td", { class: "muted" }, s.compound ? lmu(s.compound) : "–"))))) : null,
+      r.hasDetail ? null : h("div", { class: "faint", style: { fontSize: "12px" } },
+        t("Sector times, stints and incidents are kept for races counted in 1.2 or later, and for older races whose results file was still in LMU's folder.")));
+  }
+
   function history() {
     const seasons = [...data.career.pastSeasons, season()];
     const carName = (carType) => cat.cars.find((c) => c.carTypes.includes(carType))?.name ?? carType;
@@ -844,6 +966,8 @@ export async function careerView(view, id, tab) {
             h("div", { class: "rep-figures", style: { fontSize: "44px" } }, h("b", {}, Math.round(data.career.reputation)),
               h("span", { class: "muted" }, standing(data.career.reputation))),
             repBar(data.career.reputation, data.ladder.threshold),
+            data.projectedReputation != null ? h("div", { class: "muted", style: { marginTop: "8px" } },
+              t("This season so far: {change}, paid at the season review", { change: `${data.projectedReputation > 0 ? "+" : data.projectedReputation < 0 ? "−" : "±"}${number(Math.abs(data.projectedReputation))}` })) : null,
             h("div", { class: "row", style: { margin: "14px 0 4px", gap: "6px" } },
               ["GT3", "LMP3", "LMP2", "Hyper"].map((c, i) => [i ? h("span", { class: "faint" }, "›") : null,
                 h("span", { class: "ladder-step" + (c === season().car.carClass ? " here" : "") }, chip(c))])),

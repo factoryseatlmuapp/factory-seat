@@ -134,6 +134,8 @@ input, textarea { user-select: text; }
   text-transform: uppercase; color: var(--text-dim); border-bottom: 2px solid transparent; position: relative; }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--text); border-bottom-color: var(--text); }
+.tab .count { margin-left: 6px; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--accent); color: #fff;
+  font: 700 12px/18px "Barlow Condensed", var(--cjk); display: inline-block; text-align: center; vertical-align: 2px; }
 .tab .dot { position: absolute; top: 10px; right: -8px; width: 6px; height: 6px; background: var(--accent);
   transform: rotate(45deg); }
 
@@ -339,6 +341,34 @@ select.input { padding: 6px 8px; }
   background: var(--panel-solid); border: 2px solid var(--border); border-radius: 10px; padding: 22px 24px; }
 .modal.wide { width: min(980px, calc(100vw - 48px)); }
 .modal h2 { font-size: 32px; font-weight: 600; margin-bottom: 14px; }
+/* Inbox */
+.inbox { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+.inbox-list { display: grid; gap: 6px; max-height: calc(100vh - 260px); overflow-y: auto; padding-right: 4px; }
+.inbox-item { text-align: left; background: var(--panel); border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px;
+  color: var(--text-dim); cursor: pointer; font: inherit; }
+.inbox-item:hover { border-color: var(--border); }
+.inbox-item.active { border-color: var(--text); color: var(--text); }
+.inbox-item.unread { color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+.inbox-item.unread .inbox-subject { font-weight: 700; }
+.inbox-from { font-size: 12px; color: var(--text-faint); }
+.inbox-subject { font: 600 19px "Barlow Condensed", var(--cjk); line-height: 1.2; }
+.inbox-meta { font-size: 12px; color: var(--text-faint); }
+.inbox-detail { padding: 18px 22px; }
+.inbox-title { font: 600 30px "Barlow Condensed", var(--cjk); margin: 4px 0 12px; }
+.inbox-line { margin: 0 0 8px; }
+.inbox-strip { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 16px; padding: 10px 14px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--border-soft); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0;
+  color: var(--text); font: inherit; text-align: left; }
+.inbox-strip:hover { border-color: var(--border); border-left-color: var(--accent); }
+.inbox-strip-label { font: 700 15px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); }
+.inbox-strip-open { font: 700 15px "Barlow Condensed", var(--cjk); text-transform: uppercase; }
+.debrief { margin-top: 16px; display: grid; gap: 14px; }
+.debrief-facts { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 0; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
+.debrief-fact b { font: 700 22px "Barlow Condensed", var(--cjk); font-variant-numeric: tabular-nums; }
+.debrief-table { max-width: 640px; }
+.good-text { color: var(--good); }
+.bad-text { color: var(--bad); }
+
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .update-highlights { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; }
 .update-highlights li::marker { color: var(--accent); }

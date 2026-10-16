@@ -340,4 +340,10 @@ public sealed class Career
 
     /// <summary>Teams that noticed a big result this season; their offers come at the season's end.</summary>
     public List<TeamInterest> Interest { get; set; } = [];
+
+    /// <summary>Mail from the team, the engineer and the paddock, oldest first.</summary>
+    public List<InboxMessage> Inbox { get; set; } = [];
+
+    /// <summary>False on a career from before the inbox, until its first open writes its starting mail.</summary>
+    public bool InboxStarted { get; set; }
 }

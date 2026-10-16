@@ -33,7 +33,7 @@ export function setChrome({ crumb = "", back = null, tabs = [], active = null, o
     put(tabBar, h("button", {
       class: "tab" + (tab.id === active ? " active" : ""),
       onclick: () => onTab?.(tab.id),
-    }, tab.label, tab.dot ? h("span", { class: "dot" }) : null));
+    }, tab.label, tab.count ? h("span", { class: "count" }, tab.count) : tab.dot ? h("span", { class: "dot" }) : null));
   }
 }
 

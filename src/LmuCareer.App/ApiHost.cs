@@ -144,6 +144,7 @@ public sealed class ApiHost
         "acceptGuest" => Change(args, c => GuestDrives.Accept(c, Str(args, "offerId"),
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
+        "readMessage" => ReadMessage(args),
         "signSponsor" => Change(args, c => Sponsorship.Sign(c.CurrentSeason, Str(args, "sponsorId"))),
         "dropSponsor" => Change(args, c => Sponsorship.Drop(c.CurrentSeason, Str(args, "sponsorId"))),
         "sponsorLivery" => Change(args, c => Sponsorship.SetLivery(c.CurrentSeason, Str(args, "sponsorId"),
@@ -416,6 +417,15 @@ public sealed class ApiHost
         return loaded.Career;
     }
 
+    /// <summary>Marks a message read (or all, with no messageId). Reading mail isn't playing: the career keeps its place in the list.</summary>
+    private object ReadMessage(JsonElement args)
+    {
+        var career = Load(args);
+        Inbox.MarkRead(career, args.TryGetProperty("messageId", out var message) ? message.GetString() : null);
+        _store.Save(career);
+        return CareerViewData(career);
+    }
+
     private object Change(JsonElement args, Action<Career> change)
     {
         var career = Load(args);
@@ -435,7 +445,8 @@ public sealed class ApiHost
         var customTeam = CareerActions.RecognizeCustomTeam(career);
         var phrases = CareerActions.AddPhrases(career);
         var debriefs = Debriefs.Backfill(career, _install?.ResultsFolder);
-        if (sponsors || guests || customTeam || phrases || debriefs) _store.Save(career);
+        var inbox = Inbox.Start(career, DateTimeOffset.Now);
+        if (sponsors || guests || customTeam || phrases || debriefs || inbox) _store.Save(career);
         return CareerView(career);
     }
 
@@ -480,6 +491,18 @@ public sealed class ApiHost
         carName = _catalog.CarByType(career.CurrentSeason.Car.CarType)?.Name ?? career.CurrentSeason.Car.CarType,
         resultsFolder = _install?.ResultsFolder,
         ladder = LadderView(career),
+        unread = Inbox.Unread(career),
+        // The season review worked out now, until the real one is written.
+        projectedReputation = career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
+            ? Progression.Review(career.CurrentSeason, career.Reputation) is var review ? review.ReputationAfter - review.ReputationBefore : (decimal?)null
+            : null,
+        // The numbers behind each debrief in the inbox, by "season-round".
+        debriefs = career.PastSeasons.Append(career.CurrentSeason)
+            .SelectMany(s => s.Rounds.Select(r => (Season: s, Round: r)))
+            .Where(x => career.Inbox.Any(m => m.Kind == MessageKind.Debrief && m.Season == x.Season.Number && m.Round == x.Round.Number))
+            .Select(x => (Key: $"{x.Season.Number}-{x.Round.Number}", Report: DebriefReport.For(x.Round)))
+            .Where(x => x.Report is not null)
+            .ToDictionary(x => x.Key, x => x.Report),
     };
 
     /// <summary>What the next step up the ladder asks for, for the off-season and career screens.</summary>

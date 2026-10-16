@@ -75,6 +75,10 @@ public static class Progression
     }
 
     /// <summary>What the season was worth: the championship, the team's target, each race's result and the sponsors' objectives.</summary>
+    /// <summary>The review's closing item when the season's change hits its limit.</summary>
+    public const string CapUp = "Reputation grows at most {n} a season"; // phrase
+    public const string CapDown = "Reputation falls at most {n} a season"; // phrase
+
     public static SeasonReview Review(Season season, decimal reputationBefore)
     {
         var carClass = season.Car.CarClass;
@@ -184,8 +188,8 @@ public static class Progression
         var change = Math.Clamp(total, -MaxLoss, MaxGain);
         if (change != total)
             items.Add(ReputationItem.For(change > 0
-                ? Phrase.Of("Reputation grows at most {n} a season", ("n", MaxGain))
-                : Phrase.Of("Reputation falls at most {n} a season", ("n", MaxLoss)), change - total));
+                ? Phrase.Of(CapUp, ("n", MaxGain))
+                : Phrase.Of(CapDown, ("n", MaxLoss)), change - total));
 
         return new SeasonReview
         {

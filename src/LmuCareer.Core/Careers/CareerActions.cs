@@ -135,6 +135,7 @@ public static class CareerActions
             else season.Car = Learn(season.Car, player);
         }
 
+        Inbox.AfterRace(career, round, now);
         career.LastPlayedAt = now;
         store.Save(career);
         return scored;

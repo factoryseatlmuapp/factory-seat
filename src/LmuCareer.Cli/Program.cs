@@ -61,6 +61,25 @@ static int Debrief(string file)
             $"{l.TopSpeedKph,6:0.0} {l.Fuel,5:0.00} {l.Energy,5:0.00} {wear,19} {Trim($"{l.FrontCompound}/{l.RearCompound}", 13),-13} {(l.Pit ? "pit" : "")}");
     }
 
+    // What the engineer would say, as the inbox writes it.
+    var round = new LmuCareer.Core.Careers.Round
+    {
+        Number = 1,
+        EventName = race.TrackCourse,
+        State = LmuCareer.Core.Careers.RoundState.Completed,
+        Result = new LmuCareer.Core.Careers.RoundResult { Entries = RaceScorer.Score(race).Entries, Debrief = debrief },
+    };
+    if (LmuCareer.Core.Careers.DebriefReport.For(round) is { } report)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Stints");
+        foreach (var s in report.Stints)
+            Console.WriteLine($"  {s.Number}: laps {s.FirstLap}-{s.LastLap}, {s.CleanLaps} clean, avg {LapTime(s.Average)}, best {LapTime(s.Best)}, drop-off {s.DropOff:+0.000;-0.000}, {s.Compound}");
+        Console.WriteLine();
+        Console.WriteLine("Engineer");
+        foreach (var note in LmuCareer.Core.Careers.Inbox.EngineerNotes(report)) Console.WriteLine($"  {note}");
+    }
+
     Console.WriteLine();
     Console.WriteLine($"Player events ({debrief.PlayerEvents.Count})");
     foreach (var group in debrief.PlayerEvents.GroupBy(e => e.Kind))
