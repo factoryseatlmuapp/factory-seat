@@ -33,6 +33,57 @@ public sealed class BriefingFileTests : IDisposable
         };
     }
 
+    /// <summary>Every field version 1 had, at its path: 1.2 only adds alongside them (docs/briefing-json.md).</summary>
+    private static readonly string[] VersionOneFields =
+    [
+        "format", "version", "app", "writtenAt", "open", "career", "round", "sponsors",
+        "career.id", "career.name", "career.season", "career.carClass", "career.reputation", "career.team", "career.targetPosition",
+        "round.number", "round.of", "round.state", "round.armedAt", "round.guest", "round.event", "round.track", "round.car", "round.settings", "round.pitPlan",
+        "round.event.id", "round.event.name", "round.event.realHours", "round.event.pointsWeight",
+        "round.track.folder", "round.track.name", "round.track.layoutFile", "round.track.layoutName", "round.track.trackCourse",
+        "round.car.class", "round.car.folder", "round.car.carTypes", "round.car.name", "round.car.number", "round.car.customTeam", "round.car.team", "round.car.liveryNumbers",
+        "round.settings.raceMinutes", "round.settings.fuelUsage", "round.settings.tyreWear", "round.settings.timeScale", "round.settings.startTime",
+        "round.pitPlan.stints", "round.pitPlan.stintMinutes", "round.pitPlan.stops",
+        "sponsors.0.name", "sponsors.0.kind", "sponsors.0.objective", "sponsors.0.status", "sponsors.0.done", "sponsors.0.needed", "sponsors.0.reward",
+    ];
+
+    private static bool Has(JsonElement root, string path)
+    {
+        var at = root;
+        foreach (var part in path.Split('.'))
+        {
+            if (int.TryParse(part, out var index)) { if (at.ValueKind != JsonValueKind.Array || at.GetArrayLength() <= index) return false; at = at[index]; }
+            else if (at.ValueKind != JsonValueKind.Object || !at.TryGetProperty(part, out at)) return false;
+        }
+        return true;
+    }
+
+    [Fact]
+    public void Version_1_fields_stay_and_1_2_adds_stakes_history_practice_and_pace()
+    {
+        var career = Career();
+        var round = career.CurrentSeason.Rounds[0];
+        RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
+        round.Practice = new PracticeRead(1, 12, 108.2, 107.9, "AI 1", 107.9);
+        career.CurrentSeason.Sponsors[0].Local = true;
+
+        var json = JsonDocument.Parse(BriefingFile.For(career, ContentCatalog.Default, "1.2.0", DateTimeOffset.Now).ToJson()).RootElement;
+
+        Assert.All(VersionOneFields, path => Assert.True(Has(json, path), path));
+        Assert.Equal(1, json.GetProperty("version").GetInt32());
+
+        var next = json.GetProperty("round");
+        Assert.Equal("No points on the board yet: this is where your championship starts.", next.GetProperty("stakes").GetProperty("lines")[0].GetString());
+        Assert.Equal(JsonValueKind.Array, next.GetProperty("history").ValueKind);
+        var practice = next.GetProperty("practice");
+        Assert.Equal(108.2, practice.GetProperty("bestLap").GetDouble());
+        Assert.Equal(107.9, practice.GetProperty("targetLap").GetDouble());
+        Assert.Equal("Matched", practice.GetProperty("aiStrength").GetString());
+        Assert.Equal("Practice", next.GetProperty("pace").GetProperty("source").GetString());
+        Assert.True(json.GetProperty("sponsors")[0].GetProperty("local").GetBoolean());
+        Assert.Equal(0, json.GetProperty("sponsors")[0].GetProperty("signedAfterRound").GetInt32());
+    }
+
     [Fact]
     public void Describes_the_next_race_in_lmus_own_values()
     {

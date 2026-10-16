@@ -50,7 +50,11 @@ public sealed record RaceStakes(
     StakesRival? Behind,
     int Target,
     decimal Weight,
-    IReadOnlyList<Phrase> Lines);
+    IReadOnlyList<Phrase> Lines)
+{
+    /// <summary>A confident interview answer this round settles, if there is one.</summary>
+    public InterviewAnswer? OpenBet { get; init; }
+}
 
 /// <summary>The briefing's view of the race ahead: the stakes, the player's history here, practice, and AI Strength advice.</summary>
 public sealed record RacePreparation(RaceStakes? Stakes, IReadOnlyList<TrackVisit> History, PracticeRead? Practice, TrackPace? Pace);
@@ -227,6 +231,7 @@ public static class Preparation
 
         // A confident interview answer is settled by the next championship round: this one, if it's next.
         var previous = season.ChampionshipRounds.Where(r => r.Number < round.Number && r.State == RoundState.Completed).Select(r => r.Number).DefaultIfEmpty(0).Max();
+        var openBet = season.Interviews.LastOrDefault(a => a.Tone == InterviewTone.Confident && a.Round == previous);
         foreach (var bet in season.Interviews.Where(a => a.Tone == InterviewTone.Confident && a.Round == previous))
         {
             lines.Add(Paddock.IsGood(bet.Moment)
@@ -237,6 +242,6 @@ public static class Preparation
         foreach (var deal in season.Sponsors.Where(d => d.Objective == ObjectiveKind.PodiumAt && d.RoundNumber == round.Number))
             lines.Add(Phrase.Of("{sponsor} wants a podium here: {reward} reputation riding on it.", ("sponsor", deal.Name), ("reward", deal.Reward)));
 
-        return new RaceStakes(me >= 0 ? me + 1 : null, myPoints, ahead, behind, target, weight, lines);
+        return new RaceStakes(me >= 0 ? me + 1 : null, myPoints, ahead, behind, target, weight, lines) { OpenBet = openBet };
     }
 }

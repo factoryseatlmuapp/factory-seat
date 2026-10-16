@@ -74,6 +74,38 @@ changes meaning or goes away. New fields can appear at any time, so ignore ones 
 }
 ```
 
+## Added in 1.2 (still version 1)
+
+Nothing above changed. These fields sit alongside the others, and a reader that doesn't know them
+can ignore them.
+
+```json
+"round": {
+  "...": "the version 1 fields, as above",
+  "stakes": {
+    "position": 1,
+    "points": 139.5,
+    "ahead": null,
+    "behind": { "name": "Matt Bell", "position": 2, "gap": 76.5, "finish": null, "settled": true },
+    "openBet": null,
+    "lines": [
+      "You're P1 in the championship with 139.5 points.",
+      "Matt Bell is 76.5 behind in P2: you stay ahead of them whatever happens this round.",
+      "Double points: 50 for a class win."
+    ]
+  },
+  "history": [],
+  "practice": {
+    "sessions": 1, "laps": 6, "bestLap": 245.9572, "aiBestLap": 249.2532, "aiBestDriver": "Richard Lietz",
+    "gap": -3.296, "targetLap": null, "aiStrength": "TooEasy"
+  },
+  "pace": { "advice": "TooEasy", "source": "Practice", "gap": -3.296, "visits": 0 }
+},
+"sponsors": [
+  { "name": "Motul", "...": "as above", "local": false, "signedAfterRound": 0 }
+]
+```
+
 ## Fields
 
 Values are LMU's own, not the words on Factory Seat's screens, so they can be compared with what
@@ -105,11 +137,35 @@ the first race decides it); `targetPosition` is the team's target in the class s
   `HH:mm`, or `null` for LMU's default.
 - `pitPlan`: the plan in the briefing. `stintMinutes` is about how long a tank lasts at the
   briefing's Fuel Usage.
+- `stakes` (1.2): what's riding on the race; `null` for a guest drive. `position` and `points` are
+  the player's in the class drivers' standings (`position` is `null` before any points).
+  `ahead` and `behind` are the drivers either side (`null` when there's none), with `gap` in points,
+  always positive. For `ahead`, `finish` is the place they'd have to finish or lower, with the player
+  winning, for the player to pass them; for `behind`, the place the player needs or better to stay
+  ahead even if they win. `finish` is `null` when no result settles it; `settled` (behind only) means
+  the player stays ahead whatever happens. `openBet` is a confident interview answer this race
+  settles: `event` it was given after, `needs` (`podium`, or `target` for the team's target) and
+  `cost` in reputation. `lines` are the briefing's stakes, in English.
+- `history` (1.2): earlier counted races at this layout in this class, newest first: `season`,
+  `round`, `event`, `finish` (class position, `null` when not classified), `status` and `bestLap` in
+  seconds. Empty on a first visit.
+- `practice` (1.2): practice run since the race weekend started, read for pace; `null` until there's
+  been some. Lap times are in seconds: `bestLap` is the player's, `aiBestLap` the fastest AI in class
+  (`aiBestDriver`), `gap` the difference (negative when the player was quicker). `targetLap` is the
+  engineer's target for the race, only when the player was slower than the AI. `aiStrength` is the
+  advice it gives: `TooEasy`, `BitEasy`, `Matched`, `BitHard` or `TooHard`.
+- `pace` (1.2): AI Strength advice for this race, the same values as `aiStrength`, and where it comes
+  from in `source`: `Practice` (this weekend), `Track` (earlier races here, the latest counting most;
+  `visits` says how many) or `Season` (recent rounds elsewhere, kept to a small change on a first
+  visit). `gap` is seconds a lap against the fastest AI. `null` before any race has counted.
 
 **sponsors**: the season's personal sponsor deals. `kind` is one of `FinishEveryRound`, `Podiums`,
 `Wins`, `Poles`, `PodiumAt`, `ChampionshipTop`, `CleanSeason`, `BeatRival`; `objective` describes it
 in English. `status` is `InProgress`, `Met` or `Failed`; `done` and `needed` count progress where
-that makes sense (podiums so far, championship position…). `reward` is reputation.
+that makes sense (podiums so far, championship position…). `reward` is reputation. Since 1.2,
+`local` marks a small local brand, and `signedAfterRound` is the round a deal was signed after when
+it was signed mid-season (it counts only the rounds after that); `0` for one signed before the
+season.
 
 ## What counts
 

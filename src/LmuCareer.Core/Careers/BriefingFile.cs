@@ -45,17 +45,23 @@ public sealed record BriefingFile(
             new BriefingCareer(career.Id, career.Name, season.Number, season.Car.CarClass, Math.Round(career.Reputation, 1),
                 season.Contract?.TeamName is { Length: > 0 } team ? team : season.Car.TeamName,
                 season.Contract?.TargetPosition ?? Progression.DefaultTarget),
-            season.NextRound is { } round ? RoundOf(round, season, catalog) : null,
+            season.NextRound is { } round ? RoundOf(round, career, catalog) : null,
             season.Sponsors.Select(deal =>
             {
                 var progress = Sponsorship.Progress(season, deal);
                 return new BriefingSponsor(deal.Name, deal.Objective, Sponsorship.Describe(deal).ToString(),
-                    progress.Status, progress.Done, progress.Needed, deal.Reward);
+                    progress.Status, progress.Done, progress.Needed, deal.Reward)
+                {
+                    Local = deal.Local,
+                    SignedAfterRound = deal.SignedAfterRound,
+                };
             }).ToList());
     }
 
-    private static BriefingRound RoundOf(Round round, Season season, ContentCatalog catalog)
+    private static BriefingRound RoundOf(Round round, Career career, ContentCatalog catalog)
     {
+        var season = career.CurrentSeason;
+        var prep = Preparation.For(career, round);
         var track = catalog.Track(round.TrackFolder);
         var car = round.GuestCar ?? season.Car;
         var numbers = round.Guest ? round.GuestNumbers : season.Contract?.Numbers ?? [];
@@ -80,8 +86,25 @@ public sealed record BriefingFile(
                 numbers),
             new BriefingSettings(round.RaceMinutes, (int)Math.Round(round.FuelMultiplier), (int)Math.Round(round.TireMultiplier),
                 (int)Math.Round(round.TimeScale), round.StartTime.Length > 0 ? round.StartTime : null),
-            new BriefingPitPlan(round.Stints, stintMinutes, Math.Max(0, round.Stints - 1)));
+            new BriefingPitPlan(round.Stints, stintMinutes, Math.Max(0, round.Stints - 1)))
+        {
+            Stakes = prep.Stakes is { } stakes ? StakesOf(stakes) : null,
+            History = prep.History.Select(v => new BriefingVisit(v.Season, v.Round, v.EventName, v.Finish, v.Status, v.BestLap)).ToList(),
+            Practice = prep.Practice is { } p
+                ? new BriefingPractice(p.Sessions, p.Laps, p.PlayerBest, p.AiBest, p.AiBestDriver.Length > 0 ? p.AiBestDriver : null, p.Gap, p.TargetLap,
+                    prep.Pace is { Source: PaceSource.Practice } fromPractice ? fromPractice.Advice : null)
+                : null,
+            Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, pace.Source, pace.Gap, pace.Visits) : null,
+        };
     }
+
+    private static BriefingStakes StakesOf(RaceStakes stakes) => new(
+        stakes.Position,
+        stakes.Points,
+        stakes.Ahead is { } a ? new BriefingRival(a.Name, a.Position, a.Gap, a.Finish, a.Settled) : null,
+        stakes.Behind is { } b ? new BriefingRival(b.Name, b.Position, b.Gap, b.Finish, b.Settled) : null,
+        stakes.OpenBet is { } bet ? new BriefingBet(bet.EventName, Paddock.IsGood(bet.Moment) ? "podium" : "target", 2) : null,
+        stakes.Lines.Select(l => l.ToString()).ToList());
 
     /// <summary>Writes the file whole, so a companion reading it never sees half of it.</summary>
     public void Write(string folder)
@@ -148,7 +171,20 @@ public sealed record BriefingRound(
     BriefingTrack Track,
     BriefingCar Car,
     BriefingSettings Settings,
-    BriefingPitPlan PitPlan);
+    BriefingPitPlan PitPlan)
+{
+    /// <summary>Since 1.2: what's riding on the race. Null for a guest drive.</summary>
+    public BriefingStakes? Stakes { get; init; }
+
+    /// <summary>Since 1.2: earlier counted races at this layout in this class, newest first; empty on a first visit.</summary>
+    public IReadOnlyList<BriefingVisit> History { get; init; } = [];
+
+    /// <summary>Since 1.2: practice run since the race weekend started, read for pace; null until there's been some.</summary>
+    public BriefingPractice? Practice { get; init; }
+
+    /// <summary>Since 1.2: AI Strength advice for this race (from practice, earlier races here, or the season's form).</summary>
+    public BriefingPace? Pace { get; init; }
+}
 
 /// <param name="Id">The catalog event; null for a custom event.</param>
 /// <param name="RealHours">Length of the real-world race the round stands in for.</param>
@@ -178,4 +214,39 @@ public sealed record BriefingPitPlan(int Stints, int StintMinutes, int Stops);
 
 /// <param name="Objective">The deal's objective in English, e.g. "3 podiums".</param>
 /// <param name="Done">Progress so far, where counting makes sense (podiums so far, championship position…).</param>
-public sealed record BriefingSponsor(string Name, ObjectiveKind Kind, string Objective, ObjectiveStatus Status, int Done, int Needed, decimal Reward);
+public sealed record BriefingSponsor(string Name, ObjectiveKind Kind, string Objective, ObjectiveStatus Status, int Done, int Needed, decimal Reward)
+{
+    /// <summary>Since 1.2: a small local brand.</summary>
+    public bool Local { get; init; }
+
+    /// <summary>Since 1.2: for a deal signed mid-season, the round it was signed after (it counts only later rounds); 0 for one signed before the season.</summary>
+    public int SignedAfterRound { get; init; }
+}
+
+/// <param name="Position">The player's place in the class drivers' standings; null before any points.</param>
+/// <param name="OpenBet">A confident interview answer this race settles.</param>
+/// <param name="Lines">The briefing's stakes, in English.</param>
+public sealed record BriefingStakes(int? Position, decimal Points, BriefingRival? Ahead, BriefingRival? Behind, BriefingBet? OpenBet, IReadOnlyList<string> Lines);
+
+/// <param name="Gap">Points between the driver and the player, always positive.</param>
+/// <param name="Finish">
+/// Ahead: with the player winning, the place this driver has to finish or lower for the player to pass them.
+/// Behind: the place the player needs, or better, to stay ahead even if this driver wins. Null when no result settles it.
+/// </param>
+/// <param name="Settled">Behind only: the player stays ahead whatever happens.</param>
+public sealed record BriefingRival(string Name, int Position, decimal Gap, int? Finish, bool Settled);
+
+/// <param name="Needs">"podium" after a good moment, "target" (the team's target) after a bad one.</param>
+/// <param name="Cost">Reputation lost if this race doesn't deliver.</param>
+public sealed record BriefingBet(string Event, string Needs, int Cost);
+
+public sealed record BriefingVisit(int Season, int Round, string Event, int? Finish, Results.FinishStatus Status, double? BestLap);
+
+/// <param name="Gap">Best lap against the fastest AI in class, in seconds; negative when the player was quicker.</param>
+/// <param name="TargetLap">The engineer's target for the race when the player was slower than the AI; null otherwise.</param>
+/// <param name="AiStrength">The AI Strength advice practice gives: TooEasy, BitEasy, Matched, BitHard or TooHard.</param>
+public sealed record BriefingPractice(int Sessions, int Laps, double? BestLap, double? AiBestLap, string? AiBestDriver, double? Gap, double? TargetLap, PaceAdvice? AiStrength);
+
+/// <param name="Source">Practice (this weekend), Track (earlier races here, the latest counting most) or Season (recent rounds, kept small on a first visit).</param>
+/// <param name="Visits">Earlier races here it's based on (Track only).</param>
+public sealed record BriefingPace(PaceAdvice Advice, PaceSource Source, double Gap, int Visits);
