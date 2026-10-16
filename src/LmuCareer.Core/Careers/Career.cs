@@ -92,6 +92,12 @@ public sealed class RoundResult
 
     /// <summary>Every car's scored result. Lap-by-lap records are kept for the player's car only.</summary>
     public IReadOnlyList<ScoredEntry> Entries { get; set; } = [];
+
+    /// <summary>
+    /// The rest of what the debrief needs; null on a round counted before 1.2 whose results file
+    /// was gone by the time the career was opened in it.
+    /// </summary>
+    public RaceDebrief? Debrief { get; set; }
 }
 
 /// <summary>The deal the player races a season under: who for, and what the team expects.</summary>

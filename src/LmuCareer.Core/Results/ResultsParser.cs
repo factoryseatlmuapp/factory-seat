@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
@@ -27,7 +28,7 @@ public static class ResultsParser
         var session = results.Elements().FirstOrDefault(e => e.Element("Driver") is not null)
             ?? throw new InvalidDataException($"No session with drivers in '{sourceFile}'.");
 
-        var entries = session.Elements("Driver").Select(ParseEntry).ToList();
+        var entries = WithClassPositions(session.Elements("Driver").Select(ParseEntry).ToList());
         var (trackFolder, layoutFile) = ParseTrackData(Text(results, "TrackData"));
 
         return new SessionResult(
@@ -114,11 +115,83 @@ public static class ResultsParser
             controller.Equals("AIControl", StringComparison.OrdinalIgnoreCase) ? Controller.AI : Controller.Player);
     }
 
-    private static LapRecord ParseLap(XElement e) => new(
-        Number: ParseInt(e.Attribute("num")?.Value) ?? 0,
-        Position: ParseInt(e.Attribute("p")?.Value) ?? 0,
-        LapTimeSeconds: ParseDouble(e.Value),
-        ElapsedSeconds: ParseDouble(e.Attribute("et")?.Value) ?? 0);
+    // <Lap num="2" p="7" et="241.3304" s1="34.1233" s2="25.8770" s3="34.8973" topspeed="307.20" fuel="0.820"
+    //   fuelUsed="0.024" ve="0.937" veUsed="0.027" twfl="0.953" twfr="0.961" twrl="0.957" twrr="0.961"
+    //   fcompound="0,Medium" rcompound="0,Medium" pit="1">94.8976</Lap>
+    private static LapRecord ParseLap(XElement e)
+    {
+        double? Attr(string name) => ParseDouble(e.Attribute(name)?.Value);
+        var wear = (Attr("twfl"), Attr("twfr"), Attr("twrl"), Attr("twrr")) is ({ } fl, { } fr, { } rl, { } rr)
+            ? new TyreWear(fl, fr, rl, rr) : null;
+
+        return new LapRecord(
+            Number: ParseInt(e.Attribute("num")?.Value) ?? 0,
+            Position: ParseInt(e.Attribute("p")?.Value) ?? 0,
+            LapTimeSeconds: ParseDouble(e.Value),
+            ElapsedSeconds: Attr("et") ?? 0)
+        {
+            Sector1 = Attr("s1"),
+            Sector2 = Attr("s2"),
+            Sector3 = Attr("s3"),
+            TopSpeedKph = Attr("topspeed"),
+            Fuel = Attr("fuel"),
+            FuelUsed = Attr("fuelUsed"),
+            Energy = Attr("ve"),
+            EnergyUsed = Attr("veUsed"),
+            Wear = wear,
+            FrontCompound = Compound(e.Attribute("fcompound")?.Value),
+            RearCompound = Compound(e.Attribute("rcompound")?.Value),
+            Pit = e.Attribute("pit")?.Value == "1",
+        };
+    }
+
+    /// <summary>"0,Medium" is the compound's index and name; the name is what's kept.</summary>
+    private static string? Compound(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var name = value[(value.IndexOf(',') + 1)..].Trim();
+        return name.Length > 0 ? name : null;
+    }
+
+    /// <summary>
+    /// Each lap's class position, from when every car in the class crossed the line to end it:
+    /// the cars that finished that lap sooner are ahead, including any a lap up.
+    /// </summary>
+    private static List<EntryResult> WithClassPositions(List<EntryResult> entries)
+    {
+        // A lap ends when the next one starts; the last lap ends at its start plus its time.
+        static Dictionary<int, double> LapEnds(EntryResult entry)
+        {
+            var ends = new Dictionary<int, double>();
+            var laps = entry.LapRecords;
+            for (var i = 0; i < laps.Count; i++)
+            {
+                var end = i + 1 < laps.Count ? laps[i + 1].ElapsedSeconds : laps[i].EndSeconds;
+                if (end is { } e) ends[laps[i].Number] = e;
+            }
+            return ends;
+        }
+
+        var ends = entries.Select(LapEnds).ToList();
+        return entries.Select((entry, i) =>
+        {
+            var rivals = Enumerable.Range(0, entries.Count)
+                .Where(j => j != i && entries[j].CarClass == entry.CarClass).Select(j => ends[j]).ToList();
+            var laps = entry.LapRecords.Select(lap => ends[i].TryGetValue(lap.Number, out var mine)
+                ? lap with { ClassPosition = 1 + rivals.Count(r => r.TryGetValue(lap.Number, out var theirs) && theirs < mine) }
+                : lap).ToList();
+            return entry with { LapRecords = laps };
+        }).ToList();
+    }
+
+    // "Francesco Castellacci(10) reported contact (588.53) with another vehicle Sébastien Baud(13)"
+    // "Francesco Castellacci(10) reported contact (12.07) with Immovable"
+    private static readonly Regex Contact = new(
+        @"^(?<driver>.+?)\(\d+\) reported contact \((?<impact>[\d.]+)\) with (?:another vehicle (?<other>.+)\(\d+\)|(?<object>.+))$",
+        RegexOptions.CultureInvariant);
+
+    // "Bill Strube(0) reports new suspension damage"
+    private static readonly Regex Damage = new(@"^(?<driver>.+?)\(\d+\) reports new .*damage$", RegexOptions.CultureInvariant);
 
     private static IEnumerable<RaceEvent> ParseEvents(XElement? stream)
     {
@@ -127,23 +200,46 @@ public static class ResultsParser
         foreach (var e in stream.Elements())
         {
             var et = ParseDouble(e.Attribute("et")?.Value) ?? 0;
+            var text = e.Value.Trim();
             switch (e.Name.LocalName)
             {
                 case "Incident":
-                    // "Francesco Castellacci(10) reported contact (588.53) with another vehicle Sébastien Baud(13)"
-                    var paren = e.Value.IndexOf('(');
-                    yield return new RaceEvent(RaceEventKind.Incident, et,
-                        paren > 0 ? e.Value[..paren].Trim() : null, e.Value);
+                    if (Contact.Match(text) is { Success: true } contact)
+                    {
+                        yield return new RaceEvent(RaceEventKind.Incident, et, contact.Groups["driver"].Value.Trim(), text)
+                        {
+                            OtherDriver = contact.Groups["other"].Success ? contact.Groups["other"].Value.Trim() : null,
+                            Object = contact.Groups["object"].Success ? contact.Groups["object"].Value.Trim() : null,
+                            Impact = ParseDouble(contact.Groups["impact"].Value),
+                        };
+                    }
+                    else
+                    {
+                        var paren = text.IndexOf('(');
+                        yield return new RaceEvent(RaceEventKind.Incident, et, paren > 0 ? text[..paren].Trim() : null, text);
+                    }
                     break;
 
                 // Penalties are logged twice: when issued (with a Driver attribute) and when served
                 // (without one). Only the issued entry counts.
                 case "Penalty" when e.Attribute("Driver") is not null:
-                    yield return new RaceEvent(RaceEventKind.Penalty, et, e.Attribute("Driver")!.Value, e.Value);
+                    yield return new RaceEvent(RaceEventKind.Penalty, et, e.Attribute("Driver")!.Value, text);
                     break;
 
+                // <TrackLimits Driver="Bill Strube" ID="0" Lap="3" WarningPoints="10.25" CurrentPoints="10.25" Resolution="3">Invalid Lap Cut Track</TrackLimits>
                 case "TrackLimits":
-                    yield return new RaceEvent(RaceEventKind.TrackLimits, et, e.Attribute("Driver")?.Value, e.Value);
+                    yield return new RaceEvent(RaceEventKind.TrackLimits, et, e.Attribute("Driver")?.Value, text)
+                    {
+                        Lap = ParseInt(e.Attribute("Lap")?.Value),
+                        Resolution = ParseInt(e.Attribute("Resolution")?.Value),
+                        WarningPoints = ParseDouble(e.Attribute("WarningPoints")?.Value),
+                        CurrentPoints = ParseDouble(e.Attribute("CurrentPoints")?.Value),
+                    };
+                    break;
+
+                // Sector bests carry a Driver attribute; damage reports share the element name without one.
+                case "Sector" when e.Attribute("Driver") is null && Damage.Match(text) is { Success: true } damage:
+                    yield return new RaceEvent(RaceEventKind.Damage, et, damage.Groups["driver"].Value.Trim(), text);
                     break;
             }
         }

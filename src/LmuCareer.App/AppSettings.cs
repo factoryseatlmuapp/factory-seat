@@ -23,8 +23,14 @@ public sealed class AppSettings
 
     public bool Muted { get; set; }
 
-    /// <summary>Ask GitHub for a newer release when the app starts. The app's only network call.</summary>
+    /// <summary>
+    /// Ask GitHub for a newer release when the app starts, and for its highlights for the update
+    /// card. The app's only network calls.
+    /// </summary>
     public bool CheckForUpdates { get; set; } = true;
+
+    /// <summary>The newest version the update card has been shown for: it opens once per version.</summary>
+    public string? UpdateCardSeen { get; set; }
 
     /// <summary>Sponsors whose livery the player has built, by sponsor id: those sponsors call more often.</summary>
     public List<string> BuiltLiveries { get; set; } = [];

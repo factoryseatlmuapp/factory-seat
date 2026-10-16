@@ -124,6 +124,7 @@ public static class RoundFlow
             Entries = scored.Entries
                 .Select(e => e.Entry.IsPlayer ? e : e with { Entry = e.Entry with { LapRecords = [] } })
                 .ToList(),
+            Debrief = Debriefs.From(race),
         };
         return scored;
     }

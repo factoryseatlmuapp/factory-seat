@@ -166,11 +166,24 @@ applyTheme(state.settings.theme);
 configureSound(state.settings);
 route();
 
-// A newer release on GitHub: a button in the top bar opens its page in the browser.
-onEvent("updateAvailable", ({ version, url }) => {
+// A newer release on GitHub: a button in the top bar opens its page in the browser, and the first
+// time a version turns up, a card says what's in it. The card never covers a dialog that's already
+// open; it waits for a later start instead.
+onEvent("updateAvailable", ({ version, url, highlights = [], card }) => {
   const slot = document.getElementById("update");
   put(clear(slot), h("button", { class: "btn small", title: t("Opens the download page in your browser"), onclick: () => window.open(url) },
     t("Version {version} is out", { version })));
   slot.hidden = false;
+
+  if (!card || !modalLayer.hidden) return;
+  call("updateCardSeen", { version }).catch(() => {});
+  showModal([
+    h("h2", {}, t("Version {version} is out", { version })),
+    highlights.length ? h("ul", { class: "update-highlights" }, highlights.map((line) => h("li", {}, line))) : null,
+    h("p", { class: "muted" }, t("Your careers carry over to the new version.")),
+    h("div", { class: "modal-actions" },
+      h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Not now")),
+      h("button", { class: "btn", title: t("Opens the download page in your browser"), onclick: () => { closeModal(); window.open(url); } }, t("Get it"))),
+  ]);
 });
 call("checkForUpdate").catch(() => {});

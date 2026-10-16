@@ -25,7 +25,48 @@ public sealed record ControlSegment(int StartLap, int EndLap, Controller Control
     public int LapCount => Math.Max(0, EndLap - StartLap + 1);
 }
 
-public sealed record LapRecord(int Number, int Position, double? LapTimeSeconds, double ElapsedSeconds);
+/// <summary>Tread left on each tyre: 1 = new, 0 = worn through.</summary>
+public sealed record TyreWear(double FrontLeft, double FrontRight, double RearLeft, double RearRight);
+
+/// <param name="Position">Overall position at the end of the lap.</param>
+/// <param name="ElapsedSeconds">Session time when the lap started: the first lap starts at the green flag.</param>
+/// <remarks>
+/// Everything past the four parameters is read since 1.2, for the debrief; laps saved before it
+/// have none of it, and LMU leaves out what a car doesn't have (virtual energy on older cars).
+/// </remarks>
+public sealed record LapRecord(int Number, int Position, double? LapTimeSeconds, double ElapsedSeconds)
+{
+    /// <summary>Position in the car's class at the end of the lap, worked out from when each class car crossed the line.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? ClassPosition { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Sector1 { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Sector2 { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Sector3 { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? TopSpeedKph { get; init; }
+
+    /// <summary>Share of the tank left at the end of the lap, 0 to 1.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Fuel { get; init; }
+
+    /// <summary>Share of the tank the lap used.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? FuelUsed { get; init; }
+
+    /// <summary>Virtual energy left at the end of the lap, 0 to 1.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Energy { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? EnergyUsed { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public TyreWear? Wear { get; init; }
+
+    /// <summary>Tyre compounds on the lap, e.g. "Medium".</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? FrontCompound { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? RearCompound { get; init; }
+
+    /// <summary>The car was in the pit lane on this lap.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Pit { get; init; }
+
+    /// <summary>When the car crossed the line to end the lap; null when LMU gave the lap no time and it was the car's last.</summary>
+    [JsonIgnore]
+    public double? EndSeconds => LapTimeSeconds is { } time ? ElapsedSeconds + time : null;
+}
 
 public sealed record EntryResult(
     string Name,
@@ -58,10 +99,36 @@ public sealed record EntryResult(
     public bool IsCustomTeam => VehicleName.Contains("Custom Team", StringComparison.OrdinalIgnoreCase);
 }
 
-public enum RaceEventKind { Incident, Penalty, TrackLimits }
+public enum RaceEventKind { Incident, Penalty, TrackLimits, Damage }
 
 /// <summary>A logged event from the session stream. <see cref="Driver"/> is null when LMU didn't attribute it.</summary>
-public sealed record RaceEvent(RaceEventKind Kind, double ElapsedSeconds, string? Driver, string Text);
+/// <remarks>The details past the four parameters are read since 1.2; events saved before it have none.</remarks>
+public sealed record RaceEvent(RaceEventKind Kind, double ElapsedSeconds, string? Driver, string Text)
+{
+    /// <summary>For a contact with another car: its driver.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? OtherDriver { get; init; }
+
+    /// <summary>For a contact with something else: what LMU calls it ("Immovable", "Post", "Sign").</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? Object { get; init; }
+
+    /// <summary>For a contact: how hard, as LMU reports it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? Impact { get; init; }
+
+    /// <summary>For track limits: the lap LMU logged it on.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Lap { get; init; }
+
+    /// <summary>For track limits: LMU's code for the decision; <see cref="Text"/> names it ("Warning", "Invalid Lap Cut Track").</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? Resolution { get; init; }
+
+    /// <summary>For track limits: the points this event added, and the driver's total after it.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? WarningPoints { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public double? CurrentPoints { get; init; }
+
+    /// <summary>Whether <paramref name="nameKey"/> (see <see cref="Scoring.Standings.NameKey"/>) is the driver, or the other car in a contact.</summary>
+    public bool Involves(string nameKey) =>
+        (Driver is { } driver && Scoring.Standings.NameKey(driver) == nameKey)
+        || (OtherDriver is { } other && Scoring.Standings.NameKey(other) == nameKey);
+}
 
 public sealed record SessionResult(
     string SourceFile,

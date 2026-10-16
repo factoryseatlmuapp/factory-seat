@@ -340,6 +340,8 @@ select.input { padding: 6px 8px; }
 .modal.wide { width: min(980px, calc(100vw - 48px)); }
 .modal h2 { font-size: 32px; font-weight: 600; margin-bottom: 14px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.update-highlights { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 6px; }
+.update-highlights li::marker { color: var(--accent); }
 
 .toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 60;
   background: var(--panel-solid); border: 1px solid var(--border); border-left: 4px solid var(--accent);

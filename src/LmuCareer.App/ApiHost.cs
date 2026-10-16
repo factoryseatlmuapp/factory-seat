@@ -116,6 +116,7 @@ public sealed class ApiHost
         "log" => Log(Str(args, "message")),
         "watchCareer" => WatchCareer(Str(args, "id")),
         "checkForUpdate" => CheckForUpdate(),
+        "updateCardSeen" => UpdateCardSeen(Str(args, "version")),
         "browseLmu" => BrowseLmu(),
         "setLmuRoot" => SetLmuRoot(Str(args, "path")),
         "setPrefs" => SetPrefs(args),
@@ -164,13 +165,24 @@ public sealed class ApiHost
         _ = Task.Run(async () =>
         {
             if (await Updates.LatestRelease() is not { } latest || !Updates.IsNewer(latest.Version)) return;
+            var version = latest.Version.ToString(3);
             _window.Dispatcher.Invoke(() => _window.PostEvent(JsonSerializer.Serialize(new
             {
                 @event = "updateAvailable",
-                version = latest.Version.ToString(3),
+                version,
                 url = latest.Url,
+                highlights = latest.HighlightsIn(Language),
+                // The card opens once per version; after that the top bar button is the reminder.
+                card = _settings.UpdateCardSeen != version,
             }, Json)));
         });
+        return null;
+    }
+
+    private object? UpdateCardSeen(string version)
+    {
+        _settings.UpdateCardSeen = version;
+        _settings.Save();
         return null;
     }
 
@@ -422,7 +434,8 @@ public sealed class ApiHost
         var guests = GuestDrives.EnsureOffers(career, _catalog, _install);
         var customTeam = CareerActions.RecognizeCustomTeam(career);
         var phrases = CareerActions.AddPhrases(career);
-        if (sponsors || guests || customTeam || phrases) _store.Save(career);
+        var debriefs = Debriefs.Backfill(career, _install?.ResultsFolder);
+        if (sponsors || guests || customTeam || phrases || debriefs) _store.Save(career);
         return CareerView(career);
     }
 

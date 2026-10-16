@@ -8,6 +8,7 @@ using static LmuCareer.Cli.Format;
 // Developer tool for checking the results reader, scoring and career saves against real LMU files.
 //   list   <results folder> [--all]           race sessions in the folder (offline ones unless --all)
 //   season <race.xml[@weight]> ...            score races as rounds of one championship
+//   debrief <race.xml>                        what a counted race stores for the debrief (1.2)
 //   career ...                                career saves; see CareerCommands.cs
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -17,6 +18,7 @@ return args switch
 {
     ["list", var dir, .. var rest] => List(dir, rest.Contains("--all")),
     ["season", .. var files] when files.Length > 0 => Season(files),
+    ["debrief", var file] => Debrief(file),
     ["career", .. var rest] => CareerCommands.Run(rest),
     ["content"] => ContentCommands.Check(null),
     ["content", var root] => ContentCommands.Check(root),
@@ -27,8 +29,47 @@ static int Usage()
 {
     Console.WriteLine("usage: lmucareer list <results folder> [--all]");
     Console.WriteLine("       lmucareer season <race.xml[@weight]> [<race.xml[@weight]> ...]");
+    Console.WriteLine("       lmucareer debrief <race.xml>");
     Console.WriteLine("       lmucareer career help");
     return 1;
+}
+
+static int Debrief(string file)
+{
+    var race = ResultsParser.Load(file);
+    var debrief = LmuCareer.Core.Careers.Debriefs.From(race);
+    Console.WriteLine($"{race.TrackCourse}, {race.RaceMinutes} min, {race.Entries.Count} cars");
+
+    Console.WriteLine();
+    Console.WriteLine("AI class bests");
+    foreach (var b in debrief.ClassBests)
+        Console.WriteLine($"  {b.CarClass,-8} lap {LapTime(b.LapSeconds)} ({b.LapDriver})  S1 {b.Sector1:0.000}  S2 {b.Sector2:0.000}  S3 {b.Sector3:0.000}  top {b.TopSpeedKph:0.0} km/h");
+
+    if (race.Player is not { } player)
+    {
+        Console.WriteLine("No player car.");
+        return 0;
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"{player.Name}, {player.CarClass} #{player.CarNumber}: grid P{player.ClassGridPosition} -> P{player.ClassPosition} in class, {player.Laps} laps, {player.Pitstops} stops");
+    Console.WriteLine($"  {"Lap",3} {"Cls",3} {"Time",9} {"S1",7} {"S2",7} {"S3",7} {"Top",6} {"Fuel",5} {"VE",5} {"Wear FL/FR/RL/RR",19} {"Tyres",-13} Pit");
+    foreach (var l in player.LapRecords)
+    {
+        var wear = l.Wear is { } w ? $"{w.FrontLeft:0.00}/{w.FrontRight:0.00}/{w.RearLeft:0.00}/{w.RearRight:0.00}" : "";
+        Console.WriteLine($"  {l.Number,3} {l.ClassPosition,3} {LapTime(l.LapTimeSeconds),9} {l.Sector1,7:0.000} {l.Sector2,7:0.000} {l.Sector3,7:0.000} " +
+            $"{l.TopSpeedKph,6:0.0} {l.Fuel,5:0.00} {l.Energy,5:0.00} {wear,19} {Trim($"{l.FrontCompound}/{l.RearCompound}", 13),-13} {(l.Pit ? "pit" : "")}");
+    }
+
+    Console.WriteLine();
+    Console.WriteLine($"Player events ({debrief.PlayerEvents.Count})");
+    foreach (var group in debrief.PlayerEvents.GroupBy(e => e.Kind))
+    {
+        Console.WriteLine($"  {group.Key}: {group.Count()}");
+        foreach (var e in group.Take(8))
+            Console.WriteLine($"    {e.ElapsedSeconds,8:0.0}s  {Trim(e.Text, 100)}");
+    }
+    return 0;
 }
 
 static int List(string dir, bool includeMultiplayer)

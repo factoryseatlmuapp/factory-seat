@@ -31,11 +31,15 @@ internal sealed class ResultsXml
         string number = "1",
         bool player = false,
         string vehicle = "",
+        string? lapsXml = null,
         params (int Start, int End, string Controller)[] control)
     {
         if (control.Length == 0) control = [(1, laps, player ? "PlayerControl,TC=2" : "AIControl")];
         var controlXml = string.Concat(control.Select(c =>
             $"<ControlAndAids startLap=\"{c.Start}\" endLap=\"{c.End}\">{c.Controller}</ControlAndAids>"));
+
+        var defaultLaps = $"<Lap num=\"1\" p=\"{classPos}\" et=\"120.5\">--.----</Lap>"
+            + $"<Lap num=\"2\" p=\"{classPos}\" et=\"221.0\">100.5</Lap>";
 
         _drivers.Add($"""
             <Driver>
@@ -53,8 +57,7 @@ internal sealed class ResultsXml
               <Pitstops>1</Pitstops>
               <FinishStatus>{status}</FinishStatus>
               {controlXml}
-              <Lap num="1" p="{classPos}" et="120.5">--.----</Lap>
-              <Lap num="2" p="{classPos}" et="221.0">100.5</Lap>
+              {lapsXml ?? defaultLaps}
             </Driver>
             """);
         return this;
