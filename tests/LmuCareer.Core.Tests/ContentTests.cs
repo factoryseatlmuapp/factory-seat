@@ -123,4 +123,25 @@ public class ContentTests
 
         Assert.Equal(("Le Mans 24 Hours", 2m, 45, 32), (round.EventName, round.PointsWeight, round.RaceMinutes, (int)round.TimeScale));
     }
+
+    [Fact]
+    public void Tank_times_come_from_the_class_and_track_with_a_margin()
+    {
+        Assert.Equal(44.2 * TankTimes.Margin, TankTimes.For("GT3", "LeMans_2023", "layoutLeMans"), 6);
+        Assert.Equal(42.8 * TankTimes.Margin, TankTimes.For("GT3", "LeMans_2023", "layoutMulsanne"), 6);
+        // A track not measured for the class: the class's median.
+        Assert.Equal(44.6 * TankTimes.Margin, TankTimes.For("LMP2", "Interlagos_2024", "layoutInterlagos"), 6);
+        Assert.Equal(TankTimes.Fallback, TankTimes.For("Unknown", "Spa_2023", "layoutSpa"));
+    }
+
+    [Fact]
+    public void A_60_minute_LMP3_race_plans_a_stop_it_will_need()
+    {
+        // Promo_714 (Oct 15): Imola ELMS, LMP3, 60 minutes. On the old 50-minute guess the plan said
+        // Real fuel and one stop; the car went the distance without one.
+        var round = new Round { TrackFolder = "ImolaWEC_2024", LayoutFile = "layoutImolaELMS", RealDurationHours = 4 };
+        CalendarBuilder.ApplyLength(round, 60, "LMP3");
+        Assert.Equal(2, round.FuelMultiplier);
+        Assert.Equal(2, round.Stints);
+    }
 }

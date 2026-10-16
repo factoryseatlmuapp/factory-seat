@@ -55,14 +55,16 @@ public static class CalendarBuilder
             PointsWeight = RaceFormats.DefaultWeight(e.Hours),
             MinimumDriveShare = Features.AiDriverSwaps ? RaceFormats.MinimumDriveShare(carClass, rating, e.Hours) : 0,
         };
-        ApplyLength(round, minutes);
+        ApplyLength(round, minutes, carClass);
         return round;
     }
 
     /// <summary>Sets the race length and recalculates Time Scale, Fuel Usage, Tyre Wear and stints to fit.</summary>
-    public static void ApplyLength(Round round, int? minutes)
+    /// <param name="carClass">The class the round is raced in: how long its tank lasts here sets the Fuel Usage.</param>
+    public static void ApplyLength(Round round, int? minutes, string carClass = "")
     {
-        var format = RaceFormats.For(round.RealDurationHours, minutes);
+        var tank = carClass.Length > 0 ? TankTimes.For(carClass, round.TrackFolder, round.LayoutFile) : RaceFormats.DefaultTankMinutes;
+        var format = RaceFormats.For(round.RealDurationHours, minutes, tank);
         round.RaceMinutes = format.RaceMinutes;
         round.TimeScale = format.TimeScale;
         round.FuelMultiplier = format.FuelMultiplier;

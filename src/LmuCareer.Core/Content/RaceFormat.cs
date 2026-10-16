@@ -28,10 +28,7 @@ public static class RaceFormats
 
     public const int MaxTimeScale = 60;
 
-    /// <summary>
-    /// How long a tank lasts at Fuel Usage Real. Real Hypercars run 45 to 55 minutes; LMU's own
-    /// figure per class still needs a test race.
-    /// </summary>
+    /// <summary>How long a tank lasts at Fuel Usage Real when the class isn't known; <see cref="TankTimes"/> has the measured figures.</summary>
     public const double DefaultTankMinutes = 50;
 
     /// <summary>The length a round runs at unless the player changes it: 6 h for 24 h races, 3 h for 12 h, else 30 min.</summary>

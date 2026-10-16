@@ -106,7 +106,8 @@ public sealed class BriefingFileTests : IDisposable
         var settings = round.GetProperty("settings");
         Assert.Equal(360, settings.GetProperty("raceMinutes").GetInt32());
         Assert.Equal(4, settings.GetProperty("timeScale").GetInt32());
-        Assert.Equal(2, settings.GetProperty("fuelUsage").GetInt32());
+        // GT3 at Daytona: about 59 minutes a tank at Real with the margin, so x3 for stints near 20 minutes.
+        Assert.Equal(3, settings.GetProperty("fuelUsage").GetInt32());
         var sponsor = json.GetProperty("sponsors")[0];
         Assert.Equal("a podium", sponsor.GetProperty("objective").GetString());
         Assert.Equal("InProgress", sponsor.GetProperty("status").GetString());
