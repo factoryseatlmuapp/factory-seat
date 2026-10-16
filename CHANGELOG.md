@@ -18,7 +18,7 @@
 - The briefing points Fuel Usage and Tyre Wear to LMU's Event Settings › Advanced, where they take effect.
 - When a new version is out, the app opens with a card saying what's in it, once, with Get it and Not now.
 - An opening animation, and a short tour of what's new the first time you open 1.2 (Settings › Show the tour again).
-- `briefing.json` for companion apps adds the stakes, your history at the track, practice and AI Strength advice. Nothing that was there changes. See `docs/briefing-json.md`.
+- `briefing.json` for companion apps adds the stakes, your history at the track, practice and AI Strength advice, with the advice also as a step on LMU's AI Strength slider. Nothing that was there changes. See `docs/briefing-json.md`.
 - All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.
 
 ## 1.1.1
