@@ -14,6 +14,12 @@ public enum MessageKind
 
     /// <summary>The season's reputation so far: the season review worked out mid-season.</summary>
     Reputation,
+
+    /// <summary>A headline after a notable result.</summary>
+    Press,
+
+    /// <summary>One question after a big moment, answered in the inbox.</summary>
+    Interview,
 }
 
 /// <summary>
@@ -37,6 +43,10 @@ public sealed class InboxMessage
     public Phrase Subject { get; set; } = Phrase.Of("");
     public List<Phrase> Body { get; set; } = [];
 
+    /// <summary>For an interview: the question, the answers on offer, and the one given.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public InterviewQuestion? Interview { get; set; }
+
     public static string IdFor(int season, int round, MessageKind kind) => $"{season}-{round}-{kind}".ToLowerInvariant();
 }
 
@@ -49,15 +59,22 @@ public static class Inbox
     /// <summary>The mail for a round that just counted.</summary>
     public static void AfterRace(Career career, Round round, DateTimeOffset now)
     {
-        // Newest last: the debrief goes in last so it tops the inbox and the strip on Next race.
+        // Questions from earlier rounds can't be answered once another race has counted.
+        Paddock.LapseOpenQuestions(career, round);
+
+        // Newest last: what tops the inbox and the strip on Next race goes in last. The interview
+        // waits for an answer, so it's on top; then the debrief.
         var season = career.CurrentSeason;
         if (!round.Guest && ReputationSoFar(career, season, round, now) is { } reputation) Add(career, reputation);
 
         Add(career, TeamPrincipal(season, round, now));
+        if (Paddock.Press(career, round, now) is { } press) Add(career, press);
 
         if (DebriefReport.For(round) is { } report)
             Add(career, Message(season, round, MessageKind.Debrief, now, Phrase.Of("Your race engineer"),
                 Phrase.Of("Debrief: {event}", ("event", round.EventName)), EngineerNotes(report)));
+
+        if (Paddock.Interview(career, round, now) is { } interview) Add(career, interview);
         career.InboxStarted = true;
     }
 

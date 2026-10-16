@@ -141,6 +141,9 @@ public static class Progression
         Add(Phrase.Count(penalties, "{n} penalty", "{n} penalties"), -0.5m * penalties);
         if (completed.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3);
 
+        // What the player said in interviews, and the bets the next round settled.
+        foreach (var item in Paddock.ReviewItems(season)) Add(item.Text!, item.Points);
+
         // Guest drives sit outside the championship, but a result there gets noticed.
         foreach (var round in season.Rounds.Where(r => r.Guest && r.State == RoundState.Completed && r.Result is not null))
         {

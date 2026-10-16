@@ -287,6 +287,9 @@ public sealed class Season
     /// <summary>Deals on offer before the season's first round counts; null until they're made.</summary>
     public List<SponsorDeal>? SponsorOffers { get; set; }
 
+    /// <summary>Interview answers given this season, settled at its review.</summary>
+    public List<InterviewAnswer> Interviews { get; set; } = [];
+
     /// <summary>Deals the player signed, at most <see cref="Sponsorship.MaxDeals"/>.</summary>
     public List<SponsorDeal> Sponsors { get; set; } = [];
 

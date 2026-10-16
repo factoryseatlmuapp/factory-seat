@@ -49,6 +49,7 @@ GROUPS = [
     ("CareerActions.cs", "Race checks (why a race did or didn't count)"),
     ("Progression.cs", "Season review"),
     ("Inbox.cs", "Inbox (messages after each race)"),
+    ("Paddock.cs", "Press and interviews"),
     ("Sponsorship.cs", "Sponsors"),
     ("GuestDrives.cs", "Messages"),
     ("CareerStore.cs", "Messages"),

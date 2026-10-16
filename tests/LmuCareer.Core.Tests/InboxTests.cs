@@ -116,18 +116,20 @@ public sealed class InboxTests : IDisposable
     }
 
     [Fact]
-    public void A_counted_race_brings_three_messages_with_the_debrief_on_top()
+    public void A_counted_race_brings_its_mail_with_the_interview_then_the_debrief_on_top()
     {
+        // A first win: the press and an interview join the engineer, the team principal and the manager.
         var career = CareerWith(Field());
 
-        Assert.Equal([MessageKind.Reputation, MessageKind.TeamPrincipal, MessageKind.Debrief], career.Inbox.Select(m => m.Kind));
-        Assert.Equal(3, Inbox.Unread(career));
+        Assert.Equal([MessageKind.Reputation, MessageKind.TeamPrincipal, MessageKind.Press, MessageKind.Debrief, MessageKind.Interview],
+            career.Inbox.Select(m => m.Kind));
+        Assert.Equal(5, Inbox.Unread(career));
         Assert.All(career.Inbox, m => Assert.Equal((1, 1), (m.Season, m.Round)));
-        Assert.Equal("Debrief: Round 1 6 Hours", career.Inbox[^1].Subject.ToString());
+        Assert.Equal("Debrief: Round 1 6 Hours", career.Inbox[^2].Subject.ToString());
 
         // Writing a round's mail again replaces it rather than doubling up.
         Inbox.AfterRace(career, career.CurrentSeason.Rounds[0], Now);
-        Assert.Equal(3, career.Inbox.Count);
+        Assert.Equal(5, career.Inbox.Count);
     }
 
     [Fact]
@@ -166,8 +168,8 @@ public sealed class InboxTests : IDisposable
         career.InboxStarted = false;
 
         Assert.True(Inbox.Start(career, Now));
-        // The last round counted, not every round.
-        Assert.Equal(3, career.Inbox.Count);
+        // The last round counted, not every round: a second win, so press and an interview too.
+        Assert.Equal(5, career.Inbox.Count);
         Assert.All(career.Inbox, m => Assert.Equal(2, m.Round));
         Assert.False(Inbox.Start(career, Now));
 
@@ -182,7 +184,7 @@ public sealed class InboxTests : IDisposable
     {
         var career = CareerWith(Field());
         Inbox.MarkRead(career, career.Inbox[^1].Id);
-        Assert.Equal(2, Inbox.Unread(career));
+        Assert.Equal(4, Inbox.Unread(career));
         Inbox.MarkRead(career, null);
         Assert.Equal(0, Inbox.Unread(career));
 

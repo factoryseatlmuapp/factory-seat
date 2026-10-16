@@ -32,6 +32,7 @@ internal sealed class ResultsXml
         bool player = false,
         string vehicle = "",
         string? lapsXml = null,
+        int grid = 0,
         params (int Start, int End, string Controller)[] control)
     {
         if (control.Length == 0) control = [(1, laps, player ? "PlayerControl,TC=2" : "AIControl")];
@@ -52,6 +53,8 @@ internal sealed class ResultsXml
               <isPlayer>{(player ? 1 : 0)}</isPlayer>
               <Position>{classPos}</Position>
               <ClassPosition>{classPos}</ClassPosition>
+              <GridPos>{grid}</GridPos>
+              <ClassGridPos>{grid}</ClassGridPos>
               <Laps>{laps}</Laps>
               <BestLapTime>{100 + classPos}.5</BestLapTime>
               <Pitstops>1</Pitstops>

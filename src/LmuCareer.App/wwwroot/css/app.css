@@ -366,6 +366,14 @@ select.input { padding: 6px 8px; }
 .debrief-facts { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 0; border-top: 1px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
 .debrief-fact b { font: 700 22px "Barlow Condensed", var(--cjk); font-variant-numeric: tabular-nums; }
 .debrief-table { max-width: 640px; }
+.inbox-waiting { color: var(--accent); }
+.interview { display: grid; gap: 10px; }
+.interview-question { font: 600 24px "Barlow Condensed", var(--cjk); margin: 0 0 6px; }
+.interview-option { display: grid; grid-template-columns: 150px 1fr; gap: 2px 14px; text-align: left; cursor: pointer; font: inherit;
+  background: var(--panel); color: var(--text); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px 14px; }
+.interview-option:hover { border-color: var(--text); }
+.interview-tone { grid-row: span 2; font: 700 18px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--accent); align-self: center; }
+.interview-effect { font-size: 13px; color: var(--text-dim); }
 .good-text { color: var(--good); }
 .bad-text { color: var(--bad); }
 

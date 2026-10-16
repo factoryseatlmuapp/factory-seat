@@ -35,6 +35,8 @@ const ROUND_STATES = { Upcoming: mark("Upcoming"), Armed: mark("In progress"), C
 
 const RATINGS = { Bronze: mark("Bronze"), Silver: mark("Silver"), Gold: mark("Gold"), Platinum: mark("Platinum") };
 
+const TONES = { Humble: mark("Humble"), Confident: mark("Confident"), BlameTeam: mark("Blame the team") };
+
 // Briefing rows the player has ticked off as set in LMU, per round, kept in this PC's browser
 // storage until the round counts. Only a helper: nothing waits on them.
 const ticksKey = (id, season, round) => `ticks:${id}:${season}:${round}`;
@@ -843,13 +845,14 @@ export async function careerView(view, id, tab) {
   function inboxStrip() {
     const newest = [...data.career.inbox].reverse().find((m) => !m.read);
     if (!newest) return null;
+    const waiting = newest.interview && newest.interview.answer == null && !newest.interview.lapsed;
     return h("button", { class: "inbox-strip", onclick: () => { openMessage = newest.id; show("inbox"); } },
       h("span", { class: "inbox-strip-label" }, t("Inbox")),
       h("span", { class: "faint" }, t(newest.from)),
       h("span", {}, t(newest.subject)),
       h("div", { class: "spacer" }),
       data.unread > 1 ? h("span", { class: "faint" }, tn(data.unread, "{n} unread", "{n} unread")) : null,
-      h("span", { class: "inbox-strip-open" }, t("Read")));
+      h("span", { class: "inbox-strip-open" }, waiting ? t("Answer") : t("Read")));
   }
 
   function inbox() {
@@ -868,13 +871,37 @@ export async function careerView(view, id, tab) {
       h("button", { class: "inbox-item" + (m.read ? "" : " unread") + (m === selected ? " active" : ""), onclick: () => select(m) },
         h("div", { class: "inbox-from" }, t(m.from)),
         h("div", { class: "inbox-subject" }, t(m.subject)),
-        h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round })))));
+        h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round }),
+          m.interview && m.interview.answer == null && !m.interview.lapsed ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
 
     const drawDetail = () => put(clear(detail),
       h("div", { class: "faint" }, `${t(selected.from)} · ${dateTime(selected.at)}`),
       h("h2", { class: "inbox-title" }, t(selected.subject)),
-      selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
+      selected.interview ? null : selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
+      selected.interview ? interviewBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
+
+    /** The question, and either the three answers to pick from or the one given. */
+    function interviewBlock(m) {
+      const q = m.interview;
+      const chosen = q.options.find((o) => o.tone === q.answer);
+      return h("div", { class: "interview" },
+        h("p", { class: "interview-question" }, `“${t(q.question)}”`),
+        chosen ? h("div", { class: "notice good" }, h("b", {}, t("You said")), h("div", {}, `“${t(chosen.line)}”`), h("div", { class: "faint" }, t(chosen.effect)))
+        : q.lapsed ? h("div", { class: "notice" }, t("You didn't answer before your next race counted. The moment's gone."))
+        : [
+          h("div", { class: "faint", style: { marginBottom: "8px" } }, t("Pick one. It's paid in reputation at the season review.")),
+          q.options.map((o) => h("button", { class: "interview-option", onclick: () => answer(m, o.tone) },
+            h("span", { class: "interview-tone" }, t(TONES[o.tone])),
+            h("span", { class: "interview-line" }, `“${t(o.line)}”`),
+            h("span", { class: "interview-effect" }, t(o.effect)))),
+        ]);
+    }
+
+    async function answer(m, tone) {
+      const updated = await attempt(call("answerInterview", { id, messageId: m.id, tone }));
+      if (updated) { openMessage = m.id; show("inbox"); }
+    }
 
     async function select(m) {
       selected = m;
