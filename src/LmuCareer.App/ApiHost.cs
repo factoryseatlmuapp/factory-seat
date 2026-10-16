@@ -66,6 +66,9 @@ public sealed class ApiHost
         if (career.CurrentSeason.ArmedRound is null) return;
 
         var evaluation = CareerActions.CheckArmedRound(_store, career, _install.ResultsFolder, _install.RaceSavesFolder);
+        // New practice: the briefing's pace advice changed, so the page redraws it.
+        if (evaluation.PracticeChanged)
+            _window.PostEvent(JsonSerializer.Serialize(new { @event = "practiceRead", careerId = id }, Json));
         var wrongCar = CareerActions.WrongCarRace(evaluation);
         if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null) return;
 
@@ -517,6 +520,8 @@ public sealed class ApiHost
         resultsFolder = _install?.ResultsFolder,
         ladder = LadderView(career),
         unread = Inbox.Unread(career),
+        // The next race's stakes, history here, practice and AI Strength advice.
+        preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next) : null,
         // The season review worked out now, until the real one is written.
         projectedReputation = career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
             ? Progression.Review(career.CurrentSeason, career.Reputation) is var review ? review.ReputationAfter - review.ReputationBefore : (decimal?)null

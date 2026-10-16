@@ -110,9 +110,14 @@ export async function careerView(view, id, tab) {
   // While this career is open, the app watches the results folder for it.
   call("watchCareer", { id }).catch(() => {});
   stopListening?.();
-  stopListening = onEvent("roundUpdate", (message) => {
+  const stopRound = onEvent("roundUpdate", (message) => {
     if (message.careerId === id && location.hash.includes(id)) announce(message.evaluation);
   });
+  // A practice session was read: the briefing's pace advice changed.
+  const stopPractice = onEvent("practiceRead", (message) => {
+    if (message.careerId === id && location.hash.includes(id) && tab === "briefing") show("briefing");
+  });
+  stopListening = () => { stopRound(); stopPractice(); };
 
   // Results written while the app was closed or another screen was open turn up on arrival.
   if (armed()) {
@@ -224,6 +229,7 @@ export async function careerView(view, id, tab) {
         map ? h("figure", { class: "hero-map" }, trackSvg(map), h("figcaption", {}, maps.attribution)) : null),
       inboxStrip(),
       round.guest ? guestNotice(round) : firstRace(isArmed),
+      raceAhead(isArmed),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "row", style: { alignItems: "baseline", marginBottom: "14px" } },
@@ -236,7 +242,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "rows", style: { marginBottom: "16px" } }, round.guest ? guestCarRow(round, tick("car")) : carRow(car, tick("car"))),
           h("div", { class: "lmu-path" }, lmu("Event settings")),
           h("div", { class: "rows" },
-            setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like."), untickable: true }),
+            setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like. After you start the weekend, your engineer reads it for pace."), untickable: true }),
             setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid."), untickable: true }),
             setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true, tick: tick("length") }),
             setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event settings"), tick: tick("fuel") }),
@@ -311,32 +317,89 @@ export async function careerView(view, id, tab) {
         t("It doesn't count for the championship or your sponsors' deals, but a good result builds your reputation.")));
   }
 
-  /** How the player's best laps compare with the AI's, and what to do about AI Strength. */
+  /**
+   * How the player's pace compares with the AI's here, and what to do about AI Strength: from
+   * practice this weekend, else earlier races at this track, else the season's recent rounds.
+   */
   function pacePanel() {
     const pace = data.pace;
-    if (!pace?.last) return null;
+    const here = data.preparation?.pace;
+    if (!here && !pace?.last) return null;
     const s = (gap) => number(Math.abs(gap), 1);
     const advice = {
       TooEasy: [t("The AI is too easy"), t("Raise AI Strength a few points in LMU's event settings before the next race."), ""],
       BitEasy: [t("The AI is a bit easy"), t("A notch more AI Strength would make it a fight."), ""],
       Matched: [t("About right"), t("You and the AI are well matched. Leave AI Strength where it is."), "good"],
       TooHard: [t("The AI is too quick"), t("Lower AI Strength a few points, or get some practice laps in."), ""],
-    }[pace.advice];
-    const last = { event: pace.last.eventName, s: s(pace.last.gap) };
-    const recent = { n: pace.recentRounds, s: s(pace.recentGap) };
+      BitHard: [t("The AI is a bit quick"), t("A notch less AI Strength, or run a practice to learn the track."), ""],
+    }[here?.advice ?? pace.advice];
+    const quicker = (here?.gap ?? pace.recentGap) <= 0;
+    const basis = !here || here.source === "Season"
+      ? [
+        pace.last ? h("div", {}, pace.last.gap <= 0
+          ? t("{event}: your best lap was {s} s quicker than the fastest AI in class.", { event: pace.last.eventName, s: s(pace.last.gap) })
+          : t("{event}: your best lap was {s} s slower than the fastest AI in class.", { event: pace.last.eventName, s: s(pace.last.gap) })) : null,
+        pace.recentRounds > 1
+          ? h("div", { class: "muted" }, pace.recentGap <= 0
+            ? t("Last {n} rounds: {s} s a lap quicker on average.", { n: pace.recentRounds, s: s(pace.recentGap) })
+            : t("Last {n} rounds: {s} s a lap slower on average.", { n: pace.recentRounds, s: s(pace.recentGap) })) : null,
+        here ? h("div", { class: "muted" }, t("Your first race here in this class, so only a small change.")) : null,
+      ]
+      : here.source === "Practice"
+      ? h("div", {}, quicker
+        ? t("In practice your best lap was {s} s quicker than the fastest AI in class.", { s: s(here.gap) })
+        : t("In practice your best lap was {s} s slower than the fastest AI in class.", { s: s(here.gap) }))
+      : h("div", {}, quicker
+        ? tn(here.visits, "Last time here you were {s} s a lap quicker than the fastest AI.", "Your {n} races here: {s} s a lap quicker than the fastest AI, the latest counting most.", { s: s(here.gap) })
+        : tn(here.visits, "Last time here you were {s} s a lap slower than the fastest AI.", "Your {n} races here: {s} s a lap slower than the fastest AI, the latest counting most.", { s: s(here.gap) }));
     return [
       h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Pace check")),
       h("div", { class: `notice ${advice[2]}` },
         h("b", {}, advice[0]),
-        h("div", {}, pace.last.gap <= 0
-          ? t("{event}: your best lap was {s} s quicker than the fastest AI in class.", last)
-          : t("{event}: your best lap was {s} s slower than the fastest AI in class.", last)),
-        pace.recentRounds > 1
-          ? h("div", { class: "muted" }, pace.recentGap <= 0
-            ? t("Last {n} rounds: {s} s a lap quicker on average.", recent)
-            : t("Last {n} rounds: {s} s a lap slower on average.", recent)) : null,
+        basis,
         h("div", { class: "muted", style: { marginTop: "4px" } }, advice[1])),
     ];
+  }
+
+  /** Above the checklist: what's riding on the race, and how ready the player is for this track. */
+  function raceAhead(isArmed) {
+    const prep = data.preparation;
+    if (!prep) return null;
+    const history = prep.history;
+    const practice = prep.practice;
+    const best = (values) => values.filter((v) => v != null).sort((a, b) => a - b)[0];
+    const bestFinish = best(history.map((v) => v.finish));
+    const bestLap = best(history.map((v) => v.bestLap));
+    const last = history[0];
+    const finishText = (v) => (v.finish ? t("P{n}", { n: v.finish }) : { Dnf: t("DNF"), Dq: t("DQ") }[v.status] ?? t("NC"));
+
+    const stakes = prep.stakes && h("div", {},
+      h("div", { class: "section-title" }, t("What's at stake")),
+      h("div", { class: "card quiet stakes" }, prep.stakes.lines.map((line) => h("p", {}, t(line)))));
+
+    const ready = h("div", {},
+      h("div", { class: "section-title" }, t("Preparation")),
+      h("div", { class: "card quiet stakes" },
+        history.length
+          ? [
+            h("div", { class: "debrief-facts", style: { borderTop: "none", paddingTop: 0 } },
+              h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, t("Races here")), h("b", {}, history.length)),
+              h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, t("Best finish")), h("b", {}, bestFinish ? t("P{n}", { n: bestFinish }) : "–")),
+              h("div", { class: "debrief-fact" }, h("div", { class: "faint" }, t("Best lap")), h("b", {}, lapTime(bestLap)))),
+            h("p", { class: "muted" }, t("Last time: {event}, season {season}, {finish}.", { event: last.eventName, season: last.season, finish: finishText(last) })),
+          ]
+          : h("p", {}, t("Your first race here in this class. A practice run helps: your engineer reads it for pace.")),
+        practice
+          ? [
+            h("p", {}, tn(practice.sessions, "Practice: {laps} laps. Your best {mine}, the fastest AI {ai}.", "Practice ({n} sessions): {laps} laps. Your best {mine}, the fastest AI {ai}.",
+              { laps: practice.laps, mine: lapTime(practice.playerBest), ai: lapTime(practice.aiBest) })),
+            practice.targetLap ? h("p", { class: "muted" }, t("Your engineer's target for the race: {lap}.", { lap: lapTime(practice.targetLap) })) : null,
+          ]
+          : h("p", { class: "faint" }, isArmed
+            ? t("Run a practice now and your engineer reads it for pace.")
+            : t("Start the weekend first: practice after that is read for pace."))));
+
+    return h("div", { class: "grid-2", style: { gridTemplateColumns: stakes ? "1fr 1fr" : "1fr", alignItems: "start", marginBottom: "24px" } }, stakes, ready);
   }
 
   /** You drive every lap; Fuel Usage puts the stops where the real race's would fall. */

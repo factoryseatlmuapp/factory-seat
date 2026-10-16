@@ -59,6 +59,15 @@ public static class CareerActions
         }
 
         var evaluation = RoundFlow.Evaluate(checks);
+
+        // Practice since the weekend started is read for pace, and kept with the round.
+        if (Preparation.ReadPractice(checks, round, round.GuestCar ?? season.Car) is { } practice && practice != round.Practice)
+        {
+            round.Practice = practice;
+            store.Save(career);
+            evaluation = evaluation with { PracticeChanged = true };
+        }
+
         if (evaluation.Status == RoundStatus.QuitEarly && evaluation.Race is { } race
             && SaveBefore(savesFolder, armedAt, race.WrittenAt) is { } save)
         {

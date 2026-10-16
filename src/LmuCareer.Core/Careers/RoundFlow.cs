@@ -32,6 +32,9 @@ public sealed record RoundEvaluation(
     IReadOnlyList<SessionCheck> Ignored,
     string? SavedAs = null)
 {
+    /// <summary>This check read practice the round hadn't seen yet (the career was saved with it).</summary>
+    public bool PracticeChanged { get; init; }
+
     /// <summary>The race stopped before the flag, quit or saved: counting it means taking the DNF.</summary>
     public bool EndedEarly => Status is RoundStatus.QuitEarly or RoundStatus.SavedToResume;
 }

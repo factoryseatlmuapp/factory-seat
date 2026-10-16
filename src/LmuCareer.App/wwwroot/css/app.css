@@ -367,6 +367,8 @@ select.input { padding: 6px 8px; }
 .debrief-fact b { font: 700 22px "Barlow Condensed", var(--cjk); font-variant-numeric: tabular-nums; }
 .debrief-table { max-width: 640px; }
 .inbox-waiting { color: var(--accent); }
+.stakes p { margin: 0 0 8px; }
+.stakes p:last-child { margin-bottom: 0; }
 .approach { display: grid; gap: 10px; max-width: 420px; margin-top: 6px; }
 .interview { display: grid; gap: 10px; }
 .interview-question { font: 600 24px "Barlow Condensed", var(--cjk); margin: 0 0 6px; }

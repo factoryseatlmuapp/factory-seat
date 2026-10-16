@@ -117,7 +117,7 @@ public static class RoundMatcher
     /// (Spa and Spa ELMS are both "Circuit de Spa-Francorchamps"). Rounds without one fall back to
     /// the name.
     /// </summary>
-    private static bool SameLayout(SessionResult session, Round round) =>
+    internal static bool SameLayout(SessionResult session, Round round) =>
         round.LayoutFile.Length > 0
             ? session.LayoutFile.Equals(round.LayoutFile, StringComparison.OrdinalIgnoreCase)
                 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase)

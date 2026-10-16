@@ -17,6 +17,9 @@ public enum PaceAdvice
 
     /// <summary>Well off the AI's pace: lower AI Strength.</summary>
     TooHard,
+
+    /// <summary>A little off the AI's pace on a first visit: maybe a notch down.</summary>
+    BitHard,
 }
 
 public sealed record PaceSummary(RoundPace? Last, double? RecentGap, int RecentRounds, PaceAdvice? Advice);
@@ -51,13 +54,15 @@ public static class PaceCheck
 
         var recent = paces.TakeLast(RecentRounds).ToList();
         var gap = Math.Round(recent.Average(p => p.Gap), 2);
-        var advice = gap switch
-        {
-            <= -1.0 => PaceAdvice.TooEasy,
-            <= -0.4 => PaceAdvice.BitEasy,
-            >= 1.5 => PaceAdvice.TooHard,
-            _ => PaceAdvice.Matched,
-        };
-        return new PaceSummary(paces[^1], gap, recent.Count, advice);
+        return new PaceSummary(paces[^1], gap, recent.Count, AdviceFor(gap));
     }
+
+    /// <summary>What a gap to the fastest AI (seconds a lap, negative when quicker) says about AI Strength.</summary>
+    public static PaceAdvice AdviceFor(double gap) => gap switch
+    {
+        <= -1.0 => PaceAdvice.TooEasy,
+        <= -0.4 => PaceAdvice.BitEasy,
+        >= 1.5 => PaceAdvice.TooHard,
+        _ => PaceAdvice.Matched,
+    };
 }

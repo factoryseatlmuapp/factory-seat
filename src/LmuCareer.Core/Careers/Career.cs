@@ -73,6 +73,9 @@ public sealed class Round
 
     /// <summary>For a guest drive: the team's numbers on LMU's grid, to find its livery.</summary>
     public IReadOnlyList<string> GuestNumbers { get; set; } = [];
+
+    /// <summary>Practice run since the weekend started, read for pace; null until there's been some.</summary>
+    public PracticeRead? Practice { get; set; }
 }
 
 public sealed class RoundResult
