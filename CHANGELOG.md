@@ -14,7 +14,7 @@
 - **Championship only,** picked on New Career: seasons and points, no reputation, sponsors, offers, guest drives or interviews, and any car you like for each season. (#5)
 - **Pit plans fit the car.** The planner now knows how long a tank lasts for each class at each track, measured from races, instead of one 50-minute guess. An LMP3 race at Imola no longer gets a planned stop it never needs. LMP3 is an estimate until it's measured; more measured numbers come in later updates.
 - A race on the right circuit but the wrong layout now says so in the briefing's words, like "you raced the ELMS layout of Imola; this round uses Grand Prix".
-- A race saved part-way says plainly not to start the weekend again: load the save in LMU and finish it. The briefing's Race weekend panel shows it too.
+- A race saved part-way says plainly not to start the weekend again: load the save in LMU and finish it. The briefing's Race weekend panel shows it too. A long race saved more than once no longer turns into a "Race ended early" pop-up asking for a DNF while it's still in progress.
 - The briefing points Fuel Usage and Tyre Wear to LMU's Event Settings › Advanced, where they take effect.
 - When a new version is out, the app opens with a card saying what's in it, once, with Get it and Not now.
 - An opening animation, and a short tour of what's new the first time you open 1.2 (Settings › Show the tour again).

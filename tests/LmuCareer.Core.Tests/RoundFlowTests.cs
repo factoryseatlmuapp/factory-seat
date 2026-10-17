@@ -217,7 +217,7 @@ public class RoundFlowTests
     [InlineData(-85, "SavedToResume")]  // loaded an earlier save of this weekend and backed out without saving again
     [InlineData(null, "QuitEarly")]     // no save at all: a real quit
     [InlineData(-120, "QuitEarly")]     // only a save from before the weekend started
-    [InlineData(5, "QuitEarly")]        // a save written after the race's results belongs to something later
+    [InlineData(1500, "SavedToResume")] // resumed the save a day later and saved it again: LMU rewrites the same file
     public void A_race_saved_part_way_waits_to_be_finished_instead_of_asking_for_a_dnf(int? saveMinutesBeforeQuit, string expected)
     {
         var root = Directory.CreateTempSubdirectory("lmucareer-save-");

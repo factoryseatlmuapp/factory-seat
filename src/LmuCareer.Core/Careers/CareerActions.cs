@@ -69,20 +69,23 @@ public static class CareerActions
         }
 
         if (evaluation.Status == RoundStatus.QuitEarly && evaluation.Race is { } race
-            && SaveBefore(savesFolder, armedAt, race.WrittenAt) is { } save)
+            && SaveSince(savesFolder, armedAt) is { } save)
         {
             return evaluation with { Status = RoundStatus.SavedToResume, SavedAs = save };
         }
         return evaluation;
     }
 
-    /// <summary>The newest race weekend save written since the round started and before the race's results, by name.</summary>
-    private static string? SaveBefore(string? savesFolder, DateTimeOffset armedAt, DateTimeOffset raceWrittenAt)
+    /// <summary>
+    /// The newest race weekend save written since the round started, by name. A save written after
+    /// the part-way results still counts: resuming a save and saving again rewrites the same file,
+    /// so a long race saved more than once always has a save newer than its last results.
+    /// </summary>
+    private static string? SaveSince(string? savesFolder, DateTimeOffset armedAt)
     {
         if (savesFolder is null || !Directory.Exists(savesFolder)) return null;
         var save = new DirectoryInfo(savesFolder).EnumerateFiles("*.json")
-            .Where(f => f.LastWriteTimeUtc >= armedAt.UtcDateTime
-                && f.LastWriteTimeUtc <= raceWrittenAt.UtcDateTime.AddMinutes(1))
+            .Where(f => f.LastWriteTimeUtc >= armedAt.UtcDateTime)
             .MaxBy(f => f.LastWriteTimeUtc);
         if (save is null) return null;
 
