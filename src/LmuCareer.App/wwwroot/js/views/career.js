@@ -367,7 +367,7 @@ export async function careerView(view, id, tab) {
     if (!here && !pace?.last) return null;
     const s = (gap) => number(Math.abs(gap), 1);
     const advice = {
-      TooEasy: [t("The AI is too easy"), t("Raise AI Strength a few points in LMU's event settings before the next race."), ""],
+      TooEasy: [t("The AI is too easy"), t("Raise Opponent Difficulty a few points in LMU's Race Weekend settings before the next race."), ""],
       BitEasy: [t("The AI is a bit easy"), t("A notch more AI Strength would make it a fight."), ""],
       Matched: [t("About right"), t("You and the AI are well matched. Leave AI Strength where it is."), "good"],
       TooHard: [t("The AI is too quick"), t("Lower AI Strength a few points, or get some practice laps in."), ""],
