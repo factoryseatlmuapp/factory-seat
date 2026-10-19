@@ -1187,8 +1187,10 @@ export async function careerView(view, id, tab) {
             h("div", { class: "faint", style: { fontSize: "12px" } },
               t("Driver rating: {n}", { n: RATINGS[data.career.rating] ? t(RATINGS[data.career.rating]) : data.career.rating })),
             nextStep()),
-          h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
-          nationalityCard(),
+          // Nationality only picks local sponsors, which a championship-only career doesn't have.
+          data.career.championshipOnly ? null : [
+            h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
+            nationalityCard()],
           h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your content")),
           h("div", { class: "card quiet" },
             h("div", { class: "muted" }, packs
@@ -1203,11 +1205,14 @@ export async function careerView(view, id, tab) {
             h("table", { class: "table" },
               h("thead", {}, h("tr", {},
                 h("th", {}, t("Season")), h("th", {}, t("Class")), h("th", {}, t("Car")), h("th", {}, t("Team")),
-                h("th", { class: "num" }, t("Rounds")), h("th", { class: "num" }, t("Champ.")), h("th", {}, t("Target")), h("th", { class: "num" }, t("Rep.")))),
+                h("th", { class: "num" }, t("Rounds")), h("th", { class: "num" }, t("Champ.")), h("th", {}, t("Target")),
+                data.career.championshipOnly ? null : h("th", { class: "num" }, t("Rep.")))),
               h("tbody", {}, seasons.map((s) => {
                 const done = s.rounds.filter((r) => r.state === "Completed").length;
                 const r = s.review;
-                return h("tr", { class: s === season() ? "me" : "" },
+                const past = s !== season();
+                return h("tr", { class: past ? "clickable" : "me", title: past ? t("Final standings") : null,
+                  onclick: past ? () => openSeasonStandings(s.number) : null },
                   h("td", { class: "pos" }, s.number),
                   h("td", {}, chip(s.car.carClass)),
                   h("td", {}, carName(s.car.carType)),
@@ -1217,8 +1222,11 @@ export async function careerView(view, id, tab) {
                   h("td", {}, r ? h("span", { style: { color: r.targetMet ? "var(--good)" : "var(--bad)" } },
                     r.targetMet ? t("Met (top {n})", { n: r.targetPosition }) : t("Missed (top {n})", { n: r.targetPosition }))
                     : h("span", { class: "faint" }, t("Top {n}", { n: s.contract?.targetPosition ?? 6 }))),
-                  h("td", { class: "num" }, r ? signed(r.reputationAfter - r.reputationBefore) : h("span", { class: "faint" }, t("in progress"))));
-              })))))));
+                  data.career.championshipOnly ? null
+                    : h("td", { class: "num" }, r ? signed(r.reputationAfter - r.reputationBefore) : h("span", { class: "faint" }, t("in progress"))));
+              }))),
+            seasons.length > 1 ? h("div", { class: "faint", style: { fontSize: "12px", padding: "6px 8px" } },
+              t("Click a past season for its final standings.")) : null))));
   }
   // ---------- Calendar ----------
 
@@ -1357,6 +1365,59 @@ export async function careerView(view, id, tab) {
 
   // ---------- Standings ----------
 
+  /** A class's drivers' and teams' tables, with the player and their team highlighted; a final table marks the champions. */
+  function standingsTables(table, rounds, myTeam, { final = false } = {}) {
+    const champion = (i) => final && i === 0 ? [" ", h("span", { class: "chip champion" }, t("Champion"))] : null;
+    return [
+      h("div", { class: "section-title", style: { marginTop: "18px" } }, t("Drivers")),
+      h("div", { class: "card quiet", style: { padding: "4px 8px", overflowX: "auto" } },
+        h("table", { class: "table" },
+          h("thead", {}, h("tr", {},
+            h("th", {}, t("Pos")), h("th", {}, t("Driver")), h("th", {}, t("Team")),
+            rounds.map((r) => h("th", { class: "num", title: r.eventName }, t("R{n}", { n: r.number }))),
+            h("th", { class: "num" }, t("Wins")), h("th", { class: "num" }, t("Poles")), h("th", { class: "num" }, t("Points")))),
+          h("tbody", {}, table.drivers.map((d, i) => h("tr", { class: d.isPlayer ? "me" : "" },
+            h("td", { class: "pos" }, i + 1),
+            h("td", {}, d.name, champion(i)), h("td", { class: "muted" }, d.teamName),
+            d.roundRanks.map((rank) => h("td", { class: "num" + (rank === 1 ? "" : " muted") }, rank ?? "–")),
+            h("td", { class: "num" }, d.wins), h("td", { class: "num" }, d.poles),
+            h("td", { class: "num", style: { fontWeight: 700 } }, number(+d.points.toFixed(1)))))))),
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Teams")),
+      h("div", { class: "card quiet", style: { padding: "4px 8px", maxWidth: "620px" } },
+        h("table", { class: "table" },
+          h("thead", {}, h("tr", {}, h("th", {}, t("Pos")), h("th", {}, t("Team")), h("th", { class: "num" }, t("Wins")), h("th", { class: "num" }, t("Points")))),
+          h("tbody", {}, table.teams.map((team, i) => h("tr", { class: team.teamName === myTeam ? "me" : "" },
+            h("td", { class: "pos" }, i + 1), h("td", {}, team.teamName, champion(i)),
+            h("td", { class: "num" }, team.wins), h("td", { class: "num", style: { fontWeight: 700 } }, number(+team.points.toFixed(1))))))))];
+  }
+
+  /** A finished season's final standings, opened from the Career tab's season list. */
+  async function openSeasonStandings(seasonNumber) {
+    const s = await attempt(call("seasonStandings", { id, season: seasonNumber }));
+    if (!s) return;
+    const classes = s.standings.map((c) => c.carClass);
+    let shown = classes.includes(s.carClass) ? s.carClass : classes[0];
+    const body = h("div");
+    const render = () => {
+      const table = s.standings.find((c) => c.carClass === shown);
+      put(clear(body), table ? standingsTables(table, s.rounds, s.teamName, { final: true }) : h("div", { class: "empty" }, t("No rounds counted yet.")));
+    };
+    showModal([
+      h("div", { class: "row" },
+        h("h2", { style: { margin: 0 } }, t("Season {n} final standings", { n: s.season })),
+        h("div", { class: "spacer" }),
+        classes.length > 1 ? h("div", { class: "pills" }, classes.map((c) =>
+          h("button", { class: "pill" + (c === shown ? " active" : ""), onclick: (e) => {
+            shown = c;
+            e.currentTarget.parentElement.querySelectorAll(".pill").forEach((p) => p.classList.toggle("active", p === e.currentTarget));
+            render();
+          } }, chip(c).textContent))) : null),
+      body,
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ], { wide: true });
+    render();
+  }
+
   function standings() {
     const myClass = season().car.carClass;
     const classes = data.standings.map((s) => s.carClass);
@@ -1370,28 +1431,7 @@ export async function careerView(view, id, tab) {
       clear(body);
       const table = data.standings.find((s) => s.carClass === shown);
       if (!table) { put(body, h("div", { class: "empty" }, t("No rounds counted yet."))); return; }
-
-      put(body,
-        h("div", { class: "section-title", style: { marginTop: "18px" } }, t("Drivers")),
-        h("div", { class: "card quiet", style: { padding: "4px 8px", overflowX: "auto" } },
-          h("table", { class: "table" },
-            h("thead", {}, h("tr", {},
-              h("th", {}, t("Pos")), h("th", {}, t("Driver")), h("th", {}, t("Team")),
-              done.map((r) => h("th", { class: "num", title: r.eventName }, t("R{n}", { n: r.number }))),
-              h("th", { class: "num" }, t("Wins")), h("th", { class: "num" }, t("Poles")), h("th", { class: "num" }, t("Points")))),
-            h("tbody", {}, table.drivers.map((d, i) => h("tr", { class: d.isPlayer ? "me" : "" },
-              h("td", { class: "pos" }, i + 1),
-              h("td", {}, d.name), h("td", { class: "muted" }, d.teamName),
-              d.roundRanks.map((rank) => h("td", { class: "num" + (rank === 1 ? "" : " muted") }, rank ?? "–")),
-              h("td", { class: "num" }, d.wins), h("td", { class: "num" }, d.poles),
-              h("td", { class: "num", style: { fontWeight: 700 } }, number(+d.points.toFixed(1)))))))),
-        h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Teams")),
-        h("div", { class: "card quiet", style: { padding: "4px 8px", maxWidth: "620px" } },
-          h("table", { class: "table" },
-            h("thead", {}, h("tr", {}, h("th", {}, t("Pos")), h("th", {}, t("Team")), h("th", { class: "num" }, t("Wins")), h("th", { class: "num" }, t("Points")))),
-            h("tbody", {}, table.teams.map((team, i) => h("tr", { class: team.teamName === season().car.teamName ? "me" : "" },
-              h("td", { class: "pos" }, i + 1), h("td", {}, team.teamName),
-              h("td", { class: "num" }, team.wins), h("td", { class: "num", style: { fontWeight: 700 } }, number(+team.points.toFixed(1)))))))));
+      put(body, standingsTables(table, done, season().car.teamName));
     }
 
     put(view,

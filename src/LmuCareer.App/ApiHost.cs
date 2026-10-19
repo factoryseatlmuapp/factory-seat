@@ -149,6 +149,7 @@ public sealed class ApiHost
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
         "roundAnalysis" => RoundAnalysis(args),
+        "seasonStandings" => SeasonStandings(args),
         "answerInterview" => Change(args, c => Paddock.Answer(c, Str(args, "messageId"),
             Enum.Parse<InterviewTone>(Str(args, "tone")))),
         "answerApproach" => Change(args, c => Sponsorship.AnswerApproach(c, Str(args, "messageId"),
@@ -466,6 +467,24 @@ public sealed class ApiHost
             report = DebriefReport.For(round),
             laps = me.LapRecords,
             classBest = round.Result!.Debrief?.ClassBests.FirstOrDefault(b => b.CarClass == me.CarClass),
+        };
+    }
+
+    /// <summary>A finished season's final standings, for the Career tab's season list.</summary>
+    private object SeasonStandings(JsonElement args)
+    {
+        var career = Load(args);
+        var seasonNumber = args.GetProperty("season").GetInt32();
+        var season = career.PastSeasons.Append(career.CurrentSeason).FirstOrDefault(s => s.Number == seasonNumber)
+            ?? throw new KeyNotFoundException("No such season.");
+        return new
+        {
+            season = season.Number,
+            carClass = season.Car.CarClass,
+            teamName = season.Car.TeamName,
+            rounds = season.ChampionshipRounds.Where(r => r.State == RoundState.Completed)
+                .Select(r => new { number = r.Number, eventName = r.EventName }),
+            standings = season.Standings(),
         };
     }
 

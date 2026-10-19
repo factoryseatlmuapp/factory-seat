@@ -209,6 +209,9 @@ h1, h2, h3 { font-family: "Barlow Condensed", var(--cjk); text-transform: upperc
 .chip.LMP3 { background: var(--p3); } .chip.GT3 { background: var(--gt3); } .chip.GTE { background: var(--gte); }
 .chip.pack { background: transparent; color: var(--text-dim); border: 1px solid var(--border-soft); font-weight: 600; }
 .chip.warn { background: var(--warn); }
+.chip.champion { background: #c9a227; color: #14110a; }
+.table tr.clickable { cursor: pointer; }
+.table tr.clickable:hover td { background: var(--panel-hover); }
 
 .class-tile { width: 76px; height: 64px; border: 2px solid var(--border); border-radius: 8px; padding: 6px 7px;
   background: var(--panel); text-align: left; position: relative; }

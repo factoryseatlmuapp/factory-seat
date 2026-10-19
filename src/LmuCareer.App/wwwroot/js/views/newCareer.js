@@ -81,7 +81,8 @@ export async function newCareerView(view) {
                 class: "card quiet clickable" + (draft.championshipOnly === value ? " selected" : ""),
                 onclick: () => { draft.championshipOnly = value; show("driver"); },
               }, h("h3", {}, title), h("div", { class: "faint", style: { marginTop: "6px" } }, text))))),
-        h("div", { class: "field" }, h("label", {}, t("Nationality")),
+        // Nationality only picks local sponsors, which a championship-only career doesn't have.
+        draft.championshipOnly ? null : h("div", { class: "field" }, h("label", {}, t("Nationality")),
           countryPicker(draft.nationality, (code) => { draft.nationality = code; }),
           h("small", { class: "faint" }, t("Local sponsors come from your home country. You can change it later on the Career tab.")))),
       footer(next("content")));

@@ -44,6 +44,11 @@ public static class TankTimes
         {
             ["Monza_2023"] = 60.9, ["Sebring_2023"] = 79.2,
         },
+        // Oct 18: the median of 22 car-runs in one race (71.5 to 76.9 minutes).
+        ["LMP3"] = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Barcelona_2025"] = 73.2,
+        },
     };
 
     // A class's figure at tracks not measured: the median of its measured tracks.
@@ -53,8 +58,8 @@ public static class TankTimes
         ["Hyper"] = 49.7,
         ["LMP2"] = 44.6,
         ["GTE"] = 70,
-        // Not measured yet. LMP3 ran past 60 minutes at Imola on Real without a stop (Promo_714,
-        // Oct 15), so an estimate above that; replace with measured runs.
+        // Only Barcelona measured so far (73.2); LMP3 also ran past 60 minutes at Imola on Real
+        // without a stop (Promo_714, Oct 15). Kept a little under Barcelona until more tracks are in.
         ["LMP3"] = 70,
     };
 

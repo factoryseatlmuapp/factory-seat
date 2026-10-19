@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.2.0 (in progress)
+## 1.2.0 "Green Flag"
 
 - **An Inbox between races.** After every race that counts, mail arrives: your race engineer's debrief, your team principal on the result against your contract, and your manager on what the season is worth so far. The Inbox tab shows how many are unread, and the newest is on the Next race page. A career from before 1.2 opens with mail for its last race.
 - **The engineer's debrief** is built from LMU's own lap data: where you started and finished, your best lap and each sector against the fastest AI in your class, every stint and how your pace held up, track limits, penalties, contacts and damage. It tells a slow end of stint from low fuel or energy apart from tyre wear.
@@ -12,7 +12,8 @@
 - **Full race results** for every counted round on the Calendar, class by class, including races run before 1.2. (#9)
 - **Lap analysis** from those results: every lap with its time, sectors, top speed, fuel, tyres and pit stops, with your bests and anything quicker than the best AI marked. (#14)
 - **Championship only,** picked on New Career: seasons and points, no reputation, sponsors, offers, guest drives or interviews, and any car you like for each season. (#5)
-- **Pit plans fit the car.** The planner now knows how long a tank lasts for each class at each track, measured from races, instead of one 50-minute guess. An LMP3 race at Imola no longer gets a planned stop it never needs. LMP3 is an estimate until it's measured; more measured numbers come in later updates.
+- **Past seasons' final standings.** Click a finished season on the Career tab for its final drivers' and teams' tables, class by class, with the champions marked.
+- **Pit plans fit the car.** The planner now knows how long a tank lasts for each class at each track, measured from races, instead of one 50-minute guess. An LMP3 race at Imola no longer gets a planned stop it never needs. LMP3 is measured at Barcelona so far and estimated elsewhere; more measured numbers come in later updates.
 - A race on the right circuit but the wrong layout now says so in the briefing's words, like "you raced the ELMS layout of Imola; this round uses Grand Prix".
 - A race saved part-way says plainly not to start the weekend again: load the save in LMU and finish it. The briefing's Race weekend panel shows it too.
 - The briefing points Fuel Usage and Tyre Wear to LMU's Event Settings › Advanced, where they take effect.
