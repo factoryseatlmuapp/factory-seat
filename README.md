@@ -6,6 +6,8 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 
 > Factory Seat is a fan project. It is not affiliated with, endorsed by or connected to Studio 397, Motorsport Games, the ACO, the FIA WEC or IMSA.
 
+**New here?** [Watch the 4-minute setup video](https://youtu.be/5sPuL5LckAg): download, first career, your first counted race.
+
 ![The race briefing for the São Paulo 6 Hours, with LMU's settings, a pit plan and the track map](docs/screenshots/briefing.png)
 
 | Season calendar | Championship standings | Off-season offers |
@@ -27,6 +29,8 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 - Several careers side by side, automatic backups, export and import, dark and light themes.
 
 ## Install
+
+Prefer to watch? The [setup video](https://youtu.be/5sPuL5LckAg) walks through all of this in 4 minutes.
 
 1. Download `FactorySeat-Setup-x.y.z.exe` from [Releases](../../releases).
 2. Run it. It installs for your Windows user and doesn't need admin rights. The installer isn't code-signed, so you may get a warning or two:
