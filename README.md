@@ -29,7 +29,9 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 ## Install
 
 1. Download `FactorySeat-Setup-x.y.z.exe` from [Releases](../../releases).
-2. Run it. It installs for your Windows user and doesn't need admin rights. Windows SmartScreen may warn about an unrecognised app, because the installer isn't code-signed. Choose **More info → Run anyway**.
+2. Run it. It installs for your Windows user and doesn't need admin rights. The installer isn't code-signed, so you may get a warning or two:
+   - **Edge** may say the file "isn't commonly downloaded" in its download list. Choose **⋯ → Keep**, then **Keep anyway**.
+   - **Windows SmartScreen** may warn about an unrecognised app when you run it. Choose **More info → Run anyway**.
 3. On first start, point the app at your Le Mans Ultimate folder. It finds it through Steam if it can.
 
 It needs Windows 10 or 11 (64-bit) and the Microsoft Edge WebView2 Runtime, which Windows 11 and most Windows 10 PCs already have.
@@ -60,8 +62,8 @@ No. Only offline Race Weekends count, and only the one that matches your current
 **Do I need all the DLC?**
 No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks. The LMP3 rung needs the ELMS packs, and careers without them go straight from LMGT3 to LMP2.
 
-**Windows says "Windows protected your PC". Is it safe?**
-That's SmartScreen. It shows for any installer that isn't code-signed, and code signing costs money a free fan project doesn't have. Choose **More info → Run anyway**. If you'd like to check first, every release lists the installer's SHA-256 checksum and a VirusTotal scan, and the full source is in this repo.
+**Edge says the file "isn't commonly downloaded", or Windows says "Windows protected your PC". Is it safe?**
+Both are SmartScreen. It shows for any installer that isn't code-signed, and code signing costs money a free fan project doesn't have. Choose **More info → Run anyway**. If you'd like to check first, every release lists the installer's SHA-256 checksum and a VirusTotal scan, and the full source is in this repo.
 
 **Can I save a race part-way and finish it later?**
 Yes. Save it in LMU as usual. When you leave the race, LMU writes a results file that looks like you quit. Factory Seat spots the save and waits instead of asking whether to count a DNF. Don't press **Start race weekend** again: the weekend is still running. Load the save from LMU's race weekend saves, finish the race, and the result pops up then.
