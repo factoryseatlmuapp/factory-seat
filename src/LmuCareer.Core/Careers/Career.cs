@@ -377,6 +377,9 @@ public sealed class Career
     /// <summary>Teams that noticed a big result this season; their offers come at the season's end.</summary>
     public List<TeamInterest> Interest { get; set; } = [];
 
+    /// <summary>The player's standing with each make and team they've raced for; empty on careers from before 1.3.</summary>
+    public List<Loyalty> Loyalty { get; set; } = [];
+
     /// <summary>Mail from the team, the engineer and the paddock, oldest first.</summary>
     public List<InboxMessage> Inbox { get; set; } = [];
 

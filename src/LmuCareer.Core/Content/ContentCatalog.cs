@@ -22,7 +22,17 @@ public sealed record CarInfo(
     string? Pack,
     // How LMU writes the car's model in results files. A car can have several (the Toyota is
     // "GR010" on older season grids and "TR010" on 2026's), or none yet if no race has shown it.
-    IReadOnlyList<string> CarTypes);
+    IReadOnlyList<string> CarTypes)
+{
+    /// <summary>
+    /// The make a driver builds loyalty with, from <see cref="ContentCatalog.Brands"/>: GT3, GTE and
+    /// Hypercar cars only. Null on the spec prototypes (LMP2, LMP3), where loyalty is to the team.
+    /// </summary>
+    public string? Brand { get; init; }
+}
+
+/// <summary>A make, or makes under one roof (Chevrolet and Cadillac are both GM).</summary>
+public sealed record BrandInfo(string Id, string Name);
 
 public sealed record EventInfo(
     string Id,
@@ -43,7 +53,17 @@ public sealed record TeamInfo(
     // 1 = front-running or factory, 2 = midfield, 3 = back of the grid.
     int Tier,
     // The team's numbers on LMU's grid, so the briefing can point at the right livery; empty when unknown.
-    IReadOnlyList<string> Numbers);
+    IReadOnlyList<string> Numbers)
+{
+    /// <summary>
+    /// The racing outfit behind the entry, the same across classes and entry names (DKR Engineering
+    /// in LMP3 and LMP2; AO by TF and TF Sport). Null when the team only races under its own name.
+    /// </summary>
+    public string? Outfit { get; init; }
+
+    /// <summary>The outfit, or the team's name for a team that races under its own name only.</summary>
+    public string OutfitId => Outfit ?? ContentCatalog.Slug(Name);
+}
 
 public sealed record SponsorInfo(
     string Id,
@@ -85,8 +105,33 @@ public sealed record ContentCatalog(
     /// <summary>Personal sponsors, who offer deals at the start of each season.</summary>
     public IReadOnlyList<SponsorInfo> Sponsors { get; init; } = [];
 
+    /// <summary>The makes cars belong to, for brand loyalty.</summary>
+    public IReadOnlyList<BrandInfo> Brands { get; init; } = [];
+
+    /// <summary>Pairs of makes with a real-world rivalry: joining one burns loyalty with the other.</summary>
+    public IReadOnlyList<IReadOnlyList<string>> BrandRivals { get; init; } = [];
+
     public CarInfo? Car(string folder) =>
         Cars.FirstOrDefault(c => c.Folder.Equals(folder, StringComparison.OrdinalIgnoreCase));
+
+    public BrandInfo? Brand(string id) => Brands.FirstOrDefault(b => b.Id == id);
+
+    public bool AreRivalBrands(string a, string b) =>
+        BrandRivals.Any(pair => pair.Count == 2 && (pair[0] == a && pair[1] == b || pair[0] == b && pair[1] == a));
+
+    /// <summary>A team on the grid by its name in a class, as offers and contracts name it.</summary>
+    public TeamInfo? Team(string name, string carClass) =>
+        Teams.FirstOrDefault(t => t.Class == carClass && t.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>A lower-case id from a name: "DKR Engineering" is dkr-engineering, "Racing Spirit of Léman" racing-spirit-of-leman.</summary>
+    public static string Slug(string name)
+    {
+        var plain = new string(name.Normalize(System.Text.NormalizationForm.FormD)
+            .Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark)
+            .ToArray());
+        var words = System.Text.RegularExpressions.Regex.Split(plain.ToLowerInvariant(), "[^a-z0-9]+").Where(w => w.Length > 0);
+        return string.Join('-', words);
+    }
 
     private static readonly Lazy<ContentCatalog> Embedded = new(LoadEmbedded);
 
