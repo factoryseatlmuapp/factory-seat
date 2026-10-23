@@ -180,7 +180,22 @@
     { "name": "Lamborghini Iron Lynx", "class": "Hyper", "outfit": "iron-lynx", "cars": ["Lamborghini_SC63_2024"], "tier": 2, "numbers": ["19"] },
     { "name": "Isotta Fraschini", "class": "Hyper", "cars": ["Isotta_Tipo6_2024"], "tier": 2, "numbers": [] },
     { "name": "Glickenhaus Racing", "class": "Hyper", "cars": ["SGC_007_2023"], "tier": 3, "numbers": ["708", "709"] },
-    { "name": "Floyd Vanwall Racing Team", "class": "Hyper", "cars": ["Vandervell_680_2023"], "tier": 3, "numbers": ["4"] }
+    { "name": "Floyd Vanwall Racing Team", "class": "Hyper", "cars": ["Vandervell_680_2023"], "tier": 3, "numbers": ["4"] },
+    { "name": "Ferrari AF Corse", "class": "GTE", "outfit": "af-corse", "cars": ["Ferrari_488GTE_LM_2023"], "tier": 1, "numbers": [] },
+    { "name": "Porsche GT Team", "class": "GTE", "cars": ["Porsche_911RSR-19_2023"], "tier": 1, "numbers": [] },
+    { "name": "Corvette Racing", "class": "GTE", "cars": ["Chevrolet_C8R_LM_2023"], "tier": 1, "numbers": [] },
+    { "name": "Aston Martin Racing", "class": "GTE", "cars": ["Aston_Martin_Vantage_AMR_2023"], "tier": 1, "numbers": [] },
+    { "name": "AF Corse", "class": "GTE", "outfit": "af-corse", "cars": ["Ferrari_488GTE_LM_2023"], "tier": 2, "numbers": [] },
+    { "name": "Iron Dames", "class": "GTE", "outfit": "iron-lynx", "cars": ["Porsche_911RSR-19_2023"], "tier": 2, "numbers": [] },
+    { "name": "D'Station Racing", "class": "GTE", "cars": ["Aston_Martin_Vantage_AMR_2023"], "tier": 2, "numbers": [] },
+    { "name": "Northwest AMR", "class": "GTE", "cars": ["Aston_Martin_Vantage_AMR_2023"], "tier": 2, "numbers": [] },
+    { "name": "Proton Competition", "class": "GTE", "outfit": "proton", "cars": ["Porsche_911RSR-19_2023"], "tier": 2, "numbers": [] },
+    { "name": "Kessel Racing", "class": "GTE", "cars": ["Ferrari_488GTE_LM_2023"], "tier": 3, "numbers": [] },
+    { "name": "Richard Mille AF Corse", "class": "GTE", "outfit": "af-corse", "cars": ["Ferrari_488GTE_LM_2023"], "tier": 3, "numbers": [] },
+    { "name": "GR Racing", "class": "GTE", "cars": ["Porsche_911RSR-19_2023"], "tier": 3, "numbers": [] },
+    { "name": "Project 1", "class": "GTE", "cars": ["Porsche_911RSR-19_2023"], "tier": 3, "numbers": [] },
+    { "name": "ORT by TF", "class": "GTE", "outfit": "tf", "cars": ["Aston_Martin_Vantage_AMR_2023"], "tier": 3, "numbers": [] },
+    { "name": "Iron Lynx", "class": "GTE", "outfit": "iron-lynx", "cars": ["Porsche_911RSR-19_2023"], "tier": 3, "numbers": [] }
   ],
 
   "sponsors": [
@@ -249,16 +264,16 @@
   "events": [
     { "id": "qatar-1812", "name": "Qatar 1812 km", "series": "world", "month": 2, "startTime": "11:00", "hours": 10, "folder": "Qatar_2024", "layout": "layoutQatar" },
     { "id": "imola-6", "name": "Imola 6 Hours", "series": "world", "month": 4, "startTime": "13:00", "hours": 6, "folder": "ImolaWEC_2024", "layout": "layoutImola" },
-    { "id": "spa-6", "name": "Spa 6 Hours", "series": "world", "month": 5, "startTime": "13:00", "hours": 6, "folder": "Spa_2023", "layout": "layoutSpa" },
-    { "id": "le-mans-24", "name": "Le Mans 24 Hours", "series": "world", "month": 6, "startTime": "16:00", "hours": 24, "folder": "LeMans_2023", "layout": "layoutLeMans" },
+    { "id": "spa-6", "name": "Spa 6 Hours", "series": "world", "month": 5, "startTime": "13:00", "hours": 6, "folder": "Spa_2023", "layout": "layoutSpa", "classic": true },
+    { "id": "le-mans-24", "name": "Le Mans 24 Hours", "series": "world", "month": 6, "startTime": "16:00", "hours": 24, "folder": "LeMans_2023", "layout": "layoutLeMans", "classic": true },
     { "id": "interlagos-6", "name": "São Paulo 6 Hours", "series": "world", "month": 7, "startTime": "11:30", "hours": 6, "folder": "Interlagos_2024", "layout": "layoutInterlagos" },
     { "id": "cota-6", "name": "Lone Star 6 Hours", "series": "world", "month": 9, "startTime": "12:00", "hours": 6, "folder": "CotAWEC_2024", "layout": "layoutCota" },
-    { "id": "fuji-6", "name": "Fuji 6 Hours", "series": "world", "month": 9, "startTime": "11:00", "hours": 6, "folder": "FujiWEC_2023", "layout": "layoutFuji" },
-    { "id": "bahrain-8", "name": "Bahrain 8 Hours", "series": "world", "month": 11, "startTime": "14:00", "hours": 8, "folder": "BahrainWEC_2023", "layout": "layoutBahrain" },
+    { "id": "fuji-6", "name": "Fuji 6 Hours", "series": "world", "month": 9, "startTime": "11:00", "hours": 6, "folder": "FujiWEC_2023", "layout": "layoutFuji", "classic": true },
+    { "id": "bahrain-8", "name": "Bahrain 8 Hours", "series": "world", "month": 11, "startTime": "14:00", "hours": 8, "folder": "BahrainWEC_2023", "layout": "layoutBahrain", "classic": true },
 
-    { "id": "sebring-1000", "name": "Sebring 1000 Miles", "series": "world-base", "month": 3, "startTime": "12:00", "hours": 8, "folder": "Sebring_2023", "layout": "layoutSebring" },
-    { "id": "portimao-6", "name": "Portimão 6 Hours", "series": "world-base", "month": 4, "startTime": "12:00", "hours": 6, "folder": "PortimaoWEC_2023", "layout": "layoutPortimao" },
-    { "id": "monza-6", "name": "Monza 6 Hours", "series": "world-base", "month": 7, "startTime": "12:00", "hours": 6, "folder": "Monza_2023", "layout": "layoutMonza" },
+    { "id": "sebring-1000", "name": "Sebring 1000 Miles", "series": "world-base", "month": 3, "startTime": "12:00", "hours": 8, "folder": "Sebring_2023", "layout": "layoutSebring", "classic": true },
+    { "id": "portimao-6", "name": "Portimão 6 Hours", "series": "world-base", "month": 4, "startTime": "12:00", "hours": 6, "folder": "PortimaoWEC_2023", "layout": "layoutPortimao", "classic": true },
+    { "id": "monza-6", "name": "Monza 6 Hours", "series": "world-base", "month": 7, "startTime": "12:00", "hours": 6, "folder": "Monza_2023", "layout": "layoutMonza", "classic": true },
 
     { "id": "barcelona-4", "name": "Barcelona 4 Hours", "series": "european", "month": 4, "startTime": "11:30", "hours": 4, "folder": "Barcelona_2025", "layout": "layoutELMS" },
     { "id": "le-castellet-4", "name": "Le Castellet 4 Hours", "series": "european", "month": 5, "startTime": "11:30", "hours": 4, "folder": "PaulRicard_2025", "layout": "layoutELMS" },

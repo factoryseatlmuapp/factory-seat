@@ -127,6 +127,24 @@ public static class Preparation
     /// </summary>
     public static TrackPace? Pace(Career career, Round round)
     {
+        var pace = PaceFor(career, round);
+        return pace is not null && Pro(career, round) ? pace with { Advice = Harder(pace.Advice) } : pace;
+    }
+
+    /// <summary>A GTE Classic round in a factory (Pro) seat: the field the player races is the sharp end.</summary>
+    public static bool Pro(Career career, Round round) => career.GteClassic && !round.Guest && career.CurrentSeason.ContractFor(round)?.Tier == 1;
+
+    /// <summary>One step towards a stronger AI: GTE Pro was quicker than Am on track, and the advice says so.</summary>
+    private static PaceAdvice Harder(PaceAdvice advice) => advice switch
+    {
+        PaceAdvice.TooHard => PaceAdvice.BitHard,
+        PaceAdvice.BitHard => PaceAdvice.Matched,
+        PaceAdvice.Matched => PaceAdvice.BitEasy,
+        _ => PaceAdvice.TooEasy,
+    };
+
+    private static TrackPace? PaceFor(Career career, Round round)
+    {
         if (round.Practice?.Gap is { } practice) return new TrackPace(PaceCheck.AdviceFor(practice), PaceSource.Practice, practice, 0);
 
         var visits = History(career, round).Where(v => v.Gap is not null).ToList();

@@ -414,6 +414,13 @@ public sealed class ApiHost
             DriverName = Str(args, "driverName").Trim(),
             Nationality = Nationality(args.TryGetProperty("nationality", out var nationality) ? nationality.GetString() ?? "" : ""),
             ChampionshipOnly = args.TryGetProperty("championshipOnly", out var championshipOnly) && championshipOnly.GetBoolean(),
+            GteClassic = carClass == "GTE" && args.TryGetProperty("gteClassic", out var gteClassic) && gteClassic.GetBoolean(),
+            Path = args.TryGetProperty("path", out var path) ? path.GetString() switch
+            {
+                "gt" => CareerPath.Gt,
+                "prototype" => CareerPath.Prototype,
+                _ => null,
+            } : null,
             OwnedContent = Strings(args, "ownedPacks").ToList(),
             CurrentSeason = new Season
             {
@@ -584,8 +591,8 @@ public sealed class ApiHost
     /// <summary>What the next step up the ladder asks for, for the off-season and career screens.</summary>
     private object LadderView(Career career)
     {
-        var next = Progression.NextClass(career.CurrentSeason.Car.CarClass,
-            carClass => _catalog.Cars.Any(c => c.Class == carClass && Progression.CanOffer(c, career, _install)));
+        var next = career.GteClassic ? null : Progression.NextClass(career.CurrentSeason.Car.CarClass,
+            carClass => _catalog.Cars.Any(c => c.Class == carClass && Progression.CanOffer(c, career, _install)), career.Path);
         return new
         {
             next,

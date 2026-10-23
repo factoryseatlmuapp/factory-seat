@@ -59,12 +59,18 @@ public static class Progression
     };
 
     /// <summary>The best tier of team in a class that will talk to a driver with this reputation.</summary>
-    public static int BestTier(decimal reputation, string carClass) => (reputation - Threshold(carClass)) switch
-    {
-        >= 25 => 1,
-        >= 10 => 2,
-        _ => 3,
-    };
+    public static int BestTier(decimal reputation, string carClass) => carClass == "GTE"
+        // GTE Classic: the factory (Pro) teams want an established name.
+        ? reputation >= GteProAt ? 1 : reputation >= 10 ? 2 : 3
+        : (reputation - Threshold(carClass)) switch
+        {
+            >= 25 => 1,
+            >= 10 => 2,
+            _ => 3,
+        };
+
+    /// <summary>GTE Classic: the reputation a factory (Pro) team looks for. An Am title also earns a Pro call.</summary>
+    public const decimal GteProAt = 35;
 
     public static DriverRating RatingFor(decimal reputation) => reputation switch
     {
@@ -268,8 +274,9 @@ public static class Progression
 
         var season = career.CurrentSeason;
         var reputation = career.Reputation;
-        var currentClass = Ladder.Contains(season.Car.CarClass) ? season.Car.CarClass : "GT3";
-        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
+        var currentClass = career.GteClassic ? "GTE" : Ladder.Contains(season.Car.CarClass) ? season.Car.CarClass : "GT3";
+        // GTE Classic has no class up: a big win catches a better GTE team's eye.
+        var next = career.GteClassic ? null : NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
         // Close enough to the next class's bar, a team there takes a look; otherwise a better team in the class.
         var carClass = next is not null && reputation >= Threshold(next) - 15 ? next : currentClass;
         var tier = Math.Max(1, BestTier(reputation, carClass) - 1);
@@ -395,7 +402,7 @@ public static class Progression
             offers.Add(offer);
         }
 
-        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
+        var next = career.GteClassic ? null : NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
         var promoted = next is not null && reputation >= Threshold(next)
             && (next != "Hyper" || StrongPrototypeSeasons(career) >= PrototypeSeasonsForHypercar);
 
@@ -418,7 +425,7 @@ public static class Progression
         // The other roads to Hypercar, from any class. A make or outfit that made the player a
         // factory driver calls first; a big enough reputation gets the smaller teams' attention.
         var doors = 0;
-        if (currentClass != "Hyper" && catalog.Cars.Any(c => c.Class == "Hyper" && Drivable(c)))
+        if (!career.GteClassic && currentClass != "Hyper" && catalog.Cars.Any(c => c.Class == "Hyper" && Drivable(c)))
         {
             if (reputation >= LoyaltyHypercarAt)
             {
@@ -457,13 +464,28 @@ public static class Progression
             }
         }
 
+        // GTE Classic: an Am title earns a call from a factory (Pro) team, whatever the reputation.
+        if (career.GteClassic && review.ChampionshipPosition == 1 && (season.Contract?.Tier ?? 2) > 1
+            && !offers.Any(o => o.CarClass == "GTE" && o.Tier == 1))
+        {
+            var before = offers.Count;
+            AddFrom(OfferKind.Promotion, "GTE", 1, 1);
+            if (offers.Count > before && offers[^1].Tier == 1)
+            {
+                var reason = Phrase.Of("your GTE Am title");
+                offers[^1].Reason = reason.ToString();
+                offers[^1].ReasonText = reason;
+                doors++;
+            }
+        }
+
         // A career whose class isn't on its chosen road gets seats where that road starts.
         var ladder = LadderFor(career.Path);
         if (career.Path is not null && !ladder.Contains(currentClass) && ladder[0] != next)
             AddFrom(OfferKind.Move, ladder[0], BestTier(reputation, ladder[0]), 2);
 
         // Under contract, the only other calls are step-up seats.
-        var ladderClass = Ladder.Contains(currentClass) ? currentClass : "GT3";
+        var ladderClass = career.GteClassic ? "GTE" : Ladder.Contains(currentClass) ? currentClass : "GT3";
         var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
         // A step up is never forced: a player out of contract always has a seat in their own class.
         var sameClass = offers.Count(o => o.CarClass == ladderClass);

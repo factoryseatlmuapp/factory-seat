@@ -488,6 +488,12 @@ public sealed class Career
     /// </summary>
     public bool ChampionshipOnly { get; set; }
 
+    /// <summary>
+    /// A GTE Classic career: the 2023 WEC, in GTE. Privateer (Am) seats to start, factory (Pro)
+    /// seats to earn; no ladder out of GTE.
+    /// </summary>
+    public bool GteClassic { get; set; }
+
     public DriverRating Rating { get; set; } = DriverRating.Silver;
     public decimal Reputation { get; set; }
 

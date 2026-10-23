@@ -53,7 +53,7 @@ public static class GuestDrives
         // IMSA has no LMP3 class at its big races: an LMP3 driver guests in LMP2.
         var ownClass = season.Car.CarClass == "LMP3" ? "LMP2" : season.Car.CarClass;
         var next = Progression.NextClass(season.Car.CarClass, c => c != "LMP3" && catalog.Cars.Any(car => car.Class == c && Progression.CanOffer(car, career, install)), career.Path);
-        var auditionOpen = next is not null && next != ownClass && reputation >= Progression.Threshold(next) - AuditionMargin;
+        var auditionOpen = !career.GteClassic && next is not null && next != ownClass && reputation >= Progression.Threshold(next) - AuditionMargin;
 
         var offers = new List<GuestOffer>();
         foreach (var e in events)

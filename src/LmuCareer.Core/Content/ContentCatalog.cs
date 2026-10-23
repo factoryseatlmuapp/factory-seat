@@ -47,6 +47,9 @@ public sealed record EventInfo(
 {
     /// <summary>A round of the IMSA season, whatever else it's used for (Daytona is also a guest drive).</summary>
     public bool Imsa { get; init; }
+
+    /// <summary>A round of the 2023 WEC season, GTE's last: the calendar of a GTE Classic career.</summary>
+    public bool Classic { get; init; }
 }
 
 public sealed record TeamInfo(

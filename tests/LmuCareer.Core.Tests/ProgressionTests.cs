@@ -375,7 +375,8 @@ public class ProgressionTests
     {
         foreach (var team in Catalog.Teams)
         {
-            Assert.Contains(team.Class, Progression.Ladder);
+            // GTE teams race GTE Classic careers, off the ladder.
+            Assert.Contains(team.Class, Progression.Ladder.Append("GTE"));
             Assert.All(team.Cars, folder => Assert.Equal(team.Class, Catalog.Car(folder)?.Class));
         }
     }

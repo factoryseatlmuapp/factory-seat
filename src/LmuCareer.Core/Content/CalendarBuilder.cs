@@ -31,6 +31,10 @@ public static class CalendarBuilder
             && ContentCatalog.IsOwned(track.Pack, ownedPacks)
             && (install is null || install.HasLayout(e.Folder, e.Layout));
 
+        // GTE raced its last season in 2023: its calendar is that year's WEC.
+        if (carClass.Equals("GTE", StringComparison.OrdinalIgnoreCase))
+            return Number(catalog.Events.Where(e => e.Classic && Available(e)).OrderBy(e => e.Month).Select(e => RoundFor(catalog, e, carClass, rating)));
+
         var events = catalog.Events.Where(e => e.Series == series && Available(e)).ToList();
         events.AddRange(catalog.Events.Where(e => e.Series == fallback && Available(e)).Take(Math.Max(0, size - events.Count)));
 

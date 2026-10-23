@@ -31,7 +31,7 @@ public static class TestDays
     public static bool EnsureOffers(Career career, ContentCatalog catalog, LmuInstall? install, int? seed = null)
     {
         var season = career.CurrentSeason;
-        if (career.ChampionshipOnly || season.TestOffers is not null || !Sponsorship.CanSign(season)) return false;
+        if (career.ChampionshipOnly || career.GteClassic || season.TestOffers is not null || !Sponsorship.CanSign(season)) return false;
         season.TestOffers = MakeOffers(career, catalog, install, new Random(seed ?? Progression.Seed(career) ^ 0x7E57)).ToList();
         return true;
     }
