@@ -23,9 +23,11 @@ export async function seasonBuilder(view, options) {
   const trackOwned = (folder) => owns(tracks.get(folder)?.pack ?? "base");
   const layoutName = (folder, file) => tracks.get(folder)?.layouts.find((l) => l.file === file)?.name ?? file;
 
-  const key = `${carClass}|${[...ownedPacks].sort().join(",")}`;
+  // LMP2 races the ELMS plus Le Mans, or (as until 2023) the full WEC.
+  const fullWec = carClass === "LMP2" && !!draft.fullWec;
+  const key = `${carClass}|${fullWec}|${[...ownedPacks].sort().join(",")}`;
   if (!draft.rounds || draft.seasonFor !== key) {
-    const rounds = await attempt(call("defaultSeason", { carClass, ownedPacks }));
+    const rounds = await attempt(call("defaultSeason", { carClass, ownedPacks, fullWec }));
     if (!rounds) return;
     draft.rounds = rounds.map((round) => ({ spec: { eventId: round.eventId }, round }));
     draft.seasonFor = key;
@@ -107,6 +109,14 @@ export async function seasonBuilder(view, options) {
     h("div", { class: "row", style: { marginBottom: "10px" } },
       h("div", { class: "section-title", style: { margin: 0 } }, t("Calendar")),
       h("div", { class: "spacer" }),
+      carClass === "LMP2" ? h("div", { class: "pills", style: { marginRight: "8px" } },
+        [[false, t("ELMS + Le Mans")], [true, t("Full WEC")]].map(([value, label]) =>
+          h("button", { class: "pill" + (fullWec === value ? " active" : ""), onclick: () => {
+            if (fullWec === value) return;
+            draft.fullWec = value;
+            clear(view);
+            seasonBuilder(view, options);
+          } }, label))) : null,
       h("button", { class: "btn ghost small", onclick: () => { draft.rounds = null; clear(view); seasonBuilder(view, options); } }, t("Reset to default")),
       h("button", { class: "btn ghost small", onclick: addEvent }, t("+ Add event"))),
     list,

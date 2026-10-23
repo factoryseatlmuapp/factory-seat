@@ -16,12 +16,13 @@ public static class CalendarBuilder
     /// for LMP3 and LMP2 (plus Le Mans for LMP2). Rounds at tracks the player doesn't own are left
     /// out, and rounds the real championship has run on base-game tracks fill the gaps.
     /// </summary>
+    /// <param name="fullWec">LMP2 only: a full WEC season, as LMP2 raced until 2023, instead of the ELMS and Le Mans.</param>
     public static List<Round> DefaultSeason(
         ContentCatalog catalog, string carClass, DriverRating rating,
-        IReadOnlyCollection<string> ownedPacks, LmuInstall? install = null)
+        IReadOnlyCollection<string> ownedPacks, LmuInstall? install = null, bool fullWec = false)
     {
-        var european = carClass.Equals("LMP2", StringComparison.OrdinalIgnoreCase)
-            || carClass.Equals("LMP3", StringComparison.OrdinalIgnoreCase);
+        var lmp2 = carClass.Equals("LMP2", StringComparison.OrdinalIgnoreCase);
+        var european = lmp2 && !fullWec || carClass.Equals("LMP3", StringComparison.OrdinalIgnoreCase);
         var (series, fallback, size) = european
             ? ("european", "european-base", EuropeanSeasonRounds)
             : ("world", "world-base", WorldSeasonRounds);
@@ -38,7 +39,7 @@ public static class CalendarBuilder
         var events = catalog.Events.Where(e => e.Series == series && Available(e)).ToList();
         events.AddRange(catalog.Events.Where(e => e.Series == fallback && Available(e)).Take(Math.Max(0, size - events.Count)));
 
-        if (carClass.Equals("LMP2", StringComparison.OrdinalIgnoreCase) && catalog.Event("le-mans-24") is { } leMans && Available(leMans))
+        if (lmp2 && european && catalog.Event("le-mans-24") is { } leMans && Available(leMans))
             events.Add(leMans);
 
         return Number(events.OrderBy(e => e.Month).Select(e => RoundFor(catalog, e, carClass, rating)));

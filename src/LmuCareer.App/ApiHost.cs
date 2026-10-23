@@ -127,7 +127,7 @@ public sealed class ApiHost
         "setTitleBar" => SetTitleBar(args.GetProperty("dark").GetBoolean()),
         "catalog" => CatalogView(),
         "defaultSeason" => CalendarBuilder.DefaultSeason(_catalog, Str(args, "carClass"), DriverRating.Silver,
-            Strings(args, "ownedPacks"), _install),
+            Strings(args, "ownedPacks"), _install, fullWec: args.TryGetProperty("fullWec", out var fullWec) && fullWec.GetBoolean()),
         "roundFor" => RoundFor(args),
         "createCareer" => CreateCareer(args),
         "listCareers" => _store.List(),

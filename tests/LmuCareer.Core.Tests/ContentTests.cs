@@ -60,6 +60,15 @@ public class ContentTests
     }
 
     [Fact]
+    public void Lmp2_can_race_the_full_wec_instead()
+    {
+        var world = CalendarBuilder.DefaultSeason(Catalog, "Hyper", DriverRating.Silver, AllPacks).Select(r => r.EventId);
+        var lmp2 = CalendarBuilder.DefaultSeason(Catalog, "LMP2", DriverRating.Silver, AllPacks, fullWec: true).Select(r => r.EventId);
+        Assert.Equal(world, lmp2);
+        Assert.Single(lmp2, id => id == "le-mans-24");
+    }
+
+    [Fact]
     public void Lmp3_leaves_out_le_mans()
     {
         var rounds = CalendarBuilder.DefaultSeason(Catalog, "LMP3", DriverRating.Silver, AllPacks);
