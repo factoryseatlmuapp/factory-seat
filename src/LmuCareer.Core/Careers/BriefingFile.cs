@@ -96,6 +96,8 @@ public sealed record BriefingFile(
                     prep.Pace is { Source: PaceSource.Practice } practiceStep ? PaceCheck.StepFor(practiceStep.Advice) : null)
                 : null,
             Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, PaceCheck.StepFor(pace.Advice), pace.Source, pace.Gap, pace.Visits) : null,
+            Series = round.SeriesId.Length > 0 ? round.SeriesId : null,
+            Test = round.Test is { } test ? new BriefingTest(test.TeamName, test.MinLaps, test.PassShare) : null,
         };
     }
 
@@ -162,6 +164,9 @@ public sealed record BriefingCareer(Guid Id, string Name, int Season, string Car
 
 /// <param name="Of">Rounds on the season's calendar.</param>
 /// <param name="State">Upcoming, or Armed once the race weekend is started in the app (only races after <see cref="ArmedAt"/> count).</param>
+/// <summary>A test day: the team trying the player out, the laps it wants, and how close to the fastest AI in class impresses (0.01 = 1%).</summary>
+public sealed record BriefingTest(string Team, int MinLaps, double PassShare);
+
 public sealed record BriefingRound(
     int Number,
     int Of,
@@ -185,6 +190,12 @@ public sealed record BriefingRound(
 
     /// <summary>Since 1.2: AI Strength advice for this race (from practice, earlier races here, or the season's form).</summary>
     public BriefingPace? Pace { get; init; }
+
+    /// <summary>Since 1.3: the championship raced beside the season's own that this round counts for ("imsa"); null for the season's own.</summary>
+    public string? Series { get; init; }
+
+    /// <summary>Since 1.3: a test day rather than a race (practice laps in the team's car); null for a race.</summary>
+    public BriefingTest? Test { get; init; }
 }
 
 /// <param name="Id">The catalog event; null for a custom event.</param>

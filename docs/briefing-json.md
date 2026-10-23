@@ -106,6 +106,18 @@ can ignore them.
 ]
 ```
 
+## Added in 1.3 (still version 1)
+
+Two more fields on `round`, `null` for an ordinary race in the season's own championship:
+
+```json
+"round": {
+  "...": "as above",
+  "series": "imsa",
+  "test": { "team": "Toyota Racing", "minLaps": 8, "passShare": 0.005 }
+}
+```
+
 ## Fields
 
 Values are LMU's own, not the words on Factory Seat's screens, so they can be compared with what
@@ -163,6 +175,14 @@ the first race decides it); `targetPosition` is the team's target in the class s
   from in `source`: `Practice` (this weekend), `Track` (earlier races here, the latest counting most;
   `visits` says how many) or `Season` (recent rounds elsewhere, kept to a small change on a first
   visit). `gap` is seconds a lap against the fastest AI. `null` before any race has counted.
+
+- `series` (1.3): the championship raced beside the season's own that the round counts for (`imsa`),
+  or `null` for the season's own. A season can run both; each keeps its own standings, and `stakes`
+  are this round's championship's.
+- `test` (1.3): a test day rather than a race: a team trying the player out in its car, in practice.
+  `team` is the team, `minLaps` the practice laps it wants to see, and `passShare` how close to the
+  fastest AI lap in class impresses it (0.005 = within 0.5%). The race settings and pit plan don't
+  apply; `null` for a race.
 
 **sponsors**: the season's personal sponsor deals. `kind` is one of `FinishEveryRound`, `Podiums`,
 `Wins`, `Poles`, `PodiumAt`, `ChampionshipTop`, `CleanSeason`, `BeatRival`; `objective` describes it

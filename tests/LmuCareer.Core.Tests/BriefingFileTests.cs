@@ -59,6 +59,25 @@ public sealed class BriefingFileTests : IDisposable
     }
 
     [Fact]
+    public void Since_1_3_a_round_says_its_series_and_a_test_day_says_so()
+    {
+        var career = Career();
+        var race = career.CurrentSeason.Rounds[0];
+        var json = JsonDocument.Parse(BriefingFile.For(career, ContentCatalog.Default, "1.3.0", DateTimeOffset.Now).ToJson()).RootElement.GetProperty("round");
+        Assert.Equal(JsonValueKind.Null, json.GetProperty("series").ValueKind);
+        Assert.Equal(JsonValueKind.Null, json.GetProperty("test").ValueKind);
+
+        race.SeriesId = "imsa";
+        race.Test = new TestDay { TeamName = "Toyota Racing", CarClass = "Hyper", Tier = 1, PassShare = 0.005 };
+        json = JsonDocument.Parse(BriefingFile.For(career, ContentCatalog.Default, "1.3.0", DateTimeOffset.Now).ToJson()).RootElement.GetProperty("round");
+        Assert.Equal("imsa", json.GetProperty("series").GetString());
+        var test = json.GetProperty("test");
+        Assert.Equal("Toyota Racing", test.GetProperty("team").GetString());
+        Assert.Equal(8, test.GetProperty("minLaps").GetInt32());
+        Assert.Equal(0.005, test.GetProperty("passShare").GetDouble());
+    }
+
+    [Fact]
     public void Version_1_fields_stay_and_1_2_adds_stakes_history_practice_and_pace()
     {
         var career = Career();

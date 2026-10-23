@@ -570,6 +570,8 @@ public sealed class ApiHost
         roundPace = career.CurrentSeason.Rounds.Select(PaceCheck.For).OfType<RoundPace>(),
         liveryRounds = Sponsorship.LiveryRounds(career.CurrentSeason) is var (custom, counted) ? new { custom, counted } : null,
         standings = career.CurrentSeason.Standings(),
+        // Standings of each championship raced beside the season's own (IMSA), by id.
+        seriesStandings = career.CurrentSeason.Series.ToDictionary(s => s.Id, s => career.CurrentSeason.Standings(s.Id)),
         // Loyalty with each make and team, strongest first; how the current team is doing.
         loyalty = career.Loyalty
             .Select(l => new
