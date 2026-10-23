@@ -7,6 +7,12 @@ public enum DriverRating { Bronze, Silver, Gold, Platinum }
 
 public enum RoundState { Upcoming, Armed, Completed, Skipped }
 
+/// <summary>
+/// The road to Hypercar: GT (LMGT3, then a make's Hypercar) or prototypes (LMP3, LMP2, Hypercar).
+/// Picked with a new career; a career from before 1.3 picks once, at the end of a season.
+/// </summary>
+public enum CareerPath { Gt, Prototype }
+
 /// <summary>The car the player races this season, as LMU writes it in the results files.</summary>
 public sealed record CareerCar(string CarType, string CarClass, string CarNumber, string TeamName)
 {
@@ -413,6 +419,9 @@ public sealed class Career
 
     public DriverRating Rating { get; set; } = DriverRating.Silver;
     public decimal Reputation { get; set; }
+
+    /// <summary>The road to Hypercar; null on a career from before 1.3 until the player picks one (the old single ladder until then).</summary>
+    public CareerPath? Path { get; set; }
 
     /// <summary>DLC packs the player has ticked as owned.</summary>
     public List<string> OwnedContent { get; set; } = [];

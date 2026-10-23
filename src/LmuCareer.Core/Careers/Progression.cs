@@ -82,6 +82,7 @@ public static class Progression
         season.Review = Review(season, career.Reputation);
         career.Reputation = season.Review.ReputationAfter;
         career.Rating = RatingFor(career.Reputation);
+        Loyalties.AfterSeason(career, catalog);
         career.Offers = MakeOffers(career, catalog, install, new Random(seed ?? Seed(career))).ToList();
         return true;
     }
@@ -420,6 +421,7 @@ public static class Progression
         if (rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
 
         var reSign = offer.Kind == OfferKind.ReSign;
+        if (!reSign) Loyalties.Leave(career, finished, offer, catalog, classUp: offer.Kind == OfferKind.Promotion);
         var next = new Season
         {
             Number = finished.Number + 1,
