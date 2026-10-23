@@ -146,7 +146,7 @@ public static class GuestDrives
         if (!Sponsorship.CanSign(season)) throw new PlayerError("The season has started; skip the round instead.");
         var offer = season.GuestOffers?.FirstOrDefault(o => o.Id == offerId && o.Accepted) ?? throw new KeyNotFoundException("You haven't agreed to that guest drive.");
 
-        var index = season.Rounds.FindIndex(r => r.Guest && r.EventId == offer.EventId);
+        var index = season.Rounds.FindIndex(r => r.Guest && r.Test is null && r.EventId == offer.EventId);
         if (index >= 0)
         {
             if (season.Rounds[index].State == RoundState.Armed) throw new PlayerError("Cancel the race weekend first.");

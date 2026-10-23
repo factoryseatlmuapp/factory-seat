@@ -329,6 +329,8 @@ public class ProgressionTests
         // Reputation 20 is within 15 of LMP3's bar: an LMP3 team takes a look.
         Assert.Equal("LMP3", interest.CarClass);
 
+        // The team also invited them to a test day; skipped, the call still comes.
+        RoundFlow.Skip(Assert.Single(career.CurrentSeason.Rounds, r => r.Test is not null));
         Progression.EndSeason(career, Catalog, install: null, seed: 1);
         var offer = career.Offers.Single(o => o.Reason.Length > 0);
         Assert.Equal((interest.TeamName, OfferKind.Promotion), (offer.TeamName, offer.Kind));

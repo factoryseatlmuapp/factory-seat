@@ -68,6 +68,10 @@ public static class CareerActions
             evaluation = evaluation with { PracticeChanged = true };
         }
 
+        // A test day is judged on practice laps; races don't come into it.
+        if (round.Test is not null)
+            return evaluation with { Status = TestDays.IsReady(round) ? RoundStatus.TestReady : RoundStatus.Waiting, Race = null, Qualifying = null };
+
         if (evaluation.Status == RoundStatus.QuitEarly && evaluation.Race is { } race
             && SaveSince(savesFolder, armedAt) is { } save)
         {

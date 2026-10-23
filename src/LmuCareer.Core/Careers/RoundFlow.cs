@@ -22,6 +22,9 @@ public enum RoundStatus
     /// the finished race turns up, though the player can still take the DNF if they abandon it.
     /// </summary>
     SavedToResume,
+
+    /// <summary>A test day has enough practice laps for the team to judge; the player reports back.</summary>
+    TestReady,
 }
 
 /// <param name="SavedAs">For <see cref="RoundStatus.SavedToResume"/>: the name LMU saved the race weekend under.</param>

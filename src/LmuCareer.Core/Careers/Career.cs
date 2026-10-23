@@ -88,6 +88,59 @@ public sealed class Round
     /// <see cref="Season.Series"/> (imsa) raced alongside it.
     /// </summary>
     public string SeriesId { get; set; } = "";
+
+    /// <summary>
+    /// A test day rather than a race: practice laps in another team's car (<see cref="GuestCar"/>),
+    /// at their invitation. Outside every championship, like a guest drive.
+    /// </summary>
+    public TestDay? Test { get; set; }
+}
+
+/// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>
+public sealed class TestDay
+{
+    public string TeamName { get; set; } = "";
+    public string CarClass { get; set; } = "";
+
+    /// <summary>1 = front-running or factory team, 2 = midfield, 3 = back of the grid.</summary>
+    public int Tier { get; set; } = 2;
+
+    /// <summary>Why they called, e.g. "your win at the Daytona 24 Hours"; empty for a pre-season test.</summary>
+    public string Reason { get; set; } = "";
+
+    /// <summary><see cref="Reason"/> to translate.</summary>
+    public Phrase? ReasonText { get; set; }
+
+    /// <summary>The player impresses within this share of the fastest AI lap in class (0.01 = 1%).</summary>
+    public double PassShare { get; set; }
+
+    /// <summary>Practice laps the team wants to see before it judges.</summary>
+    public int MinLaps { get; set; } = TestDays.MinLaps;
+
+    /// <summary>How it went, once the test is done; null until then.</summary>
+    public TestResult? Result { get; set; }
+}
+
+public sealed record TestResult(int Laps, double PlayerBest, double AiBest, bool Passed)
+{
+    /// <summary>Seconds off the fastest AI lap; negative when the player was quicker.</summary>
+    public double Gap => Math.Round(PlayerBest - AiBest, 3);
+}
+
+/// <summary>A pre-season test day on offer, before the season's first round counts.</summary>
+public sealed class TestOffer
+{
+    public string Id { get; set; } = "";
+    public string TeamName { get; set; } = "";
+    public string CarClass { get; set; } = "";
+    public string CarFolder { get; set; } = "";
+    public int Tier { get; set; }
+    public IReadOnlyList<string> Numbers { get; set; } = [];
+
+    /// <summary>The catalog event whose track and layout the test runs on.</summary>
+    public string VenueEventId { get; set; } = "";
+
+    public bool Accepted { get; set; }
 }
 
 public sealed class RoundResult
@@ -147,6 +200,9 @@ public sealed class TeamInterest
 
     /// <summary><see cref="Reason"/> to translate; null on saves from before translations.</summary>
     public Phrase? ReasonText { get; set; }
+
+    /// <summary>The player impressed at the team's test day: the offer is a two-season deal.</summary>
+    public bool Tested { get; set; }
 }
 
 /// <param name="Label">The item in English, as saves from before translations have it.</param>
@@ -333,6 +389,9 @@ public sealed class Season
 
     /// <summary>Deals on offer before the season's first round counts; null until they're made.</summary>
     public List<SponsorDeal>? SponsorOffers { get; set; }
+
+    /// <summary>Pre-season test days on offer before the season's first round counts; null until they're made.</summary>
+    public List<TestOffer>? TestOffers { get; set; }
 
     /// <summary>
     /// 2 for a season whose sponsors run on 1.2's rules (offers that grow with reputation, local

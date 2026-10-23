@@ -147,6 +147,8 @@ public sealed class ApiHost
         "acceptGuest" => Change(args, c => GuestDrives.Accept(c, Str(args, "offerId"),
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
+        "acceptTest" => Change(args, c => TestDays.Accept(c, Str(args, "offerId"), _catalog)),
+        "withdrawTest" => Change(args, c => TestDays.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
         "roundAnalysis" => RoundAnalysis(args),
         "seasonStandings" => SeasonStandings(args),
@@ -513,6 +515,7 @@ public sealed class ApiHost
         var sponsors = Sponsorship.EnsureOffers(career, _catalog, _settings.BuiltLiveries,
             _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList(), language: Language);
         var guests = GuestDrives.EnsureOffers(career, _catalog, _install);
+        guests |= TestDays.EnsureOffers(career, _catalog, _install);
         var customTeam = CareerActions.RecognizeCustomTeam(career);
         var phrases = CareerActions.AddPhrases(career);
         var debriefs = Debriefs.Backfill(career, _install?.ResultsFolder);
@@ -667,6 +670,15 @@ public sealed class ApiHost
         var career = Load(args);
         var evaluation = CareerActions.CheckArmedRound(_store, career, ResultsFolder, _install?.RaceSavesFolder);
         var round = career.CurrentSeason.ArmedRound;
+
+        // A test day is judged on its practice laps, which the check above has just read.
+        if (round?.Test is not null)
+        {
+            TestDays.Complete(career, DateTimeOffset.Now);
+            _store.Save(career);
+            return new { view = CareerView(career), noticed = (TeamInterest?)null };
+        }
+
         CareerActions.AcceptArmedRound(_store, career, evaluation,
             takeDnf: args.TryGetProperty("takeDnf", out var dnf) && dnf.GetBoolean(),
             acceptDifferences: args.TryGetProperty("acceptDifferences", out var despite) && despite.GetBoolean(),

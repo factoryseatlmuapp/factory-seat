@@ -283,6 +283,8 @@ public static class Progression
         interest.Reason = reason.ToString();
         interest.ReasonText = reason;
         career.Interest.Add(interest);
+        // A team a class up wants a closer look straight away: a test day in their car.
+        if (carClass != currentClass) TestDays.Invite(career, interest, round, catalog, install);
         return interest;
     }
 
@@ -391,6 +393,8 @@ public static class Progression
                 team, car, TargetFor(interest.Tier));
             offer.Reason = interest.Reason;
             offer.ReasonText = interest.ReasonText;
+            // Impressing at their test day turns the call into a longer deal.
+            if (interest.Tested) offer.Seasons = 2;
             offers.Add(offer);
         }
 
