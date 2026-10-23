@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 (in progress)
+
+- **Two roads to Hypercar.** A new career picks the GT road (LMGT3, better GT teams, then a make's factory Hypercar) or the prototype road (LMP3, LMP2, Hypercar). A career from before 1.3 picks its road once, at the end of a season, and its offers are made again to match.
+- **Loyalty.** Every season with a make (LMGT3, LMGTE, Hypercar) or, in LMP3 and LMP2, a team builds loyalty: being there counts, results count more. Unknown, On their radar, Development driver, Factory driver. Makes and teams that know you call more often, and teams that race more than one class can take you up with them. The Career tab shows where you stand with each. (#21)
+- **How you leave matters.** Let go, your loyalty stays. Walk away from a new deal and it drops, more from a front-runner, less for a step up, and fades after. Break a contract, or choose a rival make or a rival driver's team, and the bridge is burned. Every offer says what signing it does before you sign.
+- **Three doors to Hypercar:** a make's (or team's) factory driver from reputation 50, the prototype road at 60 with two strong prototype seasons, or reputation 70 on its own, when smaller Hypercar teams call whatever you race.
+- **Test days.** Before a season, a team a class up (or from the other road) may try you out: 8 laps in their car in practice, against the fastest AI lap. Impress them and they call when the season's over; fall short and nothing's lost. A big win can bring a test day straight after it.
+- **IMSA beside the WEC.** Teams have a status (struggling, stable, growing, front-runner budget) that moves with their results, and the ones with the money run IMSA too. A seat can come with both championships, each with its own standings; a make that rates you can place you with a partner team. IMSA races Daytona, Sebring, Long Beach, Laguna Seca, COTA and Petit Le Mans, and needs three of them in packs you own. Watkins Glen and Indianapolis join when LMU has them. (#15, #21)
+- **Rivals.** An AI driver you keep making contact with, or keep finishing next to, becomes a rival, and the paddock press says so.
+- **GTE Classic,** a career of its own: the 2023 WEC in LMGTE. Start in a privateer Am seat and earn a factory Pro drive (reputation 35, or an Am title); Pro races get tougher AI advice. It stays in GTE. (#4)
+- **LMP2 can race the full WEC** instead of the ELMS and Le Mans: pick it in the season builder.
+- **How careers work:** every rule in one place, on the new career's Path tab and any time from the Career tab.
+- `briefing.json` adds the round's championship (`series`) and test days (`test`). Nothing that was there changes. See `docs/briefing-json.md`.
+- A short tour of what's new the first time you open 1.3.
+- All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.
+
 ## 1.2.0 "Green Flag"
 
 - **An Inbox between races.** After every race that counts, mail arrives: your race engineer's debrief, your team principal on the result against your contract, and your manager on what the season is worth so far. The Inbox tab shows how many are unread, and the newest is on the Next race page. A career from before 1.2 opens with mail for its last race.
