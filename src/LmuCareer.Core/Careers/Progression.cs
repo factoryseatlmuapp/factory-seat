@@ -101,6 +101,7 @@ public static class Progression
         career.Rating = RatingFor(career.Reputation);
         Loyalties.AfterSeason(career, catalog);
         career.Offers = MakeOffers(career, catalog, install, new Random(seed ?? Seed(career))).ToList();
+        Teams.AddImsa(career, career.Offers, catalog, install, new Random((seed ?? Seed(career)) ^ 0x1A5A));
         return true;
     }
 
@@ -128,17 +129,19 @@ public static class Progression
             if (points != 0) items.Add(ReputationItem.For(label, points));
         }
 
+        static decimal ChampionshipPoints(int? position) => position switch
+        {
+            1 => 12,
+            2 => 9,
+            3 => 7,
+            <= 5 => 4,
+            <= 10 => 1,
+            _ => -2,
+        };
+
         if (completed.Count > 0)
         {
-            Add(position is int p ? Phrase.Of("Championship P{n}", ("n", p)) : Phrase.Of("Not classified in the championship"), w * (position switch
-            {
-                1 => 12,
-                2 => 9,
-                3 => 7,
-                <= 5 => 4,
-                <= 10 => 1,
-                _ => -2,
-            }));
+            Add(position is int p ? Phrase.Of("Championship P{n}", ("n", p)) : Phrase.Of("Not classified in the championship"), w * ChampionshipPoints(position));
 
             var met = position <= target;
             if (met)
@@ -153,8 +156,22 @@ public static class Progression
             }
         }
 
-        // Each race's result. Big events (double points: the 24-hour races) make a name.
-        var mine = completed.Select(r => (Round: r, Me: r.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer))).Where(x => x.Me is not null).ToList();
+        // A championship raced beside the season's own (IMSA) counts at half the weight.
+        foreach (var series in season.Series)
+        {
+            var seriesRounds = season.SeriesRounds(series.Id).Count(r => r.State == RoundState.Completed && r.Result is not null);
+            if (seriesRounds == 0) continue;
+            var seriesTable = season.Standings(series.Id).FirstOrDefault(s => s.CarClass.Equals(series.Car.CarClass, StringComparison.OrdinalIgnoreCase));
+            var seriesIndex = seriesTable?.Drivers.ToList().FindIndex(d => d.IsPlayer) ?? -1;
+            int? seriesPosition = seriesIndex >= 0 ? seriesIndex + 1 : null;
+            var name = ("series", (object?)series.Name);
+            Add(seriesPosition is int sp ? Phrase.Of("{series} championship P{n}", name, ("n", sp)) : Phrase.Of("Not classified in the {series} championship", name),
+                Math.Min(1m, seriesRounds / (decimal)FullSeasonRounds) * ChampionshipPoints(seriesPosition) / 2);
+        }
+
+        // Each race's result, in either championship. Big events (double points: the 24-hour races) make a name.
+        var raced = season.Rounds.Where(r => !r.Guest && r.State == RoundState.Completed && r.Result is not null).ToList();
+        var mine = raced.Select(r => (Round: r, Me: r.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer))).Where(x => x.Me is not null).ToList();
         foreach (var (round, me) in mine.Where(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight >= 2))
             Add(Phrase.Of("Won the {event}", ("event", round.EventName)), 5);
         var wins = mine.Count(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight < 2);
@@ -167,9 +184,9 @@ public static class Progression
         Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), -2 * dnfs);
         var dqs = mine.Count(x => x.Me!.Entry.Status == FinishStatus.Dq);
         Add(Phrase.Count(dqs, "{n} disqualification", "{n} disqualifications"), -4 * dqs);
-        var penalties = completed.Sum(r => r.Result!.PlayerPenalties);
+        var penalties = raced.Sum(r => r.Result!.PlayerPenalties);
         Add(Phrase.Count(penalties, "{n} penalty", "{n} penalties"), -0.5m * penalties);
-        if (completed.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3);
+        if (raced.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3);
 
         // What the player said in interviews, and the bets the next round settled.
         foreach (var item in Paddock.ReviewItems(season)) Add(item.Text!, item.Points);
@@ -523,6 +540,29 @@ public static class Progression
             },
             Rounds = CalendarBuilder.Number(rounds),
         };
+
+        // A team (or the make's partner team) running IMSA too: its season goes in beside this one.
+        if (offer.ImsaTeam.Length > 0 && Imsa.RacesIn(offer.CarClass))
+        {
+            var imsaTeam = catalog.Team(offer.ImsaTeam, offer.CarClass);
+            var own = offer.ImsaTeam.Equals(offer.TeamName, StringComparison.OrdinalIgnoreCase);
+            var tier = imsaTeam?.Tier ?? offer.Tier;
+            Imsa.Add(next,
+                new CareerCar(next.Car.CarType, offer.CarClass, own ? next.Car.CarNumber : "", offer.ImsaTeam)
+                {
+                    OtherCarTypes = next.Car.OtherCarTypes,
+                    Folder = next.Car.Folder,
+                },
+                new Contract
+                {
+                    TeamName = offer.ImsaTeam,
+                    Tier = tier,
+                    TargetPosition = TargetFor(tier),
+                    Numbers = imsaTeam?.Numbers ?? (own ? offer.Numbers : []),
+                },
+                Imsa.Calendar(catalog, offer.CarClass, career.Rating, career.OwnedContent),
+                catalog);
+        }
 
         career.PastSeasons.Add(finished);
         career.CurrentSeason = next;

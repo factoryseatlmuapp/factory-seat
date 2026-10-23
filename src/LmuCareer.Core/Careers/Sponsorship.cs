@@ -45,9 +45,9 @@ public static class Sponsorship
     /// <summary>Running the sponsor's livery is optional; doing it is worth this much on top.</summary>
     public const decimal LiveryBonus = 1;
 
-    /// <summary>Deals are signed (and dropped) before the season's first championship round counts; a guest drive doesn't close the window.</summary>
+    /// <summary>Deals are signed (and dropped) before the season's first championship round counts, in either championship; a guest drive or test day doesn't close the window.</summary>
     public static bool CanSign(Season season) =>
-        season.Rounds.Count > 0 && !season.ChampionshipRounds.Any(r => r.State == RoundState.Completed);
+        season.Rounds.Count > 0 && !season.Rounds.Any(r => !r.Guest && r.State == RoundState.Completed);
 
     /// <summary>Makes the season's offers, once, while deals can still be signed.</summary>
     /// <param name="ownSponsors">Brands the player added themselves (their own liveries), alongside the catalog's.</param>

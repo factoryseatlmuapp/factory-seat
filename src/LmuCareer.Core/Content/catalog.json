@@ -268,13 +268,14 @@
     { "id": "portimao-4", "name": "Portimão 4 Hours", "series": "european", "month": 10, "startTime": "15:00", "hours": 4, "folder": "PortimaoWEC_2023", "layout": "layoutPortimaoELMS" },
     { "id": "monza-4", "name": "Monza 4 Hours", "series": "european-base", "month": 6, "startTime": "12:00", "hours": 4, "folder": "Monza_2023", "layout": "layoutMonza" },
 
-    { "id": "daytona-24", "name": "Daytona 24 Hours", "series": "guest", "month": 1, "startTime": "13:40", "hours": 24, "folder": "Daytona_2026", "layout": "layoutDaytona" },
-    { "id": "sebring-12", "name": "Sebring 12 Hours", "series": "guest", "month": 3, "startTime": "10:10", "hours": 12, "folder": "Sebring_2023", "layout": "layoutSebring" },
-    { "id": "petit-le-mans", "name": "Petit Le Mans", "series": "guest", "month": 10, "startTime": "12:10", "hours": 10, "folder": "RoadAtlanta_2026", "layout": "layoutRoadAtlanta" },
+    { "id": "daytona-24", "name": "Daytona 24 Hours", "series": "guest", "month": 1, "startTime": "13:40", "hours": 24, "folder": "Daytona_2026", "layout": "layoutDaytona", "imsa": true },
+    { "id": "sebring-12", "name": "Sebring 12 Hours", "series": "guest", "month": 3, "startTime": "10:10", "hours": 12, "folder": "Sebring_2023", "layout": "layoutSebring", "imsa": true },
+    { "id": "petit-le-mans", "name": "Petit Le Mans", "series": "guest", "month": 10, "startTime": "12:10", "hours": 10, "folder": "RoadAtlanta_2026", "layout": "layoutRoadAtlanta", "imsa": true },
 
     { "id": "spa-24", "name": "Spa 24 Hours", "series": "library", "month": 6, "startTime": "16:30", "hours": 24, "folder": "Spa_2023", "layout": "layoutSpaEnd" },
-    { "id": "long-beach", "name": "Long Beach Grand Prix", "series": "library", "month": 4, "startTime": "14:00", "hours": 1.67, "folder": "LongBeach_2026", "layout": "layoutLongBeach" },
-    { "id": "laguna-seca", "name": "Monterey Sports Car Championship", "series": "library", "month": 5, "startTime": "13:00", "hours": 2.67, "folder": "LagunaSeca_2026", "layout": "layoutLaguna" },
+    { "id": "long-beach", "name": "Long Beach Grand Prix", "series": "library", "month": 4, "startTime": "14:00", "hours": 1.67, "folder": "LongBeach_2026", "layout": "layoutLongBeach", "imsa": true },
+    { "id": "laguna-seca", "name": "Monterey Sports Car Championship", "series": "library", "month": 5, "startTime": "13:00", "hours": 2.67, "folder": "LagunaSeca_2026", "layout": "layoutLaguna", "imsa": true },
+    { "id": "cota-imsa", "name": "COTA SportsCar Showdown", "series": "imsa", "month": 8, "startTime": "13:00", "hours": 2.67, "folder": "CotAWEC_2024", "layout": "layoutCota", "imsa": true },
     { "id": "silverstone-6", "name": "Silverstone 6 Hours", "series": "library", "month": 4, "startTime": "12:00", "hours": 6, "folder": "Silverstone_2025", "layout": "layoutWEC" }
   ]
 }

@@ -43,7 +43,11 @@ public sealed record EventInfo(
     string StartTime,
     double Hours,
     string Folder,
-    string Layout);
+    string Layout)
+{
+    /// <summary>A round of the IMSA season, whatever else it's used for (Daytona is also a guest drive).</summary>
+    public bool Imsa { get; init; }
+}
 
 public sealed record TeamInfo(
     string Name,

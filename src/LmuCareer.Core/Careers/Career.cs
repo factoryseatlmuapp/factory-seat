@@ -290,7 +290,19 @@ public sealed class TeamOffer
 
     /// <summary><see cref="Reason"/> to translate; null on saves from before translations.</summary>
     public Phrase? ReasonText { get; set; }
+
+    /// <summary>How the team is doing: what it can afford, such as running IMSA as well.</summary>
+    public TeamStatus Status { get; set; } = TeamStatus.Stable;
+
+    /// <summary>
+    /// The team that runs the player in IMSA beside this seat: this team itself, a partner team of
+    /// the same make, or empty when the deal is for the one championship.
+    /// </summary>
+    public string ImsaTeam { get; set; } = "";
 }
+
+/// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>
+public enum TeamStatus { Struggling, Stable, Growing, FrontRunnerBudget }
 
 public enum ObjectiveKind
 {
