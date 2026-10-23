@@ -94,11 +94,12 @@ public static class Paddock
     /// <summary>Whether the player led their class's drivers' standings before this round and after it.</summary>
     private static (bool Before, bool After) Leader(Season season, Round round)
     {
-        var counted = season.ChampionshipRounds.Where(r => r.State == RoundState.Completed && r.Result is not null).ToList();
+        var counted = season.SeriesRounds(round.SeriesId).Where(r => r.State == RoundState.Completed && r.Result is not null).ToList();
+        var carClass = season.CarFor(round).CarClass;
         bool Leads(IEnumerable<Round> rounds)
         {
             var table = Standings.Build(rounds.Select(r => r.Result!.Entries).ToList())
-                .FirstOrDefault(s => s.CarClass.Equals(season.Car.CarClass, StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(s => s.CarClass.Equals(carClass, StringComparison.OrdinalIgnoreCase));
             return table?.Drivers.FirstOrDefault() is { IsPlayer: true, Points: > 0 };
         }
         return (Leads(counted.Where(r => r != round)), Leads(counted));
@@ -113,14 +114,14 @@ public static class Paddock
         var me = round.Result!.Entries.First(e => e.Entry.IsPlayer);
         var driver = ("driver", (object?)DriverName(career, me.Entry));
         var @event = ("event", (object?)round.EventName);
-        var team = round.Guest ? round.GuestCar?.TeamName ?? "" : season.Contract?.TeamName is { Length: > 0 } t ? t : season.Car.TeamName;
+        var team = season.TeamFor(round);
 
         var headline = moments[0] switch
         {
             Moment.FirstWin => Phrase.Of("{driver} takes a first career win at the {event}", driver, @event),
             Moment.Win when team.Length > 0 => Phrase.Of("{driver} wins the {event} for {team}", driver, @event, ("team", team)),
             Moment.Win => Phrase.Of("{driver} wins the {event}", driver, @event),
-            Moment.TookLead => Phrase.Of("{driver} takes the {class} championship lead", driver, ("class", season.Car.CarClass)),
+            Moment.TookLead => Phrase.Of("{driver} takes the {class} championship lead", driver, ("class", season.CarFor(round).CarClass)),
             Moment.Comeback => Phrase.Of("From P{grid} to P{finish}: {driver} storms through the field at the {event}",
                 ("grid", me.Entry.ClassGridPosition), ("finish", me.ClassRank), driver, @event),
             Moment.BigPodium => Phrase.Of("Podium for {driver} at the {event}", driver, @event),
@@ -132,12 +133,13 @@ public static class Paddock
         var body = new List<Phrase>();
         if (!round.Guest)
         {
-            var table = season.Standings().FirstOrDefault(s => s.CarClass.Equals(season.Car.CarClass, StringComparison.OrdinalIgnoreCase));
+            var table = season.StandingsFor(round);
             var position = (table?.Drivers.ToList().FindIndex(d => d.IsPlayer) ?? -1) + 1;
-            var done = season.ChampionshipRounds.Count(r => r.State == RoundState.Completed);
+            var rounds = season.SeriesRounds(round.SeriesId).ToList();
+            var done = rounds.Count(r => r.State == RoundState.Completed);
             if (position > 0)
                 body.Add(Phrase.Of("After {done} of {total} rounds, {driver} is P{n} in the {class} championship.",
-                    ("done", done), ("total", season.ChampionshipRounds.Count()), driver, ("n", position), ("class", season.Car.CarClass)));
+                    ("done", done), ("total", rounds.Count), driver, ("n", position), ("class", season.CarFor(round).CarClass)));
         }
         else body.Add(Phrase.Of("A guest drive, outside the championship."));
 
@@ -264,8 +266,8 @@ public static class Paddock
 
                 case InterviewTone.Confident:
                     yield return ReputationItem.For(Phrase.Of("Confident interview after the {event}", @event), good ? 2 : 1);
-                    // The bet: the next championship round that counted settles it.
-                    var next = season.ChampionshipRounds
+                    // The bet: the next championship round that counted, in either series, settles it.
+                    var next = season.Rounds.Where(r => !r.Guest)
                         .Where(r => r.Number > answer.Round && r.State == RoundState.Completed && r.Result is not null)
                         .OrderBy(r => r.Number).FirstOrDefault();
                     var rank = next?.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer)?.ClassRank;

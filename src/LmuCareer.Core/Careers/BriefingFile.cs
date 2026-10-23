@@ -63,8 +63,8 @@ public sealed record BriefingFile(
         var season = career.CurrentSeason;
         var prep = Preparation.For(career, round);
         var track = catalog.Track(round.TrackFolder);
-        var car = round.GuestCar ?? season.Car;
-        var numbers = round.Guest ? round.GuestNumbers : season.Contract?.Numbers ?? [];
+        var car = season.CarFor(round);
+        var numbers = round.Guest ? round.GuestNumbers : (season.SeriesOf(round)?.Contract ?? season.Contract)?.Numbers ?? [];
         var stintMinutes = (int)Math.Round(round.RaceMinutes / (double)Math.Max(1, round.Stints));
 
         return new BriefingRound(

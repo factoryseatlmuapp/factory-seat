@@ -247,7 +247,7 @@ public static class Inbox
                 Phrase.Of("Team principal, {team}", ("team", guestTeam)), Phrase.Of("After the {event}", ("event", round.EventName)), body);
         }
 
-        var target = season.Contract?.TargetPosition ?? Progression.DefaultTarget;
+        var target = season.ContractFor(round)?.TargetPosition ?? Progression.DefaultTarget;
         body.Add((status, rank) switch
         {
             (FinishStatus.Dq, _) => Phrase.Of("A disqualification. That can't happen again."),
@@ -258,7 +258,7 @@ public static class Inbox
             (_, { } p) => Phrase.Of("P{n} isn't enough. We need you finishing in the top {target}.", ("n", p), ("target", target)),
         });
 
-        var table = season.Standings().FirstOrDefault(s => s.CarClass.Equals(season.Car.CarClass, StringComparison.OrdinalIgnoreCase));
+        var table = season.StandingsFor(round);
         var index = table?.Drivers.ToList().FindIndex(d => d.IsPlayer) ?? -1;
         if (index >= 0)
         {
@@ -269,12 +269,12 @@ public static class Inbox
                     "You're P{position} in the championship. Our target is top {target}: {n} places to find.", ("position", position), ("target", target)));
         }
 
-        var left = season.ChampionshipRounds.Count(r => r.State is RoundState.Upcoming or RoundState.Armed);
+        var left = season.SeriesRounds(round.SeriesId).Count(r => r.State is RoundState.Upcoming or RoundState.Armed);
         body.Add(left > 0
             ? Phrase.Count(left, "{n} round to go.", "{n} rounds to go.")
             : Phrase.Of("That's the season. We'll talk at the review."));
 
-        var team = season.Contract?.TeamName is { Length: > 0 } name ? name : season.Car.TeamName;
+        var team = season.TeamFor(round);
         return Message(season, round, MessageKind.TeamPrincipal, now,
             team.Length > 0 ? Phrase.Of("Team principal, {team}", ("team", team)) : Phrase.Of("Your team principal"),
             Phrase.Of("After the {event}", ("event", round.EventName)), body);

@@ -72,7 +72,7 @@ public static class Preparation
     /// <summary>Earlier counted races at the round's layout in the class the player races it in, newest first.</summary>
     public static IReadOnlyList<TrackVisit> History(Career career, Round round)
     {
-        var carClass = (round.GuestCar ?? career.CurrentSeason.Car).CarClass;
+        var carClass = career.CurrentSeason.CarFor(round).CarClass;
         return career.PastSeasons.Append(career.CurrentSeason)
             .SelectMany(s => s.Rounds.Select(r => (Season: s, Round: r)))
             .Where(x => x.Round != round && x.Round.State == RoundState.Completed && x.Round.Result is not null && SameLayout(x.Round, round))
@@ -159,12 +159,12 @@ public static class Preparation
     public static RaceStakes Stakes(Career career, Round round)
     {
         var season = career.CurrentSeason;
-        var target = season.Contract?.TargetPosition ?? Progression.DefaultTarget;
+        var target = season.ContractFor(round)?.TargetPosition ?? Progression.DefaultTarget;
         var weight = round.PointsWeight;
         var points = ScoringRules.Wec.Points.Select(p => p * weight).ToList();
         var lines = new List<Phrase>();
 
-        var drivers = season.Standings().FirstOrDefault(s => s.CarClass.Equals(season.Car.CarClass, StringComparison.OrdinalIgnoreCase))?.Drivers.ToList() ?? [];
+        var drivers = season.StandingsFor(round)?.Drivers.ToList() ?? [];
         var me = drivers.FindIndex(d => d.IsPlayer);
         StakesRival? ahead = null, behind = null;
         decimal myPoints = 0;
@@ -229,8 +229,8 @@ public static class Preparation
                 ? Phrase.Of("Double points: {max} for a class win.", ("max", points[0]))
                 : Phrase.Of("Points x{weight}: {max} for a class win.", ("weight", weight), ("max", points[0])));
 
-        // A confident interview answer is settled by the next championship round: this one, if it's next.
-        var previous = season.ChampionshipRounds.Where(r => r.Number < round.Number && r.State == RoundState.Completed).Select(r => r.Number).DefaultIfEmpty(0).Max();
+        // A confident interview answer is settled by the next championship round, in either series: this one, if it's next.
+        var previous = season.Rounds.Where(r => !r.Guest).Where(r => r.Number < round.Number && r.State == RoundState.Completed).Select(r => r.Number).DefaultIfEmpty(0).Max();
         var openBet = season.Interviews.LastOrDefault(a => a.Tone == InterviewTone.Confident && a.Round == previous);
         foreach (var bet in season.Interviews.Where(a => a.Tone == InterviewTone.Confident && a.Round == previous))
         {

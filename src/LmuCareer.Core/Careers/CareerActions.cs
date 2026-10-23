@@ -54,14 +54,14 @@ public static class CareerActions
                 checks.Add(counted.TryGetValue(file.Name, out var countedFor)
                     ? new SessionCheck(session, writtenAt, MatchVerdict.Ignored,
                         [Phrase.Of("already counted for round {number} ({event})", ("number", countedFor.Number), ("event", countedFor.EventName))])
-                    : RoundMatcher.Check(session, writtenAt, round, round.GuestCar ?? season.Car, store.ClaimedByOther(file.Name, career.Id)));
+                    : RoundMatcher.Check(session, writtenAt, round, season.CarFor(round), store.ClaimedByOther(file.Name, career.Id)));
             }
         }
 
         var evaluation = RoundFlow.Evaluate(checks);
 
         // Practice since the weekend started is read for pace, and kept with the round.
-        if (Preparation.ReadPractice(checks, round, round.GuestCar ?? season.Car) is { } practice && practice != round.Practice)
+        if (Preparation.ReadPractice(checks, round, season.CarFor(round)) is { } practice && practice != round.Practice)
         {
             round.Practice = practice;
             store.Save(career);
@@ -142,8 +142,9 @@ public static class CareerActions
 
         if (scored.Race.Player is { } player)
         {
-            // A guest drive learns about its own car; the season's stays as it was.
+            // A guest drive or another series' round learns about its own car; the season's stays as it was.
             if (round.GuestCar is { } guest) round.GuestCar = Learn(guest, player);
+            else if (season.SeriesOf(round) is { } series) series.Car = Learn(series.Car, player);
             else season.Car = Learn(season.Car, player);
         }
 

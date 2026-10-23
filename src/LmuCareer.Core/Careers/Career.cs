@@ -76,6 +76,12 @@ public sealed class Round
 
     /// <summary>Practice run since the weekend started, read for pace; null until there's been some.</summary>
     public PracticeRead? Practice { get; set; }
+
+    /// <summary>
+    /// The championship the round counts for: empty for the season's own, or the id of one of
+    /// <see cref="Season.Series"/> (imsa) raced alongside it.
+    /// </summary>
+    public string SeriesId { get; set; } = "";
 }
 
 public sealed class RoundResult
@@ -287,10 +293,27 @@ public sealed class SponsorDeal
     public int SignedAfterRound { get; set; }
 }
 
+/// <summary>
+/// A second championship raced in the same season, such as IMSA beside the WEC: its own car, team
+/// and deal, and its own standings.
+/// </summary>
+public sealed class SeriesEntry
+{
+    /// <summary>The id its rounds carry in <see cref="Round.SeriesId"/>, e.g. imsa.</summary>
+    public string Id { get; set; } = "";
+
+    public string Name { get; set; } = "";
+    public CareerCar Car { get; set; } = new("", "", "", "");
+    public Contract? Contract { get; set; }
+}
+
 public sealed class Season
 {
     public int Number { get; set; }
     public CareerCar Car { get; set; } = new("", "", "", "");
+
+    /// <summary>Other championships raced this season, beside the season's own; empty for most seasons.</summary>
+    public List<SeriesEntry> Series { get; set; } = [];
     public string Teammate { get; set; } = "";
 
     /// <summary>Null on saves from before contracts existed; the default target applies.</summary>
@@ -319,9 +342,34 @@ public sealed class Season
 
     public List<Round> Rounds { get; set; } = [];
 
-    /// <summary>The rounds that count for the championship: all but guest drives.</summary>
+    /// <summary>The rounds that count for the season's own championship: not guest drives, nor another series' rounds.</summary>
     [JsonIgnore]
-    public IEnumerable<Round> ChampionshipRounds => Rounds.Where(r => !r.Guest);
+    public IEnumerable<Round> ChampionshipRounds => SeriesRounds("");
+
+    /// <summary>The rounds of one championship: the season's own for an empty id.</summary>
+    public IEnumerable<Round> SeriesRounds(string seriesId) => Rounds.Where(r => !r.Guest && r.SeriesId == seriesId);
+
+    /// <summary>The other series a round counts for; null for the season's own rounds and guest drives.</summary>
+    public SeriesEntry? SeriesOf(Round round) =>
+        round.SeriesId.Length == 0 ? null : Series.FirstOrDefault(s => s.Id == round.SeriesId);
+
+    /// <summary>The car the player races in a round: a guest drive's, a series', or the season's.</summary>
+    public CareerCar CarFor(Round round) => round.GuestCar ?? SeriesOf(round)?.Car ?? Car;
+
+    /// <summary>The deal a round is raced under: the season's, a series', or none for a guest drive.</summary>
+    public Contract? ContractFor(Round round) =>
+        round.Guest ? null : round.SeriesId.Length == 0 ? Contract : SeriesOf(round)?.Contract;
+
+    /// <summary>The team the player races for in a round, as far as it's known.</summary>
+    public string TeamFor(Round round)
+    {
+        if (round.Guest) return round.GuestCar?.TeamName ?? "";
+        return ContractFor(round)?.TeamName is { Length: > 0 } contracted ? contracted : CarFor(round).TeamName;
+    }
+
+    /// <summary>The class table a round counts towards, in its own championship.</summary>
+    public ClassStandings? StandingsFor(Round round) =>
+        Standings(round.SeriesId).FirstOrDefault(s => s.CarClass.Equals(CarFor(round).CarClass, StringComparison.OrdinalIgnoreCase));
 
     [JsonIgnore]
     public Round? ArmedRound => Rounds.FirstOrDefault(r => r.State == RoundState.Armed);
@@ -333,8 +381,9 @@ public sealed class Season
     [JsonIgnore]
     public bool IsFinished => Rounds.Count > 0 && NextRound is null;
 
-    public IReadOnlyList<ClassStandings> Standings() =>
-        Scoring.Standings.Build(ChampionshipRounds
+    /// <summary>The standings of one championship: the season's own for an empty id.</summary>
+    public IReadOnlyList<ClassStandings> Standings(string seriesId = "") =>
+        Scoring.Standings.Build(SeriesRounds(seriesId)
             .Where(r => r.State == RoundState.Completed && r.Result is not null)
             .Select(r => r.Result!.Entries)
             .ToList());
