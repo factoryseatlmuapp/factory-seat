@@ -167,12 +167,13 @@ public class ProgressionTests
     [Fact]
     public void Hypercar_teams_want_two_strong_prototype_seasons()
     {
-        var career = CareerWith(70, "LMP2", Enumerable.Range(1, 6).Select(n => Counted(n, 1, carClass: "LMP2")).ToArray());
+        // 40 plus a capped season = 65: past the prototype road's 60, short of reputation alone's 70.
+        var career = CareerWith(40, "LMP2", Enumerable.Range(1, 6).Select(n => Counted(n, 1, carClass: "LMP2")).ToArray());
 
         Progression.EndSeason(career, Catalog, install: null, seed: 1);
         Assert.DoesNotContain(career.Offers, o => o.CarClass == "Hyper");
 
-        var veteran = CareerWith(70, "LMP2", Enumerable.Range(1, 6).Select(n => Counted(n, 1, carClass: "LMP2")).ToArray());
+        var veteran = CareerWith(40, "LMP2", Enumerable.Range(1, 6).Select(n => Counted(n, 1, carClass: "LMP2")).ToArray());
         veteran.PastSeasons.Add(new Season
         {
             Car = new CareerCar("Ligier JS P325", "LMP3", "69", ""),
@@ -182,6 +183,65 @@ public class ProgressionTests
         Progression.EndSeason(veteran, Catalog, install: null, seed: 1);
         Assert.Contains(veteran.Offers, o => o.Kind == OfferKind.Promotion && o.CarClass == "Hyper");
     }
+
+    [Fact]
+    public void A_big_enough_reputation_gets_a_hypercar_seat_from_any_class()
+    {
+        // The tougher road: no prototype seasons, no loyalty, just reputation. Smaller teams call.
+        var career = CareerWith(70, "GT3", Season(6, _ => 1));
+        career.Path = CareerPath.Gt;
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        var seat = Assert.Single(career.Offers, o => o.CarClass == "Hyper");
+        Assert.Equal(OfferKind.Promotion, seat.Kind);
+        Assert.True(seat.Tier >= 2);
+        Assert.Equal("your reputation", seat.Reason);
+    }
+
+    [Fact]
+    public void A_factory_driver_gets_the_makes_hypercar_seat_sooner()
+    {
+        // Reputation 25 + a capped season = 50: enough for the loyalty road, not the others.
+        var career = CareerWith(25, "GT3", Season(6, _ => 1));
+        career.Path = CareerPath.Gt;
+        career.Loyalty.Add(new Loyalty { Kind = LoyaltyKind.Brand, Id = "toyota", Points = 40 });
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        // The season took Toyota from 40 to factory driver: Toyota's Hypercar team calls.
+        Assert.Equal(LoyaltyStage.FactoryDriver, Loyalties.Stage(Loyalties.Find(career, LoyaltyKind.Brand, "toyota")!.Points));
+        var seat = Assert.Single(career.Offers, o => o.CarClass == "Hyper");
+        Assert.Equal("Toyota Racing", seat.TeamName);
+        Assert.Equal("you're a Toyota / Lexus factory driver", seat.Reason);
+    }
+
+    [Fact]
+    public void Without_a_door_open_a_gt_driver_stays_in_gt3()
+    {
+        var career = CareerWith(25, "GT3", Season(6, _ => 1));
+        career.Path = CareerPath.Gt;
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+        Assert.All(career.Offers, o => Assert.Equal("GT3", o.CarClass));
+    }
+
+    [Fact]
+    public void The_prototype_road_starts_in_lmp3()
+    {
+        var career = CareerWith(30, "GT3", Season(6, _ => 1));
+        career.Path = CareerPath.Prototype;
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+        Assert.Contains(career.Offers, o => o.CarClass == "LMP3");
+        Assert.DoesNotContain(career.Offers, o => o.CarClass == "LMP2");
+    }
+
+    [Theory]
+    [InlineData(null, "GT3", "LMP3")]
+    [InlineData(CareerPath.Gt, "GT3", "Hyper")]
+    [InlineData(CareerPath.Prototype, "LMP3", "LMP2")]
+    [InlineData(CareerPath.Prototype, "LMP2", "Hyper")]
+    [InlineData(CareerPath.Gt, "LMP3", "Hyper")]
+    [InlineData(CareerPath.Prototype, "GT3", "LMP3")]
+    public void Each_path_has_its_own_next_class(CareerPath? path, string from, string next) =>
+        Assert.Equal(next, Progression.NextClass(from, _ => true, path));
 
     [Fact]
     public void Better_teams_call_as_reputation_grows()

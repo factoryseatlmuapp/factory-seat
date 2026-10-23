@@ -22,7 +22,24 @@ public static class Progression
     /// <summary>Strong LMP3 or LMP2 seasons a Hypercar team wants to see first.</summary>
     public const int PrototypeSeasonsForHypercar = 2;
 
+    /// <summary>Every class in order, and the road for a career from before 1.3 that hasn't picked a path.</summary>
     public static readonly IReadOnlyList<string> Ladder = ["GT3", "LMP3", "LMP2", "Hyper"];
+
+    public static IReadOnlyList<string> LadderFor(CareerPath? path) => path switch
+    {
+        CareerPath.Gt => ["GT3", "Hyper"],
+        CareerPath.Prototype => ["LMP3", "LMP2", "Hyper"],
+        _ => Ladder,
+    };
+
+    /// <summary>Hypercar through loyalty: a factory driver of a make (or outfit) with a Hypercar gets a seat at this reputation.</summary>
+    public const decimal LoyaltyHypercarAt = 50;
+
+    /// <summary>Hypercar on reputation alone, from any class: the tougher road, mostly smaller teams.</summary>
+    public const decimal ReputationHypercarAt = 70;
+
+    /// <summary>A team of a make or outfit the player is loyal to is this many times as likely to call.</summary>
+    public const int LoyalWeight = 3;
 
     /// <summary>Reputation a team in the class looks for before offering a seat.</summary>
     public static decimal Threshold(string carClass) => carClass switch
@@ -235,7 +252,7 @@ public static class Progression
         var season = career.CurrentSeason;
         var reputation = career.Reputation;
         var currentClass = Ladder.Contains(season.Car.CarClass) ? season.Car.CarClass : "GT3";
-        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)));
+        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
         // Close enough to the next class's bar, a team there takes a look; otherwise a better team in the class.
         var carClass = next is not null && reputation >= Threshold(next) - 15 ? next : currentClass;
         var tier = Math.Max(1, BestTier(reputation, carClass) - 1);
@@ -324,7 +341,10 @@ public static class Progression
                         .ToList();
                     if (pool.Count == 0) continue;
 
-                    var (team, car) = pool[random.Next(pool.Count)];
+                    // Teams of a make or outfit the player is loyal to call more often.
+                    var loyal = pool.Where(x => IsLoyal(career, x.Team, x.Car!, catalog)).ToList();
+                    var draw = loyal.Count == 0 ? pool : pool.Concat(Enumerable.Repeat(loyal, LoyalWeight - 1).SelectMany(l => l)).ToList();
+                    var (team, car) = draw[random.Next(draw.Count)];
                     var offer = Offer(kind, team, car!, TargetFor(team.Tier));
                     // Front-running teams and step-up seats often want a longer commitment.
                     if ((team.Tier == 1 || kind == OfferKind.Promotion) && random.Next(2) == 0) offer.Seasons = 2;
@@ -356,7 +376,7 @@ public static class Progression
             offers.Add(offer);
         }
 
-        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)));
+        var next = NextClass(currentClass, c => catalog.Cars.Any(car => car.Class == c && CanOffer(car, career, install)), career.Path);
         var promoted = next is not null && reputation >= Threshold(next)
             && (next != "Hyper" || StrongPrototypeSeasons(career) >= PrototypeSeasonsForHypercar);
 
@@ -374,17 +394,70 @@ public static class Progression
             offers.Add(offer);
         }
 
+        // The other roads to Hypercar, from any class. A make or outfit that made the player a
+        // factory driver calls first; a big enough reputation gets the smaller teams' attention.
+        var doors = 0;
+        if (currentClass != "Hyper" && catalog.Cars.Any(c => c.Class == "Hyper" && Drivable(c)))
+        {
+            if (reputation >= LoyaltyHypercarAt)
+            {
+                foreach (var loyalty in career.Loyalty.Where(l => !l.Burned && Loyalties.Stage(l.Points) == LoyaltyStage.FactoryDriver)
+                    .OrderByDescending(l => l.Points).Take(2))
+                {
+                    var seat = catalog.Teams
+                        .Where(t => t.Class == "Hyper" && !offers.Any(o => o.TeamName == t.Name && o.CarClass == t.Class))
+                        .Select(t => (Team: t, Car: CarFor(t)))
+                        .Where(x => x.Car is not null && (loyalty.Kind == LoyaltyKind.Brand ? x.Car.Brand == loyalty.Id : x.Team.OutfitId == loyalty.Id))
+                        .OrderBy(x => x.Team.Tier)
+                        .FirstOrDefault();
+                    if (seat.Team is null) continue;
+                    var offer = Offer(OfferKind.Promotion, seat.Team, seat.Car!, TargetFor(seat.Team.Tier));
+                    var name = loyalty.Kind == LoyaltyKind.Brand ? catalog.Brand(loyalty.Id)?.Name ?? loyalty.Id : seat.Team.Name;
+                    var reason = Phrase.Of("you're a {name} factory driver", ("name", name));
+                    offer.Reason = reason.ToString();
+                    offer.ReasonText = reason;
+                    offer.Seasons = 2;
+                    offers.Add(offer);
+                    doors++;
+                }
+            }
+
+            if (reputation >= ReputationHypercarAt && !(promoted && next == "Hyper"))
+            {
+                var before = offers.Count;
+                AddFrom(OfferKind.Promotion, "Hyper", 2, 1);
+                if (offers.Count > before)
+                {
+                    var reason = Phrase.Of("your reputation");
+                    offers[^1].Reason = reason.ToString();
+                    offers[^1].ReasonText = reason;
+                    doors++;
+                }
+            }
+        }
+
+        // A career whose class isn't on its chosen road gets seats where that road starts.
+        var ladder = LadderFor(career.Path);
+        if (career.Path is not null && !ladder.Contains(currentClass) && ladder[0] != next)
+            AddFrom(OfferKind.Move, ladder[0], BestTier(reputation, ladder[0]), 2);
+
         // Under contract, the only other calls are step-up seats.
         var ladderClass = Ladder.Contains(currentClass) ? currentClass : "GT3";
         var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
         // A step up is never forced: a player out of contract always has a seat in their own class.
         var sameClass = offers.Count(o => o.CarClass == ladderClass);
         AddFrom(OfferKind.Move, ladderClass, BestTier(reputation, ladderClass),
-            Math.Max(moves > 0 && sameClass == 0 ? 1 : 0, moves - career.Interest.Count));
+            Math.Max(moves > 0 && sameClass == 0 ? 1 : 0, moves - career.Interest.Count - doors));
         if (promoted) AddFrom(OfferKind.Promotion, next!, BestTier(reputation, next!), 2);
 
         return offers.Take(5).ToList();
     }
+
+    /// <summary>Whether the player is loyal to the make or outfit behind a seat: on their radar or better, bridge not burned.</summary>
+    private static bool IsLoyal(Career career, TeamInfo team, CarInfo car, ContentCatalog catalog) =>
+        Loyalties.Key(team.Class, car.Folder, team.Name, catalog) is { } key
+        && Loyalties.Find(career, key.Kind, key.Id) is { Burned: false } loyalty
+        && Loyalties.Stage(loyalty.Points) >= LoyaltyStage.OnTheirRadar;
 
     /// <summary>
     /// Whether a team can offer the player this car: it's installed and in a pack they own. A car
@@ -395,11 +468,15 @@ public static class Progression
         && ContentCatalog.IsOwned(car.Pack, career.OwnedContent)
         && (install is null || install.CarFolders.Contains(car.Folder, StringComparer.OrdinalIgnoreCase));
 
-    /// <summary>The next class up the ladder the player can race, skipping one they own no car for (LMP3 without the European packs).</summary>
-    public static string? NextClass(string carClass, Func<string, bool> available)
+    /// <summary>
+    /// The next class up the player's road they can race, skipping one they own no car for (LMP3
+    /// without the European packs). From a class off their path, the next one above it on the path.
+    /// </summary>
+    public static string? NextClass(string carClass, Func<string, bool> available, CareerPath? path = null)
     {
-        var index = Ladder.ToList().IndexOf(carClass);
-        return Ladder.Skip(Math.Max(0, index) + 1).FirstOrDefault(available);
+        var ladder = LadderFor(path);
+        var rank = Ladder.ToList().IndexOf(carClass);
+        return ladder.Where(c => Ladder.ToList().IndexOf(c) > Math.Max(0, rank)).FirstOrDefault(available);
     }
 
     /// <summary>LMP3 and LMP2 seasons, this one included, that met the team's target or ended in the top five.</summary>
