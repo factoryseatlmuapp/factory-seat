@@ -156,6 +156,23 @@ public class LoyaltyTests
     }
 
     [Fact]
+    public void A_preview_says_what_signing_would_do_and_changes_nothing()
+    {
+        var career = ReviewedToyotaCareer();
+        career.Offers = [OfferFor("Akkodis ASP Team", "GT3", "LexusRCF_GT3_2024", 2, OfferKind.ReSign)];
+
+        var preview = Loyalties.Preview(career, career.CurrentSeason, OfferFor("Manthey DK Engineering", "GT3", "911GT3R_2024", 2), Catalog, false)!;
+
+        Assert.Equal(Departure.JoinedRival, preview.Departure);
+        Assert.True(preview.Burns);
+        Assert.Equal(0, preview.PointsAfter);
+        var toyota = Loyalties.Find(career, LoyaltyKind.Brand, "toyota")!;
+        Assert.Equal(50, toyota.Points);
+        Assert.False(toyota.Burned);
+        Assert.Null(toyota.Left);
+    }
+
+    [Fact]
     public void Being_let_go_keeps_loyalty_as_it_was()
     {
         var career = ReviewedToyotaCareer();

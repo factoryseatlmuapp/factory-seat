@@ -148,6 +148,7 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
         "acceptTest" => Change(args, c => TestDays.Accept(c, Str(args, "offerId"), _catalog)),
+        "choosePath" => Change(args, c => Progression.ChoosePath(c, Str(args, "path") == "prototype" ? CareerPath.Prototype : CareerPath.Gt, _catalog, _install)),
         "withdrawTest" => Change(args, c => TestDays.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
         "roundAnalysis" => RoundAnalysis(args),
@@ -569,6 +570,34 @@ public sealed class ApiHost
         roundPace = career.CurrentSeason.Rounds.Select(PaceCheck.For).OfType<RoundPace>(),
         liveryRounds = Sponsorship.LiveryRounds(career.CurrentSeason) is var (custom, counted) ? new { custom, counted } : null,
         standings = career.CurrentSeason.Standings(),
+        // Loyalty with each make and team, strongest first; how the current team is doing.
+        loyalty = career.Loyalty
+            .Select(l => new
+            {
+                l.Kind, l.Id, l.Points, l.Burned, l.Left, l.LastSeason,
+                name = Loyalties.Name(career, l, _catalog),
+                stage = Loyalties.Stage(l.Points),
+                hypercar = Loyalties.HasHypercar(l, _catalog),
+            })
+            .OrderByDescending(l => l.Points),
+        // For each offer on the table: what signing it does to the loyalty left behind, and the
+        // standing the player already has with the make or team it's with.
+        offerNotes = career.Offers.Select(o => new
+        {
+            o.Id,
+            leaving = career.CurrentSeason.Review is null ? null
+                : Loyalties.Preview(career, career.CurrentSeason, o, _catalog, o.Kind == OfferKind.Promotion) is { } p
+                    ? new { name = Loyalties.Name(career, p.From, _catalog), p.Departure, before = p.From.Points, after = p.PointsAfter, burns = p.Burns }
+                    : null,
+            joining = Loyalties.Key(o.CarClass, o.CarFolder, o.TeamName, _catalog) is { } key && Loyalties.Find(career, key.Kind, key.Id) is { } with
+                && (Loyalties.Key(career.CurrentSeason, _catalog) != key)
+                ? new { name = Loyalties.Name(career, with, _catalog), stage = Loyalties.Stage(with.Points), with.Burned }
+                : null,
+            rival = Rivals.IsRivalTeam(career, o.TeamName),
+        }),
+        teamStatus = career.ChampionshipOnly ? (TeamStatus?)null
+            : Teams.Status(career.CurrentSeason, career.CurrentSeason.Contract?.TeamName is { Length: > 0 } team ? team : career.CurrentSeason.Car.TeamName,
+                career.CurrentSeason.Car.CarClass, career.CurrentSeason.Contract?.Tier ?? 2),
         carName = _catalog.CarByType(career.CurrentSeason.Car.CarType)?.Name ?? career.CurrentSeason.Car.CarType,
         resultsFolder = _install?.ResultsFolder,
         ladder = LadderView(career),

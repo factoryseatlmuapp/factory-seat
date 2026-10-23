@@ -453,3 +453,18 @@ select.input { padding: 6px 8px; }
 .guide-section { background: var(--panel); border: 1px solid var(--border-soft); border-radius: 6px; padding: 8px 14px; }
 .guide-section summary { cursor: pointer; font: 600 17px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.02em; }
 .guide-section p { margin: 8px 0 2px; color: var(--text-dim); line-height: 1.45; }
+
+/* ---------- Loyalty, team status ---------- */
+
+.loyalty { display: grid; gap: 12px; }
+.loyalty-row .rep-bar { margin-top: 6px; }
+.loyalty-stage { font: 600 15px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); }
+.loyalty-stage.DevelopmentDriver { color: var(--text); }
+.loyalty-stage.FactoryDriver { color: var(--good); }
+.status-chip { font: 600 14px "Barlow Condensed", var(--cjk); text-transform: uppercase; padding: 1px 8px 0; border-radius: 3px;
+  border: 1px solid var(--border-soft); color: var(--text-dim); }
+.status-chip.Growing { color: var(--good); border-color: var(--good); }
+.status-chip.FrontRunnerBudget { color: var(--text); border-color: var(--text); }
+.status-chip.Struggling { color: var(--bad); border-color: var(--bad); }
+.offer-notes { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; }
+.warn-text { color: var(--warn); }

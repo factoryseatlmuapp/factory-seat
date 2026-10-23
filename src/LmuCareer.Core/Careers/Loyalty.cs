@@ -87,6 +87,28 @@ public static class Loyalties
         return Key(season.Car.CarClass, folder, team, catalog);
     }
 
+    /// <summary>
+    /// A make's name, or a team outfit's: the name it races under in the prototype classes (where
+    /// team loyalty is built), else any of its entries, else the name the player's seasons gave it.
+    /// </summary>
+    public static string Name(Career career, Loyalty loyalty, ContentCatalog catalog)
+    {
+        if (loyalty.Kind == LoyaltyKind.Brand) return catalog.Brand(loyalty.Id)?.Name ?? loyalty.Id;
+        var entries = catalog.Teams.Where(t => t.OutfitId == loyalty.Id).ToList();
+        return entries.FirstOrDefault(t => !IsBrandClass(t.Class))?.Name
+            ?? entries.FirstOrDefault()?.Name
+            ?? career.PastSeasons.Append(career.CurrentSeason)
+                .Select(s => s.Contract?.TeamName is { Length: > 0 } c ? c : s.Car.TeamName)
+                .FirstOrDefault(n => ContentCatalog.Slug(n) == loyalty.Id)
+            ?? loyalty.Id;
+    }
+
+    /// <summary>Whether the make or outfit runs a Hypercar: the one a factory driver of theirs can be offered.</summary>
+    public static bool HasHypercar(Loyalty loyalty, ContentCatalog catalog) =>
+        catalog.Teams.Any(t => t.Class == "Hyper" && (loyalty.Kind == LoyaltyKind.Brand
+            ? t.Cars.Any(f => catalog.Car(f)?.Brand == loyalty.Id)
+            : t.OutfitId == loyalty.Id));
+
     /// <summary>The player's standing with a make or team; null when they've never raced for them.</summary>
     public static Loyalty? Find(Career career, LoyaltyKind kind, string id) =>
         career.Loyalty.FirstOrDefault(l => l.Kind == kind && l.Id == id);
@@ -152,13 +174,19 @@ public static class Loyalties
         return Math.Max(5, prestige - 10 * Math.Max(0, stepUp));
     }
 
+    /// <summary>What signing an offer would do to the loyalty the player leaves behind.</summary>
+    public sealed record LeavePreview(Loyalty From, Departure Departure, decimal PointsAfter)
+    {
+        public bool Burns => Departure is Departure.BrokeContract or Departure.JoinedRival;
+    }
+
     /// <summary>
-    /// Signing with another make or team: records how the player left the one they raced for. A
-    /// contract broken or a rival make joined burns the bridge; walking away from a team that
+    /// What signing with another make or team would do, without doing it: a contract broken or a
+    /// rival joined (when the player chose to go) burns the bridge; walking away from a team that
     /// offered a new deal costs some loyalty; being let go costs none. Staying (the same make, or
-    /// the same outfit in a new class) isn't leaving.
+    /// the same outfit in a new class) isn't leaving: null.
     /// </summary>
-    public static Departure? Leave(Career career, Season finished, TeamOffer signed, ContentCatalog catalog, bool classUp)
+    public static LeavePreview? Preview(Career career, Season finished, TeamOffer signed, ContentCatalog catalog, bool classUp)
     {
         if (Key(finished, catalog) is not { } from) return null;
         var to = Key(signed.CarClass, signed.CarFolder, signed.TeamName, catalog);
@@ -176,17 +204,22 @@ public static class Loyalties
             : chose ? Departure.WalkedAway
             : Departure.LetGo;
 
-        switch (departure)
+        var after = departure switch
         {
-            case Departure.BrokeContract or Departure.JoinedRival:
-                loyalty.Points = 0;
-                loyalty.Burned = true;
-                break;
-            case Departure.WalkedAway:
-                loyalty.Points = Math.Max(0, loyalty.Points - WalkAwayCost(finished.Contract?.Tier ?? 2, signed.Tier, classUp));
-                break;
-        }
-        loyalty.Left = departure;
-        return departure;
+            Departure.BrokeContract or Departure.JoinedRival => 0,
+            Departure.WalkedAway => Math.Max(0, loyalty.Points - WalkAwayCost(finished.Contract?.Tier ?? 2, signed.Tier, classUp)),
+            _ => loyalty.Points,
+        };
+        return new LeavePreview(loyalty, departure, after);
+    }
+
+    /// <summary>Signing with another make or team: records how the player left the one they raced for (see <see cref="Preview"/>).</summary>
+    public static Departure? Leave(Career career, Season finished, TeamOffer signed, ContentCatalog catalog, bool classUp)
+    {
+        if (Preview(career, finished, signed, catalog, classUp) is not { } preview) return null;
+        preview.From.Points = preview.PointsAfter;
+        if (preview.Burns) preview.From.Burned = true;
+        preview.From.Left = preview.Departure;
+        return preview.Departure;
     }
 }

@@ -3,8 +3,10 @@ import { h, put, clear, setting, chip, trackSvg } from "../dom.js";
 import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack, countryPicker } from "../app.js";
 import { sound } from "../sound.js";
 import { runTour, tourRunning } from "../tour.js";
-import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed } from "./offers.js";
+import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
+  ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
+import { careerGuide } from "./guide.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -880,10 +882,33 @@ export async function careerView(view, id, tab) {
               repBar(review.reputationAfter, ladder.threshold)),
             nextStep())),
         h("div", {},
+          pathChoice(),
           h("div", { class: "section-title" }, t("Offers for season {n}", { n: season().number + 1 })),
           data.career.offers.length
             ? h("div", { class: "stack" }, data.career.offers.map(offerCard))
             : h("div", { class: "empty" }, t("No offers.")))));
+  }
+
+  /** A career from before 1.3 picks its road to Hypercar once, here; its offers are made again to match. */
+  function pathChoice() {
+    if (data.career.path || data.career.gteClassic) return null;
+    const pick = async (path) => {
+      const name = path === "gt" ? t("GT road") : t("Prototype road");
+      if (!await confirmDialog(t("Take the {road}?", { road: name }),
+        t("This is picked once and can't be changed. Your offers for next season are made again for this road."), { confirm: t("Take it") })) return;
+      const result = await attempt(call("choosePath", { id, path }));
+      if (result) { data = result; show("briefing"); }
+    };
+    return h("div", { class: "notice info", style: { marginBottom: "18px" } },
+      h("b", {}, t("Pick your road to Hypercar")),
+      h("div", {}, t("Careers now run on one of two roads. This career started before them: pick its road once, now. Your offers change to match.")),
+      h("div", { class: "grid-2", style: { marginTop: "12px" } },
+        [["gt", t("GT road"), "GT3", t("LMGT3, then the factory Hypercar of a make you've been loyal to.")],
+          ["prototype", t("Prototype road"), "LMP3", t("LMP3, LMP2, then Hypercar, with teams that take their drivers up.")]]
+          .map(([value, title, start, text]) => h("div", { class: "card quiet clickable", onclick: () => pick(value) },
+            h("div", { class: "row" }, h("h3", {}, title), h("div", { class: "spacer" }), chip(start)),
+            h("div", { class: "faint", style: { marginTop: "6px" } }, text)))),
+      h("div", { style: { marginTop: "10px" } }, h("button", { class: "btn ghost small", onclick: openGuide }, t("How careers work"))));
   }
 
   /** Championship only: the season's result, then on to any car for the next one. */
@@ -919,12 +944,41 @@ export async function careerView(view, id, tab) {
         chip(offer.carClass),
         h("div", { class: "spacer" }),
         h("span", { class: "faint" }, tierName(offer.tier))),
-      h("h3", { style: { margin: "8px 0 4px" } }, offer.teamName),
+      h("div", { class: "row", style: { margin: "8px 0 4px" } },
+        h("h3", {}, offer.teamName),
+        offer.status ? h("span", { class: `status-chip ${offer.status}` }, teamStatusName(offer.status)) : null,
+        offer.imsaTeam ? h("span", { class: "chip pack" }, offer.imsaTeam === offer.teamName ? t("+ IMSA") : t("+ IMSA with {team}", { team: offer.imsaTeam })) : null),
       h("div", { class: "muted" }, offerFacts(offer, car).filter((f) => f !== tierName(offer.tier)).join(" · ")),
+      offerWarnings(offer),
       h("div", { class: "row", style: { marginTop: "10px" } },
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
         h("span", { class: "btn small" }, t("Sign"))));
+  }
+
+  /** What signing does to loyalty: the bridge it burns, the standing it costs, the make that already knows you. */
+  function offerWarnings(offer) {
+    const note = data.offerNotes?.find((n) => n.id === offer.id);
+    if (!note) return null;
+    const lines = [];
+    const leaving = note.leaving;
+    if (leaving?.burns) {
+      lines.push(h("div", { class: "bad-text" }, leaving.departure === "JoinedRival"
+        ? t("Burns your bridge with {name}: this is a rival.", { name: leaving.name })
+        : t("Burns your bridge with {name}: you're under contract.", { name: leaving.name })));
+    } else if (leaving?.departure === "WalkedAway") {
+      lines.push(h("div", { class: "warn-text" }, t("{name} loyalty drops from {before} to {after}: they wanted you back.",
+        { name: leaving.name, before: Math.round(leaving.before), after: Math.round(leaving.after) })));
+    } else if (leaving?.departure === "LetGo") {
+      lines.push(h("div", { class: "faint" }, t("{name} loyalty stays as it is: they let you go.", { name: leaving.name })));
+    }
+    if (note.rival && leaving?.departure !== "JoinedRival") lines.push(h("div", { class: "warn-text" }, t("A rival driver's team.")));
+    if (note.joining && (note.joining.burned || note.joining.stage !== "Unknown")) {
+      lines.push(h("div", { class: note.joining.burned ? "faint" : "good-text" }, note.joining.burned
+        ? t("{name} remembers how you left.", { name: note.joining.name })
+        : t("{name} knows you: {stage}.", { name: note.joining.name, stage: stageName(note.joining.stage) })));
+    }
+    return lines.length ? h("div", { class: "offer-notes" }, lines) : null;
   }
 
   function pitch(offer, car) {
@@ -938,6 +992,9 @@ export async function careerView(view, id, tab) {
   /** What it takes to move up a class from here. */
   function nextStep() {
     const ladder = data.ladder;
+    if (data.career.gteClassic) return h("div", { class: "faint", style: { marginTop: "10px", fontSize: "12px" } },
+      season().contract?.tier === 1 ? t("You're a factory Pro driver: the top of GTE.")
+        : t("Factory Pro teams look for {n} reputation, or a GTE Am title.", { n: 35 }));
     if (!ladder.next) return h("div", { class: "faint", style: { marginTop: "10px", fontSize: "12px" } },
       season().car.carClass === "Hyper" ? t("You're at the top of the ladder.") : t("No class above yours is in the packs you own."));
     const name = CLASS_NAMES[ladder.next];
@@ -946,8 +1003,11 @@ export async function careerView(view, id, tab) {
       ? t("{name} teams are talking to you (they look for {n} reputation).", { name, n: ladder.threshold })
       : t("{name} teams look for {n} reputation. You're {m} short.", { name, n: ladder.threshold, m: ladder.threshold - rep })];
     if (ladder.next === "Hyper") {
-      lines.push(t("Hypercar teams also want {n} strong prototype seasons (target met or top 5): you have {m}.",
-        { n: ladder.prototypeSeasonsNeeded, m: ladder.prototypeSeasons }));
+      // The prototype road's door, then the other two.
+      lines[0] = t("The prototype road: {n} reputation and {s} strong prototype seasons (target met or top 5). You have {m}.",
+        { n: ladder.threshold, s: ladder.prototypeSeasonsNeeded, m: ladder.prototypeSeasons });
+      lines.push(t("A factory driver of a make (or team) with a Hypercar: from {n} reputation.", { n: 50 }));
+      lines.push(t("Reputation alone: from {n}, smaller Hypercar teams call.", { n: 70 }));
     }
     return h("div", { class: "faint", style: { marginTop: "10px", fontSize: "12px" } }, lines.map((l) => h("div", {}, l)));
   }
@@ -1182,11 +1242,16 @@ export async function careerView(view, id, tab) {
             data.projectedReputation != null ? h("div", { class: "muted", style: { marginTop: "8px" } },
               t("This season so far: {change}, paid at the season review", { change: `${data.projectedReputation > 0 ? "+" : data.projectedReputation < 0 ? "−" : "±"}${number(Math.abs(data.projectedReputation))}` })) : null,
             h("div", { class: "row", style: { margin: "14px 0 4px", gap: "6px" } },
-              ["GT3", "LMP3", "LMP2", "Hyper"].map((c, i) => [i ? h("span", { class: "faint" }, "›") : null,
-                h("span", { class: "ladder-step" + (c === season().car.carClass ? " here" : "") }, chip(c))])),
+              ladderFor(data.career).map((c, i) => [i ? h("span", { class: "faint" }, "›") : null,
+                h("span", { class: "ladder-step" + (c === season().car.carClass ? " here" : "") }, chip(c))]),
+              h("div", { class: "spacer" }),
+              h("span", { class: "muted" }, roadLabel())),
             h("div", { class: "faint", style: { fontSize: "12px" } },
               t("Driver rating: {n}", { n: RATINGS[data.career.rating] ? t(RATINGS[data.career.rating]) : data.career.rating })),
             nextStep()),
+          data.career.championshipOnly ? null : [
+            h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your team")),
+            teamCard()],
           // Nationality only picks local sponsors, which a championship-only career doesn't have.
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
@@ -1226,7 +1291,83 @@ export async function careerView(view, id, tab) {
                     : h("td", { class: "num" }, r ? signed(r.reputationAfter - r.reputationBefore) : h("span", { class: "faint" }, t("in progress"))));
               }))),
             seasons.length > 1 ? h("div", { class: "faint", style: { fontSize: "12px", padding: "6px 8px" } },
-              t("Click a past season for its final standings.")) : null))));
+              t("Click a past season for its final standings.")) : null),
+          data.career.championshipOnly ? null : [
+            h("div", { class: "row", style: { marginTop: "24px", alignItems: "baseline" } },
+              h("div", { class: "section-title" }, t("Loyalty")), h("div", { class: "spacer" }),
+              h("button", { class: "btn ghost small", onclick: openGuide }, t("Career guide"))),
+            loyaltyCard()],
+          h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Rivals")),
+          rivalsCard())));
+  }
+
+  /** The road the career is on: its path, GTE Am or Pro, or a reminder that the pick comes at the season's end. */
+  function roadLabel() {
+    const career = data.career;
+    if (career.championshipOnly) return null;
+    if (career.gteClassic) return season().contract?.tier === 1 ? t("GTE Pro") : t("GTE Am");
+    return pathName(career.path) ?? t("Road picked at the season's end");
+  }
+
+  function teamCard() {
+    const status = data.teamStatus;
+    return h("div", { class: "card quiet" },
+      h("div", { class: "row" },
+        h("b", {}, teamName() || t("Learned from your first race")),
+        h("div", { class: "spacer" }),
+        status ? h("span", { class: `status-chip ${status}` }, teamStatusName(status)) : null),
+      tierName(season().contract?.tier ?? 2) ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } }, tierName(season().contract?.tier ?? 2)) : null,
+      status ? h("div", { class: "muted", style: { marginTop: "8px" } }, teamStatusHint(status)) : null);
+  }
+
+  function loyaltyCard() {
+    const rows = data.loyalty ?? [];
+    if (rows.length === 0) {
+      return h("div", { class: "card quiet muted" },
+        t("Race a season with a make (or, in LMP3 and LMP2, a team) and they start to know you. Results make it grow faster."));
+    }
+    return h("div", { class: "card quiet loyalty" }, rows.map((l) => {
+      const notes = [
+        l.burned ? h("span", { class: "bad-text" }, t("Bridge burned")) : null,
+        l.left ? h("span", { class: "faint" }, departureName(l.left)) : null,
+        l.stage === "FactoryDriver" && l.hypercar ? h("span", { class: "good-text" }, t("Their Hypercar team can call from reputation 50")) : null,
+      ].filter(Boolean);
+      return h("div", { class: "loyalty-row" },
+        h("div", { class: "row" },
+          h("b", {}, l.name),
+          h("span", { class: "chip pack" }, l.kind === "Brand" ? t("Make") : t("Team")),
+          h("div", { class: "spacer" }),
+          h("span", { class: "loyalty-stage " + l.stage }, stageName(l.stage))),
+        // The whole scale, with a mark where each stage starts.
+        h("div", { class: "rep-bar" },
+          h("div", { class: "rep-fill", style: { width: `${Math.min(100, l.points)}%` } }),
+          Object.entries(STAGE_AT).filter(([, at]) => at > 0).map(([stage, at]) =>
+            h("div", { class: "rep-mark", style: { left: `${at}%` }, title: stageName(stage) }))),
+        notes.length ? h("div", { class: "row", style: { gap: "12px", fontSize: "12px", marginTop: "4px" } }, notes) : null);
+    }));
+  }
+
+  function rivalsCard() {
+    const rivals = data.career.rivals ?? [];
+    if (rivals.length === 0) {
+      return h("div", { class: "card quiet muted" },
+        t("None yet. A driver you keep making contact with, or keep finishing next to, becomes one."));
+    }
+    return h("div", { class: "card quiet", style: { padding: "4px 8px" } },
+      h("table", { class: "table" },
+        h("tbody", {}, rivals.map((r) => h("tr", {},
+          h("td", {}, h("b", {}, r.name)),
+          h("td", { class: "muted" }, r.teamName || "–"),
+          h("td", { class: "faint" }, r.kind === "Contact" ? t("Kept making contact") : t("Kept finishing side by side")),
+          h("td", { class: "num faint" }, t("Since season {n}", { n: r.since })))))));
+  }
+
+  function openGuide() {
+    showModal([
+      h("h2", {}, t("How careers work")),
+      careerGuide(),
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ], { wide: true });
   }
   // ---------- Calendar ----------
 

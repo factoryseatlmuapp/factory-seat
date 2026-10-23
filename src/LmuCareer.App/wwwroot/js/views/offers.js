@@ -44,6 +44,49 @@ export function standing(reputation) {
   return t("Rookie");
 }
 
+// ---------- Paths, loyalty and teams (1.3) ----------
+
+/** The classes on a career's road, in order: its path's, GTE Classic's, or the old single ladder. */
+export function ladderFor(career) {
+  if (career.gteClassic) return ["GTE"];
+  return { Gt: ["GT3", "Hyper"], Prototype: ["LMP3", "LMP2", "Hyper"] }[career.path] ?? ["GT3", "LMP3", "LMP2", "Hyper"];
+}
+
+const PATHS = { Gt: mark("GT road"), Prototype: mark("Prototype road") };
+
+export const pathName = (path) => (PATHS[path] ? t(PATHS[path]) : null);
+
+const STAGES = {
+  Unknown: mark("Unknown"),
+  OnTheirRadar: mark("On their radar"),
+  DevelopmentDriver: mark("Development driver"),
+  FactoryDriver: mark("Factory driver"),
+};
+
+/** Where each stage starts, and the next one up: for a loyalty bar. */
+export const STAGE_AT = { Unknown: 0, OnTheirRadar: 25, DevelopmentDriver: 50, FactoryDriver: 75 };
+
+export const stageName = (stage) => t(STAGES[stage] ?? stage);
+
+const DEPARTURES = {
+  LetGo: mark("Let go"),
+  WalkedAway: mark("Walked away"),
+  BrokeContract: mark("Broke contract"),
+  JoinedRival: mark("Joined a rival"),
+};
+
+export const departureName = (left) => (DEPARTURES[left] ? t(DEPARTURES[left]) : null);
+
+const TEAM_STATUS = {
+  Struggling: [mark("Struggling"), mark("Money's tight. No IMSA, and a poor season makes it worse.")],
+  Stable: [mark("Stable"), mark("Steady funding. A strong season could bring in the money for IMSA.")],
+  Growing: [mark("Growing"), mark("Results are bringing money in: running IMSA too is a real chance.")],
+  FrontRunnerBudget: [mark("Front-runner budget"), mark("The budget to run IMSA beside the WEC.")],
+};
+
+export const teamStatusName = (status) => (TEAM_STATUS[status] ? t(TEAM_STATUS[status][0]) : null);
+export const teamStatusHint = (status) => (TEAM_STATUS[status] ? t(TEAM_STATUS[status][1]) : null);
+
 export const signed = (points) => {
   const rounded = Math.round(points * 10) / 10;
   return rounded > 0 ? `+${number(rounded)}` : number(rounded);

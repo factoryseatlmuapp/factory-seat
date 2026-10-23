@@ -624,6 +624,20 @@ public static class Progression
         return next;
     }
 
+    /// <summary>
+    /// A career from before 1.3 picks its road once, at the end of a season: the offers on the
+    /// table are made again for that road (from the same draw, so nothing else about them moves).
+    /// </summary>
+    public static void ChoosePath(Career career, CareerPath path, ContentCatalog catalog, LmuInstall? install)
+    {
+        if (career.Path is not null) throw new PlayerError("Your road is already picked.");
+        if (career.ChampionshipOnly || career.GteClassic) throw new PlayerError("This career has no road to pick.");
+        if (career.CurrentSeason.Review is null) throw new PlayerError("The road is picked at the end of a season.");
+        career.Path = path;
+        career.Offers = MakeOffers(career, catalog, install, new Random(Seed(career))).ToList();
+        Teams.AddImsa(career, career.Offers, catalog, install, new Random(Seed(career) ^ 0x1A5A));
+    }
+
     /// <summary>The same career and season always get the same offers.</summary>
     internal static int Seed(Career career) =>
         BitConverter.ToInt32(career.Id.ToByteArray(), 0) ^ (career.CurrentSeason.Number * 7919);

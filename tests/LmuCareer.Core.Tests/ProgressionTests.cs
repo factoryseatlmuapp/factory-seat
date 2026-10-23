@@ -233,6 +233,27 @@ public class ProgressionTests
         Assert.DoesNotContain(career.Offers, o => o.CarClass == "LMP2");
     }
 
+    [Fact]
+    public void A_career_from_before_paths_picks_its_road_once_and_its_offers_follow()
+    {
+        var career = CareerWith(30, "GT3", Season(6, _ => 1));
+        Progression.EndSeason(career, Catalog, install: null);
+        Assert.Contains(career.Offers, o => o.CarClass == "LMP3");
+
+        Progression.ChoosePath(career, CareerPath.Gt, Catalog, install: null);
+
+        Assert.Equal(CareerPath.Gt, career.Path);
+        Assert.DoesNotContain(career.Offers, o => o.CarClass is "LMP3" or "LMP2");
+        Assert.Throws<PlayerError>(() => Progression.ChoosePath(career, CareerPath.Prototype, Catalog, install: null));
+    }
+
+    [Fact]
+    public void The_road_is_picked_at_the_end_of_a_season()
+    {
+        var career = CareerWith(30, "GT3", Season(6, _ => 1));
+        Assert.Throws<PlayerError>(() => Progression.ChoosePath(career, CareerPath.Gt, Catalog, install: null));
+    }
+
     [Theory]
     [InlineData(null, "GT3", "LMP3")]
     [InlineData(CareerPath.Gt, "GT3", "Hyper")]
