@@ -23,6 +23,9 @@ public enum MessageKind
 
     /// <summary>A sponsor offering a deal mid-season, signed or declined in the inbox.</summary>
     SponsorApproach,
+
+    /// <summary>The press on a rivalry with an AI driver, the race it started.</summary>
+    Rivalry,
 }
 
 /// <summary>

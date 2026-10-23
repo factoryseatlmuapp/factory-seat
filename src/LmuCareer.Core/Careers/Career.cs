@@ -509,6 +509,9 @@ public sealed class Career
     /// <summary>The player's standing with each make and team they've raced for; empty on careers from before 1.3.</summary>
     public List<Loyalty> Loyalty { get; set; } = [];
 
+    /// <summary>AI drivers the player has a rivalry with, oldest first.</summary>
+    public List<Rival> Rivals { get; set; } = [];
+
     /// <summary>Mail from the team, the engineer and the paddock, oldest first.</summary>
     public List<InboxMessage> Inbox { get; set; } = [];
 

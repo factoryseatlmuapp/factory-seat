@@ -165,10 +165,15 @@ public static class Loyalties
         if (to == from) return null;
         if (Find(career, from.Kind, from.Id) is not { } loyalty) return null;
 
+        // Joining a rival (a rival make, or a rival driver's team) only burns the bridge when the
+        // player chose to go: a driver who was let go takes the seat that's there.
+        var chose = finished.Contract?.SeasonsLeft > 1 || career.Offers.Any(o => o.Kind == OfferKind.ReSign);
+        var rival = to is { Kind: LoyaltyKind.Brand } t && from.Kind == LoyaltyKind.Brand && catalog.AreRivalBrands(from.Id, t.Id)
+            || Rivals.IsRivalTeam(career, signed.TeamName);
         var departure =
-            finished.Contract?.SeasonsLeft > 1 ? Departure.BrokeContract
-            : to is { Kind: LoyaltyKind.Brand } t && from.Kind == LoyaltyKind.Brand && catalog.AreRivalBrands(from.Id, t.Id) ? Departure.JoinedRival
-            : career.Offers.Any(o => o.Kind == OfferKind.ReSign) ? Departure.WalkedAway
+            chose && rival ? Departure.JoinedRival
+            : finished.Contract?.SeasonsLeft > 1 ? Departure.BrokeContract
+            : chose ? Departure.WalkedAway
             : Departure.LetGo;
 
         switch (departure)

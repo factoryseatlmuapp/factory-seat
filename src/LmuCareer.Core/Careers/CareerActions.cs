@@ -153,6 +153,7 @@ public static class CareerActions
         }
 
         Inbox.AfterRace(career, round, now);
+        Rivals.AfterRace(career, round, now);
         career.LastPlayedAt = now;
         store.Save(career);
         return scored;

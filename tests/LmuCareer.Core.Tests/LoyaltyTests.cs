@@ -175,13 +175,31 @@ public class LoyaltyTests
     }
 
     [Fact]
-    public void Joining_a_rival_make_burns_the_bridge()
+    public void Choosing_a_rival_make_burns_the_bridge()
     {
-        // Toyota and Porsche are rivals.
+        // Toyota and Porsche are rivals; the team wanted the player back.
         var career = ReviewedToyotaCareer();
-        career.Offers = [];
+        career.Offers = [OfferFor("Akkodis ASP Team", "GT3", "LexusRCF_GT3_2024", 2, OfferKind.ReSign)];
         Assert.Equal(Departure.JoinedRival, Loyalties.Leave(career, career.CurrentSeason, OfferFor("Manthey DK Engineering", "GT3", "911GT3R_2024", 2), Catalog, false));
         Assert.True(Loyalties.Find(career, LoyaltyKind.Brand, "toyota")!.Burned);
+    }
+
+    [Fact]
+    public void Let_go_and_taking_a_rivals_seat_is_no_betrayal()
+    {
+        var career = ReviewedToyotaCareer();
+        career.Offers = [];
+        Assert.Equal(Departure.LetGo, Loyalties.Leave(career, career.CurrentSeason, OfferFor("Manthey DK Engineering", "GT3", "911GT3R_2024", 2), Catalog, false));
+        Assert.False(Loyalties.Find(career, LoyaltyKind.Brand, "toyota")!.Burned);
+    }
+
+    [Fact]
+    public void Choosing_a_rival_drivers_team_burns_the_bridge()
+    {
+        var career = ReviewedToyotaCareer();
+        career.Offers = [OfferFor("Akkodis ASP Team", "GT3", "LexusRCF_GT3_2024", 2, OfferKind.ReSign)];
+        career.Rivals.Add(new Rival { Name = "AI 2", TeamName = "Team WRT", Kind = RivalryKind.Contact, Since = 1 });
+        Assert.Equal(Departure.JoinedRival, Loyalties.Leave(career, career.CurrentSeason, OfferFor("Team WRT", "GT3", "BMW_M4_LMGT3_2023", 1), Catalog, false));
     }
 
     [Fact]
