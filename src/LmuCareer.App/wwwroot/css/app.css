@@ -445,3 +445,11 @@ select.input { padding: 6px 8px; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Career guide ---------- */
+
+.guide-title { font: 600 22px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--text-dim); margin: 28px 0 10px; }
+.guide { display: grid; gap: 6px; }
+.guide-section { background: var(--panel); border: 1px solid var(--border-soft); border-radius: 6px; padding: 8px 14px; }
+.guide-section summary { cursor: pointer; font: 600 17px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.02em; }
+.guide-section p { margin: 8px 0 2px; color: var(--text-dim); line-height: 1.45; }

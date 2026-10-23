@@ -3,13 +3,16 @@ import { h, put, clear, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, toast, state, countryPicker } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
 import { packChecklist } from "./packs.js";
+import { careerGuide } from "./guide.js";
 import { t, lmu, mark } from "../i18n.js";
 
-// New career: Driver, Content (DLC owned), Car, then the season builder.
+// New career: Driver (and how to play), Content (DLC owned), Path (a career's road to Hypercar),
+// Car, then the season builder.
 
-const TABS = [
+const ALL_TABS = [
   { id: "driver", label: mark("Driver") },
   { id: "content", label: mark("Content") },
+  { id: "path", label: mark("Path") },
   { id: "car", label: mark("Car") },
   { id: "season", label: mark("Season") },
 ];
@@ -19,7 +22,16 @@ const CLASSES = [
   { id: "LMP3", label: "LMP3" },
   { id: "LMP2", label: "LMP2" },
   { id: "Hyper", label: "Hypercar" },
+  { id: "GTE", label: "LMGTE" },
 ];
+
+// The classes a new career can start in: a path's own, GTE for GTE Classic, any for championship only.
+const START_CLASSES = {
+  gt: ["GT3", "Hyper"],
+  prototype: ["LMP3", "LMP2", "Hyper"],
+  gte: ["GTE"],
+  championship: ["GT3", "LMP3", "LMP2", "Hyper"],
+};
 
 export async function newCareerView(view) {
   const cat = await catalog();
@@ -28,7 +40,9 @@ export async function newCareerView(view) {
     name: "",
     driverName: "",
     nationality: state.defaultNationality ?? "",
-    championshipOnly: false,
+    // career, gte (GTE Classic) or championship (championship only)
+    mode: "career",
+    path: "gt",
     ownedPacks: [],
     carClass: "GT3",
     carFolder: null,
@@ -42,11 +56,21 @@ export async function newCareerView(view) {
 
   const owns = (pack) => pack === null || pack === "base" || draft.ownedPacks.includes(pack);
 
+  // Only a career has a path to pick.
+  const tabs = () => ALL_TABS.filter((x) => x.id !== "path" || draft.mode === "career");
+  const startClasses = () => START_CLASSES[draft.mode === "career" ? draft.path : draft.mode];
+
   function show(next) {
     tab = next;
-    setChrome({ crumb: t("New career"), back: "#/careers", tabs: TABS.map((x) => ({ ...x, label: t(x.label) })), active: tab, onTab: show });
+    setChrome({ crumb: t("New career"), back: "#/careers", tabs: tabs().map((x) => ({ ...x, label: t(x.label) })), active: tab, onTab: show });
     clear(view);
-    ({ driver, content, car, season })[tab]();
+    ({ driver, content, path, car, season })[tab]();
+  }
+
+  function setMode(mode) {
+    draft.mode = mode;
+    if (!startClasses().includes(draft.carClass)) { draft.carClass = startClasses()[0]; draft.rounds = null; }
+    show("driver");
   }
 
   function footer(...buttons) {
@@ -74,15 +98,16 @@ export async function newCareerView(view) {
         h("div", { class: "field" }, h("label", {}, t("Your driver name in LMU")), driverName,
           h("small", { class: "faint" }, t("Optional. Shown in the standings; races are matched by your car, not your name."))),
         h("div", { class: "field" }, h("label", {}, t("How you want to play")),
-          h("div", { class: "grid-2" },
-            [[false, t("Career"), t("Climb from LMGT3 to Hypercar: reputation, team offers, sponsors, guest drives and the press.")],
-              [true, t("Championship only"), t("Seasons and points, nothing else. Pick any car for each season. Can't be changed later.")]]
+          h("div", { class: "grid-3" },
+            [["career", t("Career"), t("Climb to Hypercar by the GT or the prototype road: reputation, loyalty, team offers, sponsors, test days and the press.")],
+              ["gte", t("GTE Classic"), t("The 2023 WEC in LMGTE: start in a privateer Am seat and earn a factory Pro drive. A career that stays in GTE.")],
+              ["championship", t("Championship only"), t("Seasons and points, nothing else. Pick any car for each season. Can't be changed later.")]]
               .map(([value, title, text]) => h("div", {
-                class: "card quiet clickable" + (draft.championshipOnly === value ? " selected" : ""),
-                onclick: () => { draft.championshipOnly = value; show("driver"); },
+                class: "card quiet clickable" + (draft.mode === value ? " selected" : ""),
+                onclick: () => setMode(value),
               }, h("h3", {}, title), h("div", { class: "faint", style: { marginTop: "6px" } }, text))))),
         // Nationality only picks local sponsors, which a championship-only career doesn't have.
-        draft.championshipOnly ? null : h("div", { class: "field" }, h("label", {}, t("Nationality")),
+        draft.mode === "championship" ? null : h("div", { class: "field" }, h("label", {}, t("Nationality")),
           countryPicker(draft.nationality, (code) => { draft.nationality = code; }),
           h("small", { class: "faint" }, t("Local sponsors come from your home country. You can change it later on the Career tab.")))),
       footer(next("content")));
@@ -104,6 +129,36 @@ export async function newCareerView(view) {
         h("b", {}, t("Why the app can't check this itself")),
         h("div", {}, t("LMU installs every pack's files whether you own it or not, so they're all on your PC either way. If you pick a track or car you don't own, you won't be able to run that round and your career can't move past it."))),
       h("div", { style: { maxWidth: "820px" } }, packChecklist(cat, draft.ownedPacks, change)),
+      footer(next(draft.mode === "career" ? "path" : "car")));
+  }
+
+  // ---------- Path ----------
+
+  function path() {
+    const pick = (value) => {
+      draft.path = value;
+      if (!startClasses().includes(draft.carClass)) { draft.carClass = startClasses()[0]; draft.rounds = null; }
+      show("path");
+    };
+
+    put(view,
+      h("div", { class: "hero" },
+        h("div", { class: "hero-mark" }, t("Path")),
+        h("div", {},
+          h("h1", { class: "hero-title" }, t("Your road to Hypercar")),
+          h("div", { class: "hero-facts" }, t("Two roads lead to a Hypercar seat. Crossing over later takes a test day or a team that rates you.")))),
+      h("div", { class: "grid-2", style: { maxWidth: "820px" } },
+        [["gt", t("GT road"), "GT3", t("LMGT3 with a privateer, better GT teams, then the factory Hypercar of the make you've been loyal to."), t("Loyalty to the make")],
+          ["prototype", t("Prototype road"), "LMP3", t("LMP3, LMP2, then Hypercar. Teams that race more than one class can take you up with them."), t("Loyalty to the team")]]
+          .map(([value, title, start, text, loyalty]) => h("div", {
+            class: "card quiet clickable" + (draft.path === value ? " selected" : ""),
+            onclick: () => pick(value),
+          },
+            h("div", { class: "row" }, h("h3", {}, title), h("div", { class: "spacer" }), chip(start)),
+            h("div", { class: "faint", style: { marginTop: "6px" } }, text),
+            h("div", { class: "muted", style: { marginTop: "8px" } }, loyalty)))),
+      h("h2", { class: "guide-title" }, t("How careers work")),
+      h("div", { style: { maxWidth: "820px" } }, careerGuide()),
       footer(next("car")));
   }
   // ---------- Car ----------
@@ -131,9 +186,13 @@ export async function newCareerView(view) {
         h("div", { class: "hero-mark" }, t("Car")),
         h("div", {},
           h("h1", { class: "hero-title" }, t("Your first seat")),
-          h("div", { class: "hero-facts" }, t("Careers start in LMGT3 and move up through team offers between seasons. Want to start higher? Any class works.")))),
+          h("div", { class: "hero-facts" }, draft.mode === "gte"
+            ? t("GTE Classic starts in a privateer Am seat. Results and reputation bring the factory Pro teams.")
+            : draft.mode === "career" && draft.path === "prototype"
+              ? t("The prototype road starts in LMP3. Want to start higher? LMP2 or Hypercar work too.")
+              : t("Careers start in LMGT3 and move up through team offers between seasons. Want to start higher? Any class works.")))),
       h("div", { class: "row", style: { marginBottom: "18px" } },
-        CLASSES.map((c) => {
+        CLASSES.filter((c) => startClasses().includes(c.id)).map((c) => {
           const locked = c.id === "LMP3" && !hasLmp3;
           return h("button", {
             class: "class-tile" + (c.id === draft.carClass ? " active" : ""),
@@ -186,7 +245,9 @@ export async function newCareerView(view) {
       name: draft.name,
       driverName: draft.driverName,
       nationality: draft.nationality,
-      championshipOnly: draft.championshipOnly,
+      championshipOnly: draft.mode === "championship",
+      gteClassic: draft.mode === "gte",
+      path: draft.mode === "career" ? draft.path : null,
       ownedPacks: draft.ownedPacks,
       carClass: draft.carClass,
       carFolder: draft.carFolder,
