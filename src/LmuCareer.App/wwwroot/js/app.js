@@ -185,7 +185,7 @@ onEvent("updateAvailable", ({ version, url, highlights = [], card }) => {
   showModal([
     h("h2", {}, t("Version {version} is out", { version })),
     highlights.length ? h("ul", { class: "update-highlights" }, highlights.map((line) => h("li", {}, line))) : null,
-    h("p", { class: "muted" }, t("Your careers carry over to the new version.")),
+    h("p", { class: "update-carry" }, h("span", { class: "good-text" }, "✓ "), t("Your careers carry over to the new version.")),
     h("div", { class: "modal-actions" },
       h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Not now")),
       h("button", { class: "btn", title: t("Opens the download page in your browser"), onclick: () => { closeModal(); window.open(url); } }, t("Get it"))),

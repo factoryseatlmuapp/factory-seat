@@ -14,6 +14,7 @@
 - **How careers work:** every rule in one place, on the new career's Path tab and any time from the Career tab.
 - `briefing.json` adds the round's championship (`series`) and test days (`test`). Nothing that was there changes. See `docs/briefing-json.md`.
 - A short tour of what's new the first time you open 1.3.
+- The update card now says plainly, with a check mark, that your careers carry over to the new version.
 - All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.
 
 ## 1.2.0 "Green Flag"
