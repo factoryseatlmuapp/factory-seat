@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 (in progress)
+## 1.3.0 "Split Strategy"
 
 - **Two roads to Hypercar.** A new career picks the GT road (LMGT3, better GT teams, then a make's factory Hypercar) or the prototype road (LMP3, LMP2, Hypercar). A career from before 1.3 picks its road once, at the end of a season, and its offers are made again to match.
 - **Loyalty.** Every season with a make (LMGT3, LMGTE, Hypercar) or, in LMP3 and LMP2, a team builds loyalty: being there counts, results count more. Unknown, On their radar, Development driver, Factory driver. Makes and teams that know you call more often, and teams that race more than one class can take you up with them. The Career tab shows where you stand with each. (#21)
