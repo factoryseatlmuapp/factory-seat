@@ -13,6 +13,7 @@
 - **LMP2 can race the full WEC** instead of the ELMS and Le Mans: pick it in the season builder.
 - **How careers work:** every rule in one place, on the new career's Path tab and any time from the Career tab.
 - `briefing.json` adds the round's championship (`series`) and test days (`test`). Nothing that was there changes. See `docs/briefing-json.md`.
+- The briefing says which LMU season to pick your car from (Race Weekend lists cars by season): the Glickenhaus is only in WEC 2023, the Ginetta only in ELMS 2025, and so on.
 - A short tour of what's new the first time you open 1.3.
 - The update card now says plainly, with a check mark, that your careers carry over to the new version.
 - All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.

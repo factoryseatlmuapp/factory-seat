@@ -28,6 +28,20 @@ public class ContentTests
     }
 
     [Fact]
+    public void Every_car_says_which_LMU_seasons_list_it()
+    {
+        Assert.All(Catalog.Cars, c =>
+        {
+            Assert.True(c.Seasons is { Count: > 0 }, $"{c.Folder}: no seasons");
+            Assert.All(c.Seasons!, s => Assert.Contains(s.Key, new[] { "WEC", "ELMS" }));
+        });
+        Assert.Equal([2023], Catalog.Car("SGC_007_2023")!.Seasons!["WEC"]);
+        Assert.Equal([2023, 2024, 2025], Catalog.Car("Porsche_963_2023")!.Seasons!["WEC"]);
+        Assert.Equal([2025], Catalog.Car("Ginetta_G61Evo_2025")!.Seasons!["ELMS"]);
+        Assert.False(Catalog.Car("Ginetta_G61Evo_2025")!.Seasons!.ContainsKey("WEC"));
+    }
+
+    [Fact]
     public void Owning_everything_gives_the_eight_round_world_season_in_calendar_order()
     {
         var rounds = CalendarBuilder.DefaultSeason(Catalog, "GT3", DriverRating.Silver, AllPacks);

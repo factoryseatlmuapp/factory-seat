@@ -363,7 +363,7 @@ public sealed class ApiHost
         }),
         cars = _catalog.Cars.Select(c => new
         {
-            c.Folder, c.Name, c.Class, c.Pack, c.CarTypes,
+            c.Folder, c.Name, c.Class, c.Pack, c.CarTypes, c.Seasons,
             installed = _install?.CarFolders.Contains(c.Folder, StringComparer.OrdinalIgnoreCase) ?? true,
         }),
         events = _catalog.Events,

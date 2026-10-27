@@ -189,6 +189,19 @@ export async function careerView(view, id, tab) {
     return cat.cars.find((c) => c.carTypes.includes(carType))?.name ?? (carType || t("Your car"));
   }
 
+  /** Where LMU's Race Weekend lists the car: the newest season of each championship it races in. */
+  function lmuSeason(car) {
+    const info = cat.cars.find((c) => c.folder === car.folder) ?? cat.cars.find((c) => c.carTypes.includes(car.carType));
+    const where = Object.entries(info?.seasons ?? {}).map(([series, years]) => `${series} ${Math.max(...years)}`);
+    return where.length ? t("In LMU, pick it from the {season} season.", { season: where.join(" / ") }) : "";
+  }
+
+  /** A car row's hint with the LMU season on a line of its own under it. */
+  function withSeason(hint, car) {
+    const where = lmuSeason(car);
+    return where ? [hint, h("br"), where] : hint;
+  }
+
   function carStrip() {
     const car = season().car;
     const canChange = canChangeCar();
@@ -456,16 +469,16 @@ export async function careerView(view, id, tab) {
     const name = data.carName || car.carType || t("Your car");
     if (car.customTeam) {
       return setting(name, t("Custom team"), { big: true, tick,
-        hint: t("Your {team} car, any number you like (last raced as #{n}).", { team: car.teamName || t("custom team"), n: car.carNumber }) });
+        hint: withSeason(t("Your {team} car, any number you like (last raced as #{n}).", { team: car.teamName || t("custom team"), n: car.carNumber }), car) });
     }
     if (car.carNumber) {
       return setting(name, `#${car.carNumber}`, { big: true, tick,
-        hint: car.teamName ? t("Racing for {team}", { team: car.teamName }) : t("Same number as your last race") });
+        hint: withSeason(car.teamName ? t("Racing for {team}", { team: car.teamName }) : t("Same number as your last race"), car) });
     }
     return setting(name, numbers.length ? carNumbers(numbers) : t("Any livery"), { big: true, tick,
-      hint: numbers.length
+      hint: withSeason(numbers.length
         ? t("Pick the {team} livery. Your first race sets your number for the season.", { team: teamName() })
-        : t("Pick any livery for this car. Your first race sets your number and team for the season.") });
+        : t("Pick any livery for this car. Your first race sets your number and team for the season."), car) });
   }
 
   /** A guest drive is in the guest team's car, not the season's. */
@@ -474,7 +487,7 @@ export async function careerView(view, id, tab) {
     const numbers = round.guestNumbers ?? [];
     const value = car.carNumber ? `#${car.carNumber}` : numbers.length ? carNumbers(numbers) : t("Any livery");
     return setting(carName(car.carType), value, { big: true, tick,
-      hint: numbers.length || car.carNumber ? t("Pick the {team} livery.", { team: car.teamName }) : t("Any livery: you're guesting for {team}.", { team: car.teamName }) });
+      hint: withSeason(numbers.length || car.carNumber ? t("Pick the {team} livery.", { team: car.teamName }) : t("Any livery: you're guesting for {team}.", { team: car.teamName }), car) });
   }
 
   function guestNotice(round) {

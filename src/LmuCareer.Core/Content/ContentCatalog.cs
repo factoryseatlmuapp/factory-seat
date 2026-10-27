@@ -29,6 +29,12 @@ public sealed record CarInfo(
     /// Hypercar cars only. Null on the spec prototypes (LMP2, LMP3), where loyalty is to the team.
     /// </summary>
     public string? Brand { get; init; }
+
+    /// <summary>
+    /// The championship seasons LMU's Race Weekend lists the car under ("WEC" or "ELMS" to years),
+    /// so the briefing can say where to find it. Null when it isn't known.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<int>>? Seasons { get; init; }
 }
 
 /// <summary>A make, or makes under one roof (Chevrolet and Cadillac are both GM).</summary>
