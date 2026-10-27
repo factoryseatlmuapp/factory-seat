@@ -27,7 +27,7 @@ export async function careersView(view) {
         h("div", { class: "section-title" }, t("New career")),
         h("div", { class: "card clickable new-card", onclick: () => go("#/new") },
           h("div", { class: "row", style: { marginBottom: "auto", justifyContent: "flex-end" } },
-            chip("GT3"), chip("LMP3"), chip("LMP2"), chip("Hyper")),
+            chip("GT3"), chip("LMP3"), chip("LMP2"), chip("Hyper"), chip("GTE")),
           h("div", { class: "card-title" }, t("Start a career")),
           h("div", { class: "muted" }, t("From LMGT3 rookie to a factory Hypercar seat, one season at a time."))))));
 

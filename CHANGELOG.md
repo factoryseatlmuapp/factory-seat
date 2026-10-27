@@ -17,6 +17,7 @@
 - A short tour of what's new the first time you open 1.3.
 - The update card now says plainly, with a check mark, that your careers carry over to the new version.
 - All of it is translated into Korean, German, French, Spanish and Brazilian Portuguese.
+- **Two new languages:** Italian, translated by Luca Bassini (thebaz), and Hungarian, a first draft (corrections welcome).
 
 ## 1.2.0 "Green Flag"
 
