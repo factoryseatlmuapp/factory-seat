@@ -2,7 +2,7 @@
 
 **A career mode for Le Mans Ultimate.** Free and unofficial.
 
-Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory Hypercar seat, one season at a time. You race in Le Mans Ultimate as usual. Factory Seat gives you each race weekend's briefing, picks up your results when you finish, and runs the championship, your reputation, sponsors and the team offers between seasons.
+Race your way to a Hypercar seat, one season at a time: up the GT road from LMGT3, or the prototype road through LMP3 and LMP2. You race in Le Mans Ultimate as usual. Factory Seat gives you each race weekend's briefing, picks up your results when you finish, and runs the championship, your reputation, loyalty, sponsors and the team offers between seasons.
 
 > Factory Seat is a fan project. It is not affiliated with, endorsed by or connected to Studio 397, Motorsport Games, the ACO, the FIA WEC or IMSA.
 
@@ -16,7 +16,12 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 
 ## Features
 
-- **Multi-season careers.** LMGT3 → LMP3 → LMP2 → Hypercar. You only move up when a team offers you a seat.
+- **Two roads to Hypercar.** The GT road (LMGT3, better GT teams, then a make's factory Hypercar) or the prototype road (LMP3, LMP2, Hypercar). You only move up when a team offers you a seat.
+- **Loyalty.** Seasons with a make (or, in LMP3 and LMP2, a team) take you from Unknown to Factory driver, and makes that know you call more often. How you leave a team counts, and every offer says what signing it does.
+- **Test days.** A team a class up, or from the other road, may try you out before a season: 8 laps in their car against the fastest AI lap.
+- **IMSA beside the WEC.** Teams with the budget run both championships, each with its own standings (needs three IMSA rounds in packs you own).
+- **GTE Classic,** a career of its own in the 2023 WEC: start in a privateer Am seat and earn a factory Pro drive.
+- **Rivals.** Keep tangling with, or finishing next to, the same AI driver and they become your rival in the paddock press.
 - **Season builder.** A default world or European calendar for your class, with every race's length adjustable and events you can add, reorder or make up yourself.
 - **Race briefings** in LMU's own setting names: track and layout, race length, Time Scale, Fuel Usage, Tyre Wear and start time, plus a pit plan.
 - **Automatic results.** Leave the app open while you race. It watches LMU's results folder and pops up when the race ends. Only races that match the briefing count, so test drives and online races never do.
@@ -27,6 +32,7 @@ Start as an LMGT3 rookie and race your way up through LMP3 and LMP2 to a factory
 - **Pace check.** Compares your best laps with the fastest AI in your class and tells you whether to raise or lower AI Strength.
 - **Track maps** traced from OpenStreetMap.
 - Several careers side by side, automatic backups, export and import, dark and light themes.
+- **8 languages:** English, German, French, Spanish, Brazilian Portuguese, Italian, Hungarian and Korean. [Spot a bad translation?](../../issues/new?template=translation.yml)
 
 ## Install
 
