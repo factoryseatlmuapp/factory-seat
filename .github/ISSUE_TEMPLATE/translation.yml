@@ -1,0 +1,65 @@
+name: Translation fix
+description: Something in your language reads wrong, sounds odd, or doesn't fit.
+labels: ["translation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping! You don't need to know any code. Tell us what the app says and what it should say, and we'll put it in the next update. Several fixes in one report is great.
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options:
+        - Deutsch (German)
+        - Español (Spanish)
+        - Français (French)
+        - Italiano (Italian)
+        - Magyar (Hungarian)
+        - Português (Brasil)
+        - 한국어 (Korean)
+        - English
+    validations:
+      required: true
+
+  - type: input
+    id: where
+    attributes:
+      label: Where in the app?
+      description: The screen or tab, e.g. Career tab, race briefing, team offers, Settings.
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: What it says now
+      description: Copy the text as the app shows it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: What it should say
+      description: Your wording. If you're not sure, tell us what's wrong with it and we'll work it out together.
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot (optional)
+      description: Drag an image here. Handy when text is cut off or wraps badly.
+
+  - type: input
+    id: credit
+    attributes:
+      label: How should we credit you? (optional)
+      description: Your GitHub name is used by default. Leave a name here if you'd prefer another, or write "no credit".
+
+  - type: markdown
+    attributes:
+      value: |
+        Want to go further? Every language is one file in [`src/LmuCareer.App/locales`](https://github.com/factoryseatlmuapp/factory-seat/tree/main/src/LmuCareer.App/locales), and a pull request on it is welcome too. The [translation guide](https://github.com/factoryseatlmuapp/factory-seat/blob/main/src/LmuCareer.App/locales/README.md) has the rules.

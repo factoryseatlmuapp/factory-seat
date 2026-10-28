@@ -85,6 +85,8 @@ A race only counts if it matches the briefing: the right track and layout, your 
 
 Got an idea, a question, or a career story to share? [Start a discussion](../../discussions). Ideas and Q&A both have their own categories, and there's **Show and tell** for your careers.
 
+**Spot a bad translation?** Something in your language reads wrong or gets cut off? [Send a translation fix](../../issues/new?template=translation.yml): no code needed, just what it says and what it should say. Fixes go in the next update, credited in the release notes.
+
 ## Reporting a bug
 
 [Open an issue](../../issues/new/choose) using the bug report form. The things that help most:
