@@ -20,20 +20,32 @@ public sealed class Program : IAppWindow
     private const string Bridge = """
         <script>
           (() => {
-            const ext = window.external;
-            if (window.chrome?.webview || !ext?.sendMessage) return;
+            if (window.chrome?.webview) return;
+            // Photino may set up window.external after this runs, so it's looked up on use, and
+            // messages sent before it's there wait for it.
             const listeners = [];
-            ext.receiveMessage((message) => {
-              const data = JSON.parse(message);
-              for (const listener of listeners) listener({ data });
-            });
+            const queue = [];
+            let ready = false;
+            const connect = () => {
+              const ext = window.external;
+              if (ready || !ext?.sendMessage || !ext.receiveMessage) return ready;
+              ext.receiveMessage((message) => {
+                const data = JSON.parse(message);
+                for (const listener of listeners) listener({ data });
+              });
+              ready = true;
+              for (const message of queue.splice(0)) ext.sendMessage(message);
+              return true;
+            };
+            const send = (message) => connect() ? window.external.sendMessage(message) : queue.push(message);
+            const wait = setInterval(() => { if (connect()) clearInterval(wait); }, 20);
             window.chrome = {
               webview: {
-                postMessage: (message) => ext.sendMessage(JSON.stringify(message)),
+                postMessage: (message) => send(JSON.stringify(message)),
                 addEventListener: (type, listener) => { if (type === "message") listeners.push(listener); },
               },
             };
-            window.open = (url) => { ext.sendMessage(JSON.stringify({ external: String(new URL(url, location.href)) })); return null; };
+            window.open = (url) => { send(JSON.stringify({ external: String(new URL(url, location.href)) })); return null; };
           })();
         </script>
         """;
@@ -45,10 +57,19 @@ public sealed class Program : IAppWindow
     [STAThread]
     public static void Main()
     {
+        // WebKitGTK's DMA-BUF renderer leaves the window blank after its first frame in VMs and on
+        // some NVIDIA drivers. The app has nothing to gain from it, so it's off unless the player
+        // has set it themselves.
+        // .NET's SetEnvironmentVariable only changes its own copy; WebKit reads the process's.
+        setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1", overwrite: 0);
+
         using var server = new HttpListener();
         var start = Serve(server);
         new Program(start).Run();
     }
+
+    [System.Runtime.InteropServices.DllImport("libc", CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    private static extern int setenv(string name, string value, int overwrite);
 
     private Program(string startPage)
     {
@@ -59,10 +80,9 @@ public sealed class Program : IAppWindow
             .SetSize(1440, 900)
             .SetMinSize(1100, 700)
             .Center()
-#if !DEBUG
-            .SetDevToolsEnabled(false)
-            .SetContextMenuEnabled(false)
-#endif
+            // FACTORY_SEAT_DEBUG=1 turns on the inspector (right-click > Inspect Element) and logs requests.
+            .SetDevToolsEnabled(Debugging)
+            .SetContextMenuEnabled(Debugging)
             .RegisterWebMessageReceivedHandler((_, message) => _window!.SendWebMessage(Receive(message) ?? "null"))
             .Load(startPage);
     }
@@ -73,9 +93,17 @@ public sealed class Program : IAppWindow
         ApiHost.Closing();
     }
 
+    private static readonly bool Debugging =
+#if DEBUG
+        true;
+#else
+        Environment.GetEnvironmentVariable("FACTORY_SEAT_DEBUG") == "1";
+#endif
+
     /// <summary>A request from the page, or a web link to open; the reply to send back, if any.</summary>
     private string? Receive(string message)
     {
+        if (Debugging) Console.WriteLine("page> " + (message.Length > 200 ? message[..200] + "…" : message));
         using (var doc = JsonDocument.Parse(message))
         {
             if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("external", out var url))
@@ -113,6 +141,7 @@ public sealed class Program : IAppWindow
     {
         using var response = context.Response;
         var path = context.Request.Url?.AbsolutePath.TrimStart('/') ?? "";
+        if (Debugging) Console.WriteLine("http> " + path);
         if (path.Length == 0) path = "index.html";
 
         using var stream = WebFiles.Open(path);
