@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\LmuCareer.Core\LmuCareer.Core.csproj" />
+    <ProjectReference Include="..\LmuCareer.Host\LmuCareer.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -17,16 +17,8 @@
     <AssemblyName>FactorySeat</AssemblyName>
     <RootNamespace>LmuCareer.App</RootNamespace>
     <ApplicationIcon>app.ico</ApplicationIcon>
-    <Version>1.3.0</Version>
     <Product>Factory Seat</Product>
     <Description>Factory Seat: a career mode for Le Mans Ultimate (unofficial)</Description>
   </PropertyGroup>
-
-  <ItemGroup>
-    <!-- The page is served out of the exe; the resource name is its path under wwwroot. -->
-    <EmbeddedResource Include="wwwroot\**\*" LogicalName="wwwroot/$([System.String]::Copy('%(RecursiveDir)').Replace('\','/'))%(Filename)%(Extension)" />
-    <!-- Translations, one file per language (see Locales.cs). -->
-    <EmbeddedResource Include="locales\*.json" Exclude="locales\_*.json" LogicalName="locales/%(Filename)%(Extension)" />
-  </ItemGroup>
 
 </Project>

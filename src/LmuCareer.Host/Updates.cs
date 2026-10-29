@@ -1,7 +1,7 @@
 using System.Net.Http;
 using System.Text.Json;
 
-namespace LmuCareer.App;
+namespace LmuCareer.Host;
 
 /// <summary>The newest published release on GitHub, for the "new version" notice.</summary>
 public static class Updates
@@ -29,7 +29,10 @@ public static class Updates
     public const string HighlightsAsset = "highlights.json";
 
     /// <summary>This build's version, numbers only (1.1.0 for a 1.1.0-beta build).</summary>
-    public static Version Current { get; } = typeof(Updates).Assembly.GetName().Version ?? new Version(0, 0);
+    public static Version Current { get; } = App.GetName().Version ?? new Version(0, 0);
+
+    // The exe (Windows or Linux) carries the version, not this library.
+    private static System.Reflection.Assembly App => System.Reflection.Assembly.GetEntryAssembly() ?? typeof(Updates).Assembly;
 
     /// <summary>This build's version as released: "1.1.0", or "1.1.0-beta" for a pre-release.</summary>
     public static string CurrentLabel { get; } = Label();
@@ -47,7 +50,7 @@ public static class Updates
 
     private static string Label()
     {
-        var info = typeof(Updates).Assembly
+        var info = App
             .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
             .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion;
         // The SDK adds "+<commit>" to the informational version; that isn't part of the release name.

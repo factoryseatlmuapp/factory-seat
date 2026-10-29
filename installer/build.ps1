@@ -1,13 +1,13 @@
 # Builds the release: publishes the single-file exe to publish\, then wraps it in the installer
-# publish\installer\FactorySeat-Setup-<version>.exe. The version comes from the app's .csproj.
+# publish\installer\FactorySeat-Setup-<version>.exe. The version comes from Directory.Build.props.
 #   powershell -File installer\build.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
 
-$csproj = 'src\LmuCareer.App\LmuCareer.App.csproj'
-$version = ([xml](Get-Content $csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-if (-not $version) { throw "No <Version> in $csproj" }
+$props = 'Directory.Build.props'
+$version = ([xml](Get-Content $props)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+if (-not $version) { throw "No <Version> in $props" }
 
 dotnet publish src/LmuCareer.App -c Release -r win-x64 --self-contained `
   -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true `

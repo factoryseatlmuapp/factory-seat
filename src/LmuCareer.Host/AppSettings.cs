@@ -3,7 +3,7 @@ using System.Text.Json;
 using LmuCareer.Core.Careers;
 using LmuCareer.Core.Content;
 
-namespace LmuCareer.App;
+namespace LmuCareer.Host;
 
 /// <summary>App-wide preferences, kept next to the career saves.</summary>
 public sealed class AppSettings

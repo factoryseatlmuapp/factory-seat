@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = ROOT / "src" / "LmuCareer.App"
+HOST = ROOT / "src" / "LmuCareer.Host"
 CORE = ROOT / "src" / "LmuCareer.Core"
 LOCALES = APP / "locales"
 TEMPLATE = LOCALES / "_template.json"
@@ -95,7 +96,7 @@ def strings_in(path):
 
 def collect():
     """Every string, grouped, without repeats (a string's first group wins; LMU labels always go to theirs)."""
-    files = sorted((APP / "wwwroot" / "js").rglob("*.js")) + sorted(CORE.rglob("*.cs")) + sorted(APP.glob("*.cs"))
+    files = sorted((APP / "wwwroot" / "js").rglob("*.js")) + sorted(CORE.rglob("*.cs")) + sorted(APP.glob("*.cs")) + sorted(HOST.glob("*.cs"))
     order = {name: i for i, (name, _) in enumerate(GROUPS)}
     files = sorted((f for f in files if f.name in order), key=lambda f: order[f.name])
     groups = OrderedDict((name, OrderedDict()) for _, name in GROUPS)

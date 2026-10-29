@@ -1,4 +1,9 @@
 <Project>
+  <!-- The release version, shared by the Windows and Linux apps. -->
+  <PropertyGroup>
+    <Version>1.3.0</Version>
+  </PropertyGroup>
+
   <!-- Release builds ship as one exe: no debug symbols, and no documentation or symbol files copied from packages. -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>

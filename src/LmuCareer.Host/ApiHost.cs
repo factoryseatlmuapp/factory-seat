@@ -6,7 +6,7 @@ using LmuCareer.Core.Careers;
 using LmuCareer.Core.Content;
 using Microsoft.Win32;
 
-namespace LmuCareer.App;
+namespace LmuCareer.Host;
 
 /// <summary>
 /// What the page can ask the app to do. The page posts <c>{ id, method, args }</c>; the reply is
@@ -20,7 +20,9 @@ public sealed class ApiHost
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     };
 
-    private readonly MainWindow _window;
+    private FileFilter CareerSave => new(T("Career save"), "*.career.json");
+
+    private readonly IAppWindow _window;
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Locales _locales = Locales.Load();
     private readonly CareerStore _store = new(CareerStore.DefaultRoot);
@@ -32,10 +34,10 @@ public sealed class ApiHost
     private Guid? _watchedCareer;
     private string? _lastPosted;
 
-    public ApiHost(MainWindow window)
+    public ApiHost(IAppWindow window)
     {
         _window = window;
-        _watcher = new ResultsWatcher(window.Dispatcher);
+        _watcher = new ResultsWatcher(window.Invoke);
         _watcher.Settled += OnResultsSettled;
         if (_settings.LmuRoot is { } root && LmuInstall.LooksLikeInstall(root)) UseInstall(root);
     }
@@ -181,7 +183,7 @@ public sealed class ApiHost
         {
             if (await Updates.LatestRelease() is not { } latest || !Updates.IsNewer(latest.Version)) return;
             var version = latest.Version.ToString(3);
-            _window.Dispatcher.Invoke(() => _window.PostEvent(JsonSerializer.Serialize(new
+            _window.Invoke(() => _window.PostEvent(JsonSerializer.Serialize(new
             {
                 @event = "updateAvailable",
                 version,
@@ -271,7 +273,7 @@ public sealed class ApiHost
     /// Opens the folder players put translation files in, with a note on where to start the first
     /// time: the template and instructions are on GitHub.
     /// </summary>
-    private static object? OpenLocales()
+    private object? OpenLocales()
     {
         Directory.CreateDirectory(Locales.OwnFolder);
         var readme = Path.Combine(Locales.OwnFolder, "README.txt");
@@ -284,7 +286,7 @@ public sealed class ApiHost
                 "https://github.com/factoryseatlmuapp/factory-seat/tree/main/src/LmuCareer.App/locales\r\n\r\n" +
                 "Restart the app (or pick the language again in Settings) to see your changes.\r\n");
         }
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{Locales.OwnFolder}\"") { UseShellExecute = true });
+        _window.OpenFolder(Locales.OwnFolder);
         return null;
     }
 
@@ -303,18 +305,31 @@ public sealed class ApiHost
         valid = root is not null && LmuInstall.LooksLikeInstall(root),
     };
 
-    private static string? DetectLmu()
+    private static string? DetectLmu() =>
+        SteamRoots().Where(Directory.Exists).Select(LmuInstall.FindViaSteam).FirstOrDefault(r => r is not null);
+
+    /// <summary>Where Steam may be: the registry's answer on Windows; the native, Flatpak and Snap installs on Linux.</summary>
+    private static IEnumerable<string> SteamRoots()
     {
-        var steam = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) as string;
-        var candidates = new[] { steam?.Replace('/', '\\'), @"C:\Program Files (x86)\Steam", @"C:\Program Files\Steam" };
-        return candidates.OfType<string>().Where(Directory.Exists).Select(LmuInstall.FindViaSteam).FirstOrDefault(r => r is not null);
+        if (OperatingSystem.IsWindows())
+        {
+            var steam = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamPath", null) as string;
+            return new[] { steam?.Replace('/', '\\'), @"C:\Program Files (x86)\Steam", @"C:\Program Files\Steam" }.OfType<string>();
+        }
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        return
+        [
+            Path.Combine(home, ".local", "share", "Steam"),
+            Path.Combine(home, ".steam", "steam"),
+            Path.Combine(home, ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+            Path.Combine(home, "snap", "steam", "common", ".local", "share", "Steam"),
+        ];
     }
 
     private object BrowseLmu()
     {
-        var dialog = new OpenFolderDialog { Title = T("Choose your Le Mans Ultimate folder") };
-        if (dialog.ShowDialog(_window) != true) return new { path = (string?)null, valid = false };
-        return new { path = dialog.FolderName, valid = LmuInstall.LooksLikeInstall(dialog.FolderName) };
+        if (_window.PickFolder(T("Choose your Le Mans Ultimate folder")) is not { } folder) return new { path = (string?)null, valid = false };
+        return new { path = folder, valid = LmuInstall.LooksLikeInstall(folder) };
     }
 
     private object SetLmuRoot(string path)
@@ -680,26 +695,17 @@ public sealed class ApiHost
     private object ExportCareer(JsonElement args)
     {
         var career = Load(args);
-        var dialog = new SaveFileDialog
-        {
-            Title = T("Export career"),
-            FileName = string.Concat(career.Name.Split(Path.GetInvalidFileNameChars())) + ".career.json",
-            Filter = T("Career save") + " (*.career.json)|*.career.json",
-        };
-        if (dialog.ShowDialog(_window) != true) return new { exported = false };
-        _store.Export(career.Id, dialog.FileName);
+        var file = _window.PickSaveFile(T("Export career"),
+            string.Concat(career.Name.Split(Path.GetInvalidFileNameChars())) + ".career.json", CareerSave);
+        if (file is null) return new { exported = false };
+        _store.Export(career.Id, file);
         return new { exported = true };
     }
 
     private object ImportCareer()
     {
-        var dialog = new OpenFileDialog
-        {
-            Title = T("Import career"),
-            Filter = T("Career save") + " (*.career.json)|*.career.json|" + T("All files") + "|*.*",
-        };
-        if (dialog.ShowDialog(_window) != true) return new { imported = false };
-        var career = _store.Import(dialog.FileName);
+        if (_window.PickOpenFile(T("Import career"), CareerSave, T("All files")) is not { } file) return new { imported = false };
+        var career = _store.Import(file);
         return new { imported = true, id = career.Id };
     }
 

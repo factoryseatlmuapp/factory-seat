@@ -3,7 +3,9 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using LmuCareer.Host;
 using Microsoft.Web.WebView2.Core;
+using Microsoft.Win32;
 
 namespace LmuCareer.App;
 
@@ -11,7 +13,7 @@ namespace LmuCareer.App;
 /// The app is a WebView2 page: its HTML, CSS and scripts are embedded in the exe and served from a
 /// private host name, and the page talks to <see cref="ApiHost"/> through web messages.
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IAppWindow
 {
     // A .localhost name: browsers resolve it on the PC itself and never ask a DNS server (RFC 6761),
     // so nothing about the app goes out on the network. The pages never reach it anyway: every
@@ -82,26 +84,13 @@ public partial class MainWindow : Window
         var path = new Uri(e.Request.Uri).AbsolutePath.TrimStart('/');
         if (path.Length == 0) path = "index.html";
 
-        var stream = typeof(MainWindow).Assembly.GetManifestResourceStream("wwwroot/" + path);
+        var stream = WebFiles.Open(path);
         var environment = Web.CoreWebView2.Environment;
         e.Response = stream is null
             ? environment.CreateWebResourceResponse(null, 404, "Not Found", "")
             : environment.CreateWebResourceResponse(stream, 200, "OK",
-                $"Content-Type: {ContentType(path)}\r\nCache-Control: no-store");
+                $"Content-Type: {WebFiles.ContentType(path)}\r\nCache-Control: no-store");
     }
-
-    private static string ContentType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
-    {
-        ".html" => "text/html; charset=utf-8",
-        ".css" => "text/css; charset=utf-8",
-        ".js" => "text/javascript; charset=utf-8",
-        ".json" => "application/json; charset=utf-8",
-        ".svg" => "image/svg+xml",
-        ".png" => "image/png",
-        ".ttf" => "font/ttf",
-        ".woff2" => "font/woff2",
-        _ => "application/octet-stream",
-    };
 
     private static void OpenExternal(string uri)
     {
@@ -116,7 +105,8 @@ public partial class MainWindow : Window
         StartupMessage.Visibility = Visibility.Visible;
     }
 
-    /// <summary>Sends the page a message it didn't ask for, such as a race arriving in the results folder.</summary>
+    public void Invoke(Action action) => Dispatcher.InvokeAsync(action);
+
     public void PostEvent(string json)
     {
         if (Web.CoreWebView2 is { } core) core.PostWebMessageAsJson(json);
@@ -162,4 +152,25 @@ public partial class MainWindow : Window
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
+    public string? PickFolder(string title)
+    {
+        var dialog = new OpenFolderDialog { Title = title };
+        return dialog.ShowDialog(this) == true ? dialog.FolderName : null;
+    }
+
+    public string? PickSaveFile(string title, string fileName, FileFilter filter)
+    {
+        var dialog = new SaveFileDialog { Title = title, FileName = fileName, Filter = $"{filter.Name} ({filter.Pattern})|{filter.Pattern}" };
+        return dialog.ShowDialog(this) == true ? dialog.FileName : null;
+    }
+
+    public string? PickOpenFile(string title, FileFilter filter, string allFiles)
+    {
+        var dialog = new OpenFileDialog { Title = title, Filter = $"{filter.Name} ({filter.Pattern})|{filter.Pattern}|{allFiles}|*.*" };
+        return dialog.ShowDialog(this) == true ? dialog.FileName : null;
+    }
+
+    public void OpenFolder(string path) =>
+        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
 }

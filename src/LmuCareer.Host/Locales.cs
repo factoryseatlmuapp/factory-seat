@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using LmuCareer.Core.Careers;
 using LmuCareer.Core.Content;
 
-namespace LmuCareer.App;
+namespace LmuCareer.Host;
 
 /// <summary>
 /// The languages the app speaks. Each is one JSON file mapping English text to its translation,

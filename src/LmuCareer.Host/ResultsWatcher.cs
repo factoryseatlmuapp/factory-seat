@@ -1,7 +1,6 @@
 using System.IO;
-using System.Windows.Threading;
 
-namespace LmuCareer.App;
+namespace LmuCareer.Host;
 
 /// <summary>
 /// Watches LMU's results folder and reports, on the UI thread, once new files have stopped
@@ -12,14 +11,15 @@ public sealed class ResultsWatcher : IDisposable
 {
     private static readonly TimeSpan QuietPeriod = TimeSpan.FromSeconds(2);
 
-    private readonly Dispatcher _dispatcher;
+    private readonly Action<Action> _invoke;
     private readonly Timer _timer;
     private FileSystemWatcher? _watcher;
 
-    public ResultsWatcher(Dispatcher dispatcher)
+    /// <param name="invoke">Runs an action on the UI thread.</param>
+    public ResultsWatcher(Action<Action> invoke)
     {
-        _dispatcher = dispatcher;
-        _timer = new Timer(_ => _dispatcher.InvokeAsync(() => Settled?.Invoke()));
+        _invoke = invoke;
+        _timer = new Timer(_ => _invoke(() => Settled?.Invoke()));
     }
 
     public event Action? Settled;
