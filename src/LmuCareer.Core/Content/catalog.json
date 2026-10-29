@@ -69,7 +69,7 @@
     { "folder": "Lamborghini_SC63_2024", "name": "Lamborghini SC63", "class": "Hyper", "brand": "lamborghini", "pack": "2024-1", "carTypes": ["Lamborghini SC63"], "seasons": {"WEC": [2024]} },
     { "folder": "Alpine_A424_2024", "name": "Alpine A424", "class": "Hyper", "brand": "alpine", "pack": "2024-2", "carTypes": ["Alpine A424"], "seasons": {"WEC": [2024, 2025, 2026]} },
     { "folder": "Isotta_Tipo6_2024", "name": "Isotta Fraschini Tipo 6", "class": "Hyper", "brand": "isotta-fraschini", "pack": "2024-2", "carTypes": [], "seasons": {"WEC": [2024]} },
-    { "folder": "Genesis_GMR001_2026", "name": "Genesis GMR-001", "class": "Hyper", "brand": "genesis", "pack": null, "carTypes": ["Genesis GMR-001"], "seasons": {"WEC": [2026]} },
+    { "folder": "Genesis_GMR001_2026", "name": "Genesis GMR-001", "class": "Hyper", "brand": "genesis", "pack": "base", "carTypes": ["Genesis GMR-001"], "seasons": {"WEC": [2026]} },
 
     { "folder": "Oreca_07_LM_2023", "name": "Oreca 07", "class": "LMP2", "pack": "base", "carTypes": ["Oreca 07"], "seasons": {"WEC": [2023, 2024, 2025, 2026]} },
     { "folder": "Oreca_07_ELMS_2023", "name": "Oreca 07 (ELMS)", "class": "LMP2", "pack": "base", "carTypes": ["Oreca 07"], "seasons": {"ELMS": [2025, 2026]} },
@@ -77,7 +77,7 @@
     { "folder": "Ligier_JSP325_2025", "name": "Ligier JS P325", "class": "LMP3", "pack": "elms-1", "carTypes": [], "seasons": {"ELMS": [2025, 2026]} },
     { "folder": "Ginetta_G61Evo_2025", "name": "Ginetta G61-LT-P3 Evo", "class": "LMP3", "pack": "elms-2", "carTypes": [], "seasons": {"ELMS": [2025]} },
     { "folder": "Duqueine_D09LMP3_2026", "name": "Duqueine D09", "class": "LMP3", "pack": "elms-3", "carTypes": [], "seasons": {"ELMS": [2025, 2026]} },
-    { "folder": "ADESS_AD25_2026", "name": "ADESS AD25", "class": "LMP3", "pack": null, "carTypes": [], "seasons": {"ELMS": [2025, 2026]} },
+    { "folder": "ADESS_AD25_2026", "name": "ADESS AD25", "class": "LMP3", "pack": "base", "carTypes": [], "seasons": {"ELMS": [2025, 2026]} },
 
     { "folder": "Ford_Mustang_GT3_2024", "name": "Ford Mustang", "class": "GT3", "brand": "ford", "pack": "base", "carTypes": ["Ford Mustang LMGT3"], "seasons": {"WEC": [2024, 2025, 2026]} },
     { "folder": "McLaren_720sGT3Evo_2023", "name": "McLaren 720S Evo", "class": "GT3", "brand": "mclaren", "pack": "base", "carTypes": ["McLaren 720S LMGT3 Evo"], "seasons": {"WEC": [2024, 2025, 2026], "ELMS": [2025, 2026]} },

@@ -160,8 +160,8 @@ public class ProgressionTests
 
         Assert.All(career.Offers.Where(o => o.Kind != OfferKind.ReSign),
             o => Assert.True(ContentCatalog.IsOwned(Catalog.Car(o.CarFolder)!.Pack, [])));
-        // No LMP3 car without the European packs: the ladder skips to LMP2, whose bar a rookie hasn't cleared.
-        Assert.DoesNotContain(career.Offers, o => o.Kind == OfferKind.Promotion);
+        // Without the European packs, the free ADESS is the only LMP3 car on offer.
+        Assert.All(career.Offers.Where(o => o.CarClass == "LMP3"), o => Assert.Equal("ADESS_AD25_2026", o.CarFolder));
     }
 
     [Fact]

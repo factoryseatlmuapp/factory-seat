@@ -24,7 +24,19 @@ public class ContentTests
     {
         var packs = Catalog.Packs.Select(p => p.Id).ToHashSet();
         Assert.All(Catalog.Tracks, t => Assert.Contains(t.Pack, packs));
-        Assert.All(Catalog.Cars.Where(c => c.Pack is not null), c => Assert.Contains(c.Pack!, packs));
+        // A car with no pack is never offered (Progression.CanOffer), so every car must name one.
+        Assert.All(Catalog.Cars, c => Assert.True(c.Pack is not null && packs.Contains(c.Pack), $"{c.Folder}: pack {c.Pack ?? "null"}"));
+    }
+
+    [Fact]
+    public void Every_team_can_offer_a_seat_with_every_pack_owned()
+    {
+        var career = new Career { OwnedContent = [.. AllPacks] };
+        // A team with no cars listed runs whatever its class has (the LMP3 customer teams).
+        Assert.All(Catalog.Teams, t => Assert.True(
+            (t.Cars.Count > 0 ? t.Cars.Select(Catalog.Car).OfType<CarInfo>() : Catalog.Cars.Where(c => c.Class == t.Class))
+                .Any(car => Progression.CanOffer(car, career, null)),
+            $"{t.Name}: no car it can offer"));
     }
 
     [Fact]
