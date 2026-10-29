@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Factory Seat
+Comment=A career mode for Le Mans Ultimate (unofficial)
+Exec=@APP@
+Icon=factory-seat
+Terminal=false
+Categories=Game;
+StartupWMClass=factory-seat

@@ -48,6 +48,19 @@ It needs Windows 10 or 11 (64-bit) and the Microsoft Edge WebView2 Runtime, whic
 
 Every release lists the installer's SHA-256 checksum and a link to its VirusTotal scan, so you can check the download before running it. The full source is in this repo too.
 
+### Linux
+
+For LMU through Steam's Proton on a 64-bit Linux desktop.
+
+1. Install WebKitGTK, which draws the app's window. On Ubuntu, Mint or Debian:
+   ```
+   sudo apt install libwebkit2gtk-4.1-0 gstreamer1.0-plugins-good
+   ```
+2. Download `FactorySeat-x.y.z-linux-x64.tar.gz` from [Releases](../../releases), unpack it, and run `./install.sh` in the unpacked folder. It installs for your user (no root) and adds Factory Seat to your applications menu. `./install.sh --uninstall` removes it.
+3. On first start, point the app at your Le Mans Ultimate folder. It finds it through Steam if it can (native, Flatpak or Snap Steam).
+
+The Linux build is new, so if something doesn't work, a [bug report](../../issues/new/choose) helps a lot. Starting it from a terminal as `FACTORY_SEAT_DEBUG=1 ~/.local/share/factory-seat/factory-seat` prints what the app is doing, which is useful to paste in. Known so far: the interface sounds may be silent.
+
 ## How a race weekend works
 
 1. Open your career and read the **Next race** briefing.
@@ -61,7 +74,7 @@ At the end of the season you get a review, a reputation change, and offers for n
 
 - **The app only reads LMU's results files.** It never changes game files or settings, and it doesn't automate anything in the game.
 - **DLC ownership is on trust.** LMU installs every pack's files whether you own it or not, so the app asks you which packs you have. Offers and calendars only use those.
-- **Your careers** are saved in `%AppData%\LmuCareer`. Uninstalling asks before it deletes them.
+- **Your careers** are saved in `%AppData%\LmuCareer` (`~/.config/LmuCareer` on Linux). Uninstalling asks before it deletes them.
 - **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings. The app collects no data and has no accounts or servers. Its window is drawn by Microsoft's WebView2 runtime, a Windows component that may contact Microsoft for its own updates, just as it does for other apps that use it.
 
 ## FAQ
@@ -115,10 +128,14 @@ dotnet run --project src/LmuCareer.App
 
 To build the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and run `installer\build.ps1`. The installer is written to `publish\installer\`.
 
-The code is split three ways:
+To build the Linux release (with Python and Pillow), run `python installer/build-linux.py`. The tarball is written to `publish/linux/`.
+
+The code is split like this:
 
 - `src/LmuCareer.Core` has the results parser, scoring, careers, offers, sponsors and the content catalog.
-- `src/LmuCareer.App` is the WPF + WebView2 desktop app, with its screens in `wwwroot`.
+- `src/LmuCareer.Host` is everything behind the app's window, shared by Windows and Linux.
+- `src/LmuCareer.App` is the Windows app (WPF + WebView2), with its screens in `wwwroot` and translations in `locales`.
+- `src/LmuCareer.Linux` is the Linux app (Photino + WebKitGTK).
 - `src/LmuCareer.Cli` is a small developer tool.
 
 Track outlines are rebuilt with `python tools/trackmaps.py build`.
