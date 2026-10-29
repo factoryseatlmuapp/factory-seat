@@ -83,7 +83,7 @@ At the end of the season you get a review, a reputation change, and offers for n
 No. Only offline Race Weekends count, and only the one that matches your current briefing. Online races, test drives and any other offline races are ignored, so you can race whatever else you like in LMU without affecting your career.
 
 **Do I need all the DLC?**
-No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks. The LMP3 rung needs the ELMS packs, and careers without them go straight from LMGT3 to LMP2.
+No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks, and LMP3 is raced in the free ADESS AD25.
 
 **Edge says the file "isn't commonly downloaded", or Windows says "Windows protected your PC". Is it safe?**
 Both are SmartScreen. It shows for any installer that isn't code-signed, and code signing costs money a free fan project doesn't have. Choose **More info → Run anyway**. If you'd like to check first, every release lists the installer's SHA-256 checksum and a VirusTotal scan, and the full source is in this repo.

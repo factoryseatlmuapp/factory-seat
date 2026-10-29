@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1
+
+- **Linux build,** for LMU through Steam's Proton: a tarball with an `install.sh` that adds Factory Seat to your applications menu. It finds LMU through native, Flatpak or Snap Steam. Known so far: the interface sounds may be silent. (#19)
+- The Genesis GMR-001 and ADESS AD25 are free base-game cars, and teams racing them now offer seats and test days. Thanks to SpringCarol for the report. (#27)
+- Prototype-road careers with only the base game get an LMP3 season in the ADESS instead of going straight to LMP2.
+
 ## 1.3.0 "Split Strategy"
 
 - **Two roads to Hypercar.** A new career picks the GT road (LMGT3, better GT teams, then a make's factory Hypercar) or the prototype road (LMP3, LMP2, Hypercar). A career from before 1.3 picks its road once, at the end of a season, and its offers are made again to match.
