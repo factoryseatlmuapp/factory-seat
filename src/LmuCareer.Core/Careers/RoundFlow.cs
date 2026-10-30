@@ -38,6 +38,12 @@ public sealed record RoundEvaluation(
     /// <summary>This check read practice the round hadn't seen yet (the career was saved with it).</summary>
     public bool PracticeChanged { get; init; }
 
+    /// <summary>
+    /// While nothing has turned up since the weekend started: a finished race for the round run
+    /// shortly before it, which the player can choose to count.
+    /// </summary>
+    public SessionCheck? RacedBeforeStart { get; init; }
+
     /// <summary>The race stopped before the flag, quit or saved: counting it means taking the DNF.</summary>
     public bool EndedEarly => Status is RoundStatus.QuitEarly or RoundStatus.SavedToResume;
 }

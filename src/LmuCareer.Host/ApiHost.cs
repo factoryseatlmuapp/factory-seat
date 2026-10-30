@@ -72,9 +72,10 @@ public sealed class ApiHost
         if (evaluation.PracticeChanged)
             _window.PostEvent(JsonSerializer.Serialize(new { @event = "practiceRead", careerId = id }, Json));
         var wrongCar = CareerActions.WrongCarRace(evaluation);
-        if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null) return;
+        if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null
+            && evaluation.RacedBeforeStart is null) return;
 
-        var signature = $"{id}|{evaluation.Status}|{evaluation.Race?.FileName}|{evaluation.Qualifying?.FileName}|{wrongCar?.FileName}";
+        var signature = $"{id}|{evaluation.Status}|{evaluation.Race?.FileName}|{evaluation.Qualifying?.FileName}|{wrongCar?.FileName}|{evaluation.RacedBeforeStart?.FileName}";
         if (signature == _lastPosted) return;
         _lastPosted = signature;
 
@@ -145,6 +146,9 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
+        "countRaceBeforeStart" => Change(args, c => CareerActions.CountRaceBeforeStart(
+            c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."),
+            CareerActions.CheckArmedRound(_store, c, ResultsFolder, _install?.RaceSavesFolder))),
         "acceptRound" => AcceptRound(args),
         "endSeason" => EndSeason(args),
         "setOwnedContent" => Change(args, c => c.OwnedContent = Strings(args, "ownedPacks")
@@ -757,6 +761,7 @@ public sealed class ApiHost
         race = CheckView(evaluation.Race),
         qualifying = CheckView(evaluation.Qualifying),
         ignored = evaluation.Ignored.Select(CheckView),
+        racedBeforeStart = CheckView(evaluation.RacedBeforeStart),
     };
 
     private static object? CheckView(SessionCheck? check) => check is null ? null : new

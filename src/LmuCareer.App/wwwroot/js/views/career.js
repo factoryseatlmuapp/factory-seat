@@ -836,7 +836,38 @@ export async function careerView(view, id, tab) {
     if (await attempt(call("armRound", { id }))) {
       toast(t("Race weekend started. Set it up in LMU and go racing."));
       show("briefing");
+      // Raced first, started the weekend after: offer that race straight away.
+      const evaluation = await attempt(call("checkRound", { id }));
+      if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
     }
+  }
+
+  /** A finished race for this round from just before the weekend started: count it, or race again. */
+  function offerRaceBeforeStart(race) {
+    const key = `${id}|before|${race.file}`;
+    if (dismissed.has(key)) return;
+    dismissed.add(key);
+    const p = race.player;
+    const count = async () => {
+      if (!(await attempt(call("countRaceBeforeStart", { id })))) return;
+      closeModal();
+      const evaluation = await attempt(call("checkRound", { id }));
+      if (evaluation) announce(evaluation);
+    };
+    showModal([
+      h("h2", {}, t("Count your earlier race?")),
+      h("div", { class: "notice info" },
+        h("b", {}, t("Raced before the weekend started")),
+        h("div", {}, t("You finished a race at {track} at {time}, just before starting this weekend. It looks like this round's race.",
+          { track: race.track, time: dateTime(race.writtenAt) })),
+        p ? h("div", { class: "muted" }, t("{carType} #{n}: class P{pos}, {laps} laps ({file})",
+          { carType: p.carType, n: p.carNumber, pos: p.classPosition, laps: p.laps, file: race.file })) : null),
+      h("p", { class: "muted" }, t("Count it, or leave it and race the round again.")),
+      h("div", { class: "modal-actions" },
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Race again")),
+        h("button", { class: "btn", "data-sound": "confirm", onclick: count }, t("Count it"))),
+    ]);
   }
 
   /** A different length for the next race, before its weekend: Time Scale, Fuel Usage, Tyre Wear and stints follow. */
@@ -878,6 +909,7 @@ export async function careerView(view, id, tab) {
   /** A race (or qualifying) turned up for the armed round: pop it up wherever the player is in the career. */
   function announce(evaluation) {
     if (evaluation.status === "Waiting") {
+      if (evaluation.racedBeforeStart) return offerRaceBeforeStart(evaluation.racedBeforeStart);
       const wrong = wrongCarRace(evaluation);
       if (wrong) return announceWrongCar(wrong);
       if (evaluation.qualifying) toast(t("Qualifying recorded ({file}). Now go race.", { file: evaluation.qualifying.file }));
@@ -954,7 +986,12 @@ export async function careerView(view, id, tab) {
           break;
         }
         put(results, h("div", { class: "notice" }, h("b", {}, t("No race yet")),
-          h("div", {}, t("Nothing written since the weekend started matches this round. LMU writes the results file when the session ends."))));
+          h("div", {}, t("Nothing written since the weekend started matches this round. LMU writes the results file when the session ends.")),
+          evaluation.racedBeforeStart
+            ? h("div", { class: "row" },
+                h("span", { class: "muted" }, t("There's a race from just before the weekend started.")),
+                h("button", { class: "btn ghost small", onclick: () => { dismissed.delete(`${id}|before|${evaluation.racedBeforeStart.file}`); offerRaceBeforeStart(evaluation.racedBeforeStart); } }, t("Count it?")))
+            : null));
         break;
       case "Ready":
         sound.confirm();

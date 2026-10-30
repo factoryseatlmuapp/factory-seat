@@ -255,6 +255,55 @@ public class RoundFlowTests
         }
     }
 
+    [Theory]
+    [InlineData(-10, "OK", true)]    // finished the race, then remembered to start the weekend
+    [InlineData(-55, "OK", true)]    // still inside the hour
+    [InlineData(-75, "OK", false)]   // too long ago: an old race can't be brought in
+    [InlineData(-10, "DNF", false)]  // quit before the flag: nothing finished to offer
+    public void A_race_finished_just_before_the_weekend_started_can_be_counted(int minutesBeforeArming, string status, bool offered)
+    {
+        var root = Directory.CreateTempSubdirectory("lmucareer-early-");
+        try
+        {
+            var store = new CareerStore(Path.Combine(root.FullName, "saves"));
+            var results = Directory.CreateDirectory(Path.Combine(root.FullName, "Results"));
+            var career = new Career { CurrentSeason = new Season { Car = Car, Rounds = [ArmedRound()] } };
+            var round = career.CurrentSeason.Rounds[0];
+
+            var quali = Path.Combine(results.FullName, "Q1.xml");
+            Weekend(session: "Qualify").Car("Me", player: true, number: "69").Build().Save(quali);
+            File.SetLastWriteTimeUtc(quali, ArmedAt.AddMinutes(minutesBeforeArming - 40).UtcDateTime);
+            var race = Path.Combine(results.FullName, "R1.xml");
+            (status == "DNF"
+                ? Weekend().Car("Me", player: true, number: "69", status: "DNF").Car("AI", classPos: 2, status: "None")
+                : Weekend().Car("Me", player: true, number: "69")).Build().Save(race);
+            File.SetLastWriteTimeUtc(race, ArmedAt.AddMinutes(minutesBeforeArming).UtcDateTime);
+
+            var evaluation = CareerActions.CheckArmedRound(store, career, results.FullName);
+
+            Assert.Equal(RoundStatus.Waiting, evaluation.Status);
+            Assert.Equal(offered ? "R1.xml" : null, evaluation.RacedBeforeStart?.FileName);
+            if (!offered)
+            {
+                Assert.ThrowsAny<InvalidOperationException>(() => CareerActions.CountRaceBeforeStart(round, evaluation));
+                return;
+            }
+
+            // Counting it moves the weekend's start back: the race, and the qualifying before it in the hour, are read as usual.
+            CareerActions.CountRaceBeforeStart(round, evaluation);
+            var counted = CareerActions.CheckArmedRound(store, career, results.FullName);
+
+            Assert.Equal(RoundStatus.Ready, counted.Status);
+            Assert.Equal("R1.xml", counted.Race!.FileName);
+            Assert.Equal(minutesBeforeArming - 40 >= -60 ? "Q1.xml" : null, counted.Qualifying?.FileName);
+            Assert.Null(counted.RacedBeforeStart);
+        }
+        finally
+        {
+            root.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public void Nothing_written_yet_is_waiting()
     {
