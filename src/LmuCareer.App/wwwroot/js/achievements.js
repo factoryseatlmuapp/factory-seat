@@ -192,7 +192,8 @@ const tierOf = (def) => (def.newGamePlus ? "ngplus" : def.secret ? "secret" : "n
 
 /** "Earned 3 Nov 2026 · Sebring · Ginetta G61-LT-P3", or as much of it as is known. */
 function earnedLine(earned, carName) {
-  const where = [earned.eventName, earned.carType ? carName(earned.carType) : ""].filter(Boolean).join(" · ");
+  const where = [earned.eventName, earned.carType ? carName(earned.carType) : ""].filter(Boolean).join(" · ")
+    || (earned.season ? t("Season {n}", { n: earned.season }) : "");
   if (earned.backfilled) return where ? t("Earned before 1.4 · {where}", { where }) : t("Earned before 1.4");
   return where ? t("Earned {date} · {where}", { date: dateTime(earned.earnedAt), where }) : t("Earned {date}", { date: dateTime(earned.earnedAt) });
 }
