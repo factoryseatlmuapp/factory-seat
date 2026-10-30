@@ -118,6 +118,17 @@ Two more fields on `round`, `null` for an ordinary race in the season's own cham
 }
 ```
 
+## Added in 1.4 (still version 1)
+
+One more field on `round`, `null` in a normal career:
+
+```json
+"round": {
+  "...": "as above",
+  "floor": { "aiStrength": 94, "aiAggression": 2, "wet": true, "minDamage": 100 }
+}
+```
+
 ## Fields
 
 Values are LMU's own, not the words on Factory Seat's screens, so they can be compared with what
@@ -183,6 +194,12 @@ the first race decides it); `targetPosition` is the team's target in the class s
   `team` is the team, `minLaps` the practice laps it wants to see, and `passShare` how close to the
   fastest AI lap in class impresses it (0.005 = within 0.5%). The race settings and pit plan don't
   apply; `null` for a race.
+- `floor` (1.4): a New Game+ round's floor, what the race must be run at to count for New Game+;
+  `null` in a normal career. `aiStrength` is LMU's AI Strength exactly (`94` = 94%), `aiAggression`
+  LMU's AI Aggression Mode (`2` = High), `wet` a round set for rain (it counts as wet once any car
+  runs a lap on wet tyres), and `minDamage` LMU's damage percent or more (never Invulnerable).
+  Mechanical failures must be on, and fuel and tyre use at Real or more. Factory Seat checks the
+  results file, LMU's saves and Settings.JSON when the race is counted.
 
 **sponsors**: the season's personal sponsor deals. `kind` is one of `FinishEveryRound`, `Podiums`,
 `Wins`, `Poles`, `PodiumAt`, `ChampionshipTop`, `CleanSeason`, `BeatRival`; `objective` describes it

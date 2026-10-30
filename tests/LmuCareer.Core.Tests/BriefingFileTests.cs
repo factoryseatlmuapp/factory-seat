@@ -78,6 +78,22 @@ public sealed class BriefingFileTests : IDisposable
     }
 
     [Fact]
+    public void Since_1_4_a_new_game_plus_round_says_its_floor()
+    {
+        var career = Career();
+        career.CurrentSeason.Rounds[0].Floor = new RoundFloor(94, true, 75);
+        var round = () => JsonDocument.Parse(BriefingFile.For(career, ContentCatalog.Default, "1.4.0", DateTimeOffset.Now).ToJson()).RootElement.GetProperty("round");
+        Assert.Equal(JsonValueKind.Null, round().GetProperty("floor").ValueKind); // a normal career
+
+        career.NewGamePlus = new NewGamePlusState();
+        var floor = round().GetProperty("floor");
+        Assert.Equal(94, floor.GetProperty("aiStrength").GetInt32());
+        Assert.Equal(2, floor.GetProperty("aiAggression").GetInt32());
+        Assert.True(floor.GetProperty("wet").GetBoolean());
+        Assert.Equal(75, floor.GetProperty("minDamage").GetInt32());
+    }
+
+    [Fact]
     public void Version_1_fields_stay_and_1_2_adds_stakes_history_practice_and_pace()
     {
         var career = Career();
