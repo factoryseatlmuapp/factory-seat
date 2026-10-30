@@ -8,6 +8,7 @@ import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts
 import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
+import { achievementList, achievementCount, achievementTile, popUnlocks } from "../achievements.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -104,6 +105,7 @@ export async function careerView(view, id, tab) {
 
   put(view, carStrip());
   await ({ briefing, inbox, calendar, standings, career: history }[tab] ?? briefing)();
+  popAchievements();
 
   if (noticed) {
     const n = noticed;
@@ -1466,6 +1468,43 @@ export async function careerView(view, id, tab) {
         t("Sector times, stints and incidents are kept for races counted in 1.2 or later, and for older races whose results file was still in LMU's folder.")));
   }
 
+  /** Achievements earned since the player last saw: one pop-up each, or a note for ones a career from before 1.4 already had. */
+  function popAchievements() {
+    const unseen = data.career.achievements.filter((a) => !a.seen);
+    if (unseen.length === 0) return;
+    unseen.forEach((a) => { a.seen = true; });
+    call("seeAchievements", { id }).catch(() => {});
+    const backfilled = unseen.filter((a) => a.backfilled).length;
+    if (backfilled > 0) {
+      toast(tn(backfilled, "Achievements are here, and this career has already earned one. See it on the Career tab.",
+        "Achievements are here, and this career has already earned {n}. See them on the Career tab."));
+    }
+    popUnlocks(unseen.filter((a) => !a.backfilled), data.achievements.all, { onOpen: openAchievements });
+  }
+
+  function openAchievements() {
+    const { earned, total } = achievementCount(data.career, data.achievements);
+    showModal([
+      h("h2", {}, t("Achievements")),
+      h("p", { class: "muted" }, t("{earned} of {total} earned in this career.", { earned, total })),
+      achievementList(data.career, data.achievements, carName),
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ], { wide: true });
+  }
+
+  function achievementsCard() {
+    const { earned, total } = achievementCount(data.career, data.achievements);
+    const kinds = new Map(data.achievements.all.map((a) => [a.id, a.secret ? "secret" : "normal"]));
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Achievements")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "rep-figures", style: { fontSize: "32px" } }, h("b", {}, earned), h("span", { class: "muted" }, t("of {n}", { n: total }))),
+        earned > 0
+          ? h("div", { class: "ach-summary" }, data.career.achievements.filter((a) => kinds.has(a.id)).map((a) => achievementTile(a.id, kinds.get(a.id))))
+          : h("div", { class: "faint", style: { fontSize: "12px", margin: "6px 0 10px" } }, t("Count your first race to earn your first one.")),
+        h("button", { class: "btn ghost small", onclick: openAchievements }, t("View all")))];
+  }
+
   function history() {
     const seasons = [...data.career.pastSeasons, season()];
     const carName = (carType) => cat.cars.find((c) => c.carTypes.includes(carType))?.name ?? carType;
@@ -1498,6 +1537,7 @@ export async function careerView(view, id, tab) {
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
             nationalityCard()],
+          achievementsCard(),
           h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your content")),
           h("div", { class: "card quiet" },
             h("div", { class: "muted" }, packs

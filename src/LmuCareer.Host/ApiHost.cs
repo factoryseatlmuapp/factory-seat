@@ -146,6 +146,7 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
+        "seeAchievements" => See(args),
         "countRaceBeforeStart" => Change(args, c => CareerActions.CountRaceBeforeStart(
             c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."),
             CareerActions.CheckArmedRound(_store, c, ResultsFolder, _install?.RaceSavesFolder))),
@@ -539,6 +540,14 @@ public sealed class ApiHost
         return CareerViewData(career);
     }
 
+    /// <summary>The unlock pop-ups have been shown. Not playing: the career keeps its place in the list.</summary>
+    private object See(JsonElement args)
+    {
+        var career = Load(args);
+        if (Achievements.MarkSeen(career)) _store.Save(career);
+        return new { };
+    }
+
     private object Change(JsonElement args, Action<Career> change)
     {
         var career = Load(args);
@@ -567,10 +576,9 @@ public sealed class ApiHost
     /// <summary>The career for the page, after checking for achievements its latest change earned.</summary>
     private object CareerView(Career career)
     {
-        var unlocked = Achievements.Update(career, _catalog, DateTimeOffset.Now);
-        if (unlocked.Count > 0) _store.Save(career);
+        if (Achievements.Update(career, _catalog, DateTimeOffset.Now).Count > 0) _store.Save(career);
         WriteBriefing(career);
-        return CareerViewData(career, unlocked);
+        return CareerViewData(career);
     }
 
     /// <summary>
@@ -590,15 +598,14 @@ public sealed class ApiHost
         }
     }
 
-    private object CareerViewData(Career career, IReadOnlyList<EarnedAchievement>? unlocked = null) => new
+    private object CareerViewData(Career career) => new
     {
         career,
-        // Every achievement, what this career has earned, progress on the rest, and what was just earned (to pop up).
+        // Every achievement and progress on the ones still to earn; what's earned is in the career (unseen ones pop up).
         achievements = new
         {
             all = Achievements.All,
             progress = Achievements.Progress(career, _catalog),
-            unlocked = unlocked ?? [],
         },
         sponsors = career.CurrentSeason.Sponsors.Select(d => new
         {

@@ -18,6 +18,9 @@ public sealed class EarnedAchievement
 
     /// <summary>Earned before achievements existed: found on the career's first open in 1.4, not as it happened.</summary>
     public bool Backfilled { get; set; }
+
+    /// <summary>The player has been shown it (the unlock pop-up, or the note about backfilled ones).</summary>
+    public bool Seen { get; set; }
 }
 
 /// <param name="Secret">Hidden (no rule, no progress) until earned.</param>
@@ -88,6 +91,14 @@ public static class Achievements
             earned.Add(achievement);
         }
         return earned;
+    }
+
+    /// <summary>Marks every earned achievement as shown to the player.</summary>
+    public static bool MarkSeen(Career career)
+    {
+        var unseen = career.Achievements.Where(a => !a.Seen).ToList();
+        foreach (var achievement in unseen) achievement.Seen = true;
+        return unseen.Count > 0;
     }
 
     /// <summary>Progress on each unearned, non-secret achievement that has something to count.</summary>

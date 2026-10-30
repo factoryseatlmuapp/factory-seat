@@ -470,3 +470,45 @@ select.input { padding: 6px 8px; }
 .status-chip.Struggling { color: var(--bad); border-color: var(--bad); }
 .offer-notes { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; }
 .warn-text { color: var(--warn); }
+
+/* ---------- Achievements ---------- */
+.ach-tile { flex: none; width: 56px; height: 56px; border-radius: 3px; display: grid; place-items: center; }
+.ach-tile svg { width: 46px; height: 46px; }
+.ach-tile.normal { --tile: var(--accent); background: var(--accent); }
+.ach-tile.ngplus { --tile: #b88a1a; background: linear-gradient(145deg, #e2b33a, #a87a12); }
+.ach-tile.secret { --tile: #0a0a0c; background: #0a0a0c; border: 1px solid rgba(255, 255, 255, 0.25); }
+.ach-tile.locked { --tile: #2a3142; background: #2a3142; }
+.ach-tile.locked svg { opacity: 0.35; }
+.ach-tile.hidden { background: #1b1f29; border: 1px dashed rgba(255, 255, 255, 0.2); }
+.ach-q { font: 700 32px/1 "Barlow Condensed", var(--cjk); color: #697387; }
+.ach-list { display: grid; gap: 8px; }
+.ach-row { display: flex; gap: 14px; align-items: center; padding: 10px; background: var(--panel);
+  border: 1px solid var(--border-soft); border-radius: 4px; }
+.ach-info { min-width: 0; flex: 1; }
+.ach-name { font: 700 20px/1.1 "Barlow Condensed", var(--cjk); }
+.ach-row.locked .ach-name { color: var(--text-dim); }
+.ach-rule { color: var(--text-dim); font-size: 14px; }
+.ach-meta { color: var(--text-faint); font-size: 13px; margin-top: 2px; }
+.ach-bar { height: 4px; background: rgba(127, 127, 127, 0.2); border-radius: 2px; margin-top: 5px; max-width: 260px; }
+.ach-bar span { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.ach-tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 2px; margin-left: 8px; vertical-align: 3px;
+  letter-spacing: 0.06em; text-transform: uppercase; font-family: "Segoe UI", system-ui, sans-serif; }
+.ach-tag.ng { background: #c9971f; color: #1a1205; }
+.ach-tag.sec { background: #000; color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); }
+.ach-summary { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
+.ach-summary .ach-tile { width: 36px; height: 36px; }
+.ach-summary .ach-tile svg { width: 30px; height: 30px; }
+.ach-pop { position: fixed; right: 24px; bottom: 24px; z-index: 70; width: 340px; display: flex; gap: 12px; align-items: center;
+  padding: 12px; background: var(--panel-solid); border: 1px solid var(--border-soft); border-left: 4px solid var(--accent);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); cursor: pointer; overflow: hidden; animation: ach-in 0.35s ease-out; }
+.ach-pop::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.12;
+  background: linear-gradient(135deg, transparent 0 78%, #fff 78% 80%, transparent 80% 83%, #fff 83% 85%, transparent 85%); }
+.ach-pop.leaving { animation: ach-out 0.4s ease-in forwards; }
+.ach-pop.ngplus { border-left-color: #c9971f; }
+.ach-pop.secret { border-left-color: var(--text); }
+.ach-kicker { font: 700 13px/1.2 "Barlow Condensed", var(--cjk); color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; }
+.ach-pop.ngplus .ach-kicker { color: #e2b33a; }
+.ach-pop.secret .ach-kicker { color: var(--text); }
+@keyframes ach-in { from { transform: translateX(120%); } to { transform: translateX(0); } }
+@keyframes ach-out { to { transform: translateX(120%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ach-pop, .ach-pop.leaving { animation: none; } }
