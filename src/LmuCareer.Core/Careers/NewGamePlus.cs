@@ -112,6 +112,80 @@ public static class HeadStarts
         career.IsNewGamePlus && career.NewGamePlus!.HeadStarts.Contains(headStart);
 }
 
+/// <summary>New Game+'s consequences: reputation a race costs, and losing the seat (design doc, Oct 16 and Oct 28).</summary>
+public static class Consequences
+{
+    public const decimal PenaltyCost = 1, DisqualifiedCost = 3, BarrierDnfCost = 2;
+
+    /// <summary>From LMP3 up, a team lets the player go once reputation falls this far below the class's bar.</summary>
+    public const decimal LetGoBelowBar = 10;
+
+    public static decimal Cost(FloorCheck check) =>
+        check.Penalties * PenaltyCost + (check.Disqualified ? DisqualifiedCost : 0) + (check.BarrierDnf ? BarrierDnfCost : 0);
+
+    /// <summary>The reputation a class's teams look for; IMSA's classes use their LMU counterpart's.</summary>
+    public static decimal Bar(string carClass) => Progression.Threshold(carClass switch
+    {
+        "GTP" => "Hyper",
+        "GTD" => "GT3",
+        _ => carClass,
+    });
+
+    /// <summary>Whether reputation is low enough for a team in the class to let the player go. GT3 and GTE have no bar to fall under.</summary>
+    public static bool BelowBar(decimal reputation, string carClass) =>
+        Bar(carClass) > 0 && reputation < Bar(carClass) - LetGoBelowBar;
+
+    /// <summary>
+    /// Takes what the counted race cost; from LMP3 up, a reputation that falls far enough below the
+    /// class's bar loses the seat mid-season. An IMSA seat goes alone: the season's own stays.
+    /// </summary>
+    public static void AfterRace(Career career, Round round, FloorCheck check, DateTimeOffset now)
+    {
+        var before = career.Reputation;
+        career.Reputation = Math.Max(0, before - Cost(check));
+        check.ReputationCost = before - career.Reputation;
+
+        var season = career.CurrentSeason;
+        if (check.ReputationCost == 0 || !BelowBar(career.Reputation, season.CarFor(round).CarClass)) return;
+        var contract = season.ContractFor(round);
+        if (contract is null)
+        {
+            contract = new Contract { TeamName = season.TeamFor(round) };
+            if (round.SeriesId.Length == 0) season.Contract = contract;
+            else if (season.SeriesOf(round) is { } series) series.Contract = contract;
+        }
+        if (contract.LetGoAt is not null) return;
+        contract.LetGoAt = now;
+        check.LetGo = true;
+        foreach (var rest in season.SeriesRounds(round.SeriesId).Where(r => r.State == RoundState.Upcoming))
+            rest.State = RoundState.Skipped;
+    }
+
+    /// <summary>Let go: one loyalty stage down with the make or team, not burned (the bottom of the stage below).</summary>
+    public static decimal StageDown(decimal points) => Loyalties.Stage(points) switch
+    {
+        LoyaltyStage.FactoryDriver => Loyalties.DevelopmentAt,
+        LoyaltyStage.DevelopmentDriver => Loyalties.RadarAt,
+        LoyaltyStage.OnTheirRadar => 0,
+        _ => points,
+    };
+
+    /// <summary>
+    /// The class a let-go player's offers come from: the highest on their road whose bar their
+    /// reputation still clears, never above the class they were let go from; the road's first class
+    /// when none does.
+    /// </summary>
+    public static string ClassAfterLetGo(Career career, string carClass)
+    {
+        var ladder = Progression.LadderFor(career.Path);
+        var top = ladder.ToList().IndexOf(carClass);
+        if (top < 0) return carClass;
+        for (var i = top; i >= 0; i--)
+            if (career.Reputation >= Bar(ladder[i])) return ladder[i];
+        return ladder[0];
+    }
+}
+
 public static class Retirement
 {
     /// <summary>Counted races a season needs in the starting class before the career can retire.</summary>

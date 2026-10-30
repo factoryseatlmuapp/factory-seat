@@ -196,6 +196,9 @@ public sealed class Contract
 
     /// <summary>A Hypercar seat won on reputation alone, not through a ladder or a make.</summary>
     public bool ReputationDoor { get; set; }
+
+    /// <summary>New Game+: when the team let the player go mid-season; the rest of its rounds were skipped.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? LetGoAt { get; set; }
 }
 
 /// <summary>A team that noticed a big result mid-season: it makes an offer when the season ends.</summary>

@@ -115,6 +115,7 @@ public static class Progression
     /// <summary>The review's closing item when the season's change hits its limit.</summary>
     public const string CapUp = "Reputation grows at most {n} a season"; // phrase
     public const string CapDown = "Reputation falls at most {n} a season"; // phrase
+    public const string RaceCostsItem = "New Game+: penalties, disqualifications and barrier DNFs"; // phrase
 
     public static SeasonReview Review(Season season, decimal reputationBefore)
     {
@@ -247,12 +248,16 @@ public static class Progression
                 ? Phrase.Of(CapUp, ("n", MaxGain))
                 : Phrase.Of(CapDown, ("n", MaxLoss)), change - total));
 
+        // New Game+: what the races cost was taken as each was counted, outside the season's limit.
+        var raceCosts = season.Rounds.Sum(r => r.Result?.Floor?.ReputationCost ?? 0);
+        if (raceCosts > 0) items.Add(ReputationItem.For(Phrase.Of(RaceCostsItem), -raceCosts));
+
         return new SeasonReview
         {
             ChampionshipPosition = position,
             TargetPosition = target,
             TargetMet = position <= target,
-            ReputationBefore = reputationBefore,
+            ReputationBefore = reputationBefore + raceCosts,
             ReputationAfter = Math.Clamp(reputationBefore + change, 0, 100),
             Items = items,
             SeasonWeight = weight,
@@ -384,9 +389,11 @@ public static class Progression
         // A player still under contract stays unless the season went badly enough for the team to
         // let them go; only a step up (or a team that noticed them) can buy them out.
         var underContract = season.Contract?.SeasonsLeft > 1;
-        var keeps = underContract
+        // New Game+: let go mid-season, or a reputation far under the class's bar, and there's no new deal.
+        var letGo = career.IsNewGamePlus && (season.Contract?.LetGoAt is not null || Consequences.BelowBar(reputation, currentClass));
+        var keeps = !letGo && (underContract
             ? review.ChampionshipPosition <= review.TargetPosition + 4
-            : review.TargetMet || review.ChampionshipPosition <= review.TargetPosition + 2;
+            : review.TargetMet || review.ChampionshipPosition <= review.TargetPosition + 2);
         if (keeps && currentCar is not null)
         {
             var tier = season.Contract?.Tier ?? 2;
@@ -487,6 +494,8 @@ public static class Progression
 
         // Under contract, the only other calls are step-up seats.
         var ladderClass = career.GteClassic ? "GTE" : Ladder.Contains(currentClass) ? currentClass : "GT3";
+        // Let go, the calls come from the class the reputation still fits.
+        if (letGo) ladderClass = Consequences.ClassAfterLetGo(career, ladderClass);
         var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
         // A step up is never forced: a player out of contract always has a seat in their own class.
         var sameClass = offers.Count(o => o.CarClass == ladderClass);

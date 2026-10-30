@@ -351,3 +351,111 @@ public class NewGamePlusEndsTests
         }
     }
 }
+
+public class ConsequencesTests
+{
+    private static readonly ContentCatalog Catalog = ContentCatalog.Default;
+    private static readonly DateTimeOffset Now = new(2026, 11, 1, 20, 0, 0, TimeSpan.Zero);
+
+    /// <summary>An NG+ career two rounds into an eight-round season in the class.</summary>
+    private static Career Racing(decimal reputation, string carClass)
+    {
+        var rounds = Enumerable.Range(1, 8).Select(n => n <= 2 ? ProgressionTests.Counted(n, 3, carClass) : new Round { Number = n }).ToArray();
+        var career = ProgressionTests.CareerWith(reputation, carClass, rounds);
+        career.NewGamePlus = new NewGamePlusState();
+        career.CurrentSeason.Contract = new Contract { TeamName = "Sample Racing", Tier = 2 };
+        return career;
+    }
+
+    [Fact]
+    public void A_race_costs_reputation_as_it_is_counted()
+    {
+        var career = Racing(20, "GT3");
+        var check = new FloorCheck { Penalties = 2, BarrierDnf = true };
+
+        Consequences.AfterRace(career, career.CurrentSeason.Rounds[1], check, Now);
+
+        Assert.Equal(16, career.Reputation);
+        Assert.Equal(4, check.ReputationCost);
+        Assert.False(check.LetGo);
+    }
+
+    [Fact]
+    public void Reputation_never_goes_below_zero_and_GT3_never_fires_mid_season()
+    {
+        var career = Racing(2, "GT3");
+        var check = new FloorCheck { Disqualified = true, Penalties = 3 };
+
+        Consequences.AfterRace(career, career.CurrentSeason.Rounds[1], check, Now);
+
+        Assert.Equal(0, career.Reputation);
+        Assert.Equal(2, check.ReputationCost);
+        Assert.False(check.LetGo);
+        Assert.Null(career.CurrentSeason.Contract!.LetGoAt);
+    }
+
+    [Theory]
+    [InlineData(17, 1, false)] // 16: still within 10 of LMP3's bar (25)
+    [InlineData(16, 2, true)]  // 14: let go
+    public void From_LMP3_up_falling_10_below_the_bar_loses_the_seat_mid_season(decimal reputation, int penalties, bool letGo)
+    {
+        var career = Racing(reputation, "LMP3");
+        var check = new FloorCheck { Penalties = penalties };
+
+        Consequences.AfterRace(career, career.CurrentSeason.Rounds[1], check, Now);
+
+        Assert.Equal(letGo, check.LetGo);
+        Assert.Equal(letGo, career.CurrentSeason.Contract!.LetGoAt is not null);
+        Assert.Equal(letGo, career.CurrentSeason.IsFinished); // the rest of the season is skipped
+    }
+
+    [Theory]
+    [InlineData("LMP2", 30, "LMP3")]
+    [InlineData("LMP2", 10, "GT3")]
+    [InlineData("Hyper", 45, "LMP2")]
+    public void Let_go_the_calls_come_from_the_class_the_reputation_fits(string carClass, decimal reputation, string expected)
+    {
+        var career = Racing(reputation, carClass);
+        Assert.Equal(expected, Consequences.ClassAfterLetGo(career, carClass));
+
+        career.Path = CareerPath.Prototype; // the prototype road starts at LMP3
+        Assert.Equal(expected == "GT3" ? "LMP3" : expected, Consequences.ClassAfterLetGo(career, carClass));
+    }
+
+    [Fact]
+    public void A_let_go_season_gets_no_re_sign_and_offers_a_class_down()
+    {
+        var career = Racing(16, "LMP2");
+        Consequences.AfterRace(career, career.CurrentSeason.Rounds[1], new FloorCheck { Disqualified = true }, Now);
+
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        Assert.DoesNotContain(career.Offers, o => o.Kind == OfferKind.ReSign);
+        Assert.NotEmpty(career.Offers);
+        Assert.All(career.Offers, o => Assert.NotEqual("LMP2", o.CarClass));
+    }
+
+    [Fact]
+    public void The_review_lists_what_the_races_cost()
+    {
+        var career = Racing(20, "GT3");
+        var round = career.CurrentSeason.Rounds[1];
+        round.Result!.Floor = new FloorCheck { Penalties = 2 };
+        Consequences.AfterRace(career, round, round.Result.Floor, Now);
+        foreach (var rest in career.CurrentSeason.Rounds.Skip(2)) rest.State = RoundState.Skipped;
+
+        var review = Progression.Review(career.CurrentSeason, career.Reputation);
+
+        Assert.Equal(20, review.ReputationBefore);
+        Assert.Contains(review.Items, i => i.Label == Progression.RaceCostsItem && i.Points == -2);
+        Assert.Equal(review.ReputationBefore + review.Items.Sum(i => i.Points), review.ReputationAfter);
+    }
+
+    [Theory]
+    [InlineData(80, 50)]
+    [InlineData(60, 25)]
+    [InlineData(30, 0)]
+    [InlineData(10, 10)] // no stage to lose
+    public void Let_go_drops_one_loyalty_stage(decimal points, decimal after) =>
+        Assert.Equal(after, Consequences.StageDown(points));
+}

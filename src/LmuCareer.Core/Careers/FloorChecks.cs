@@ -54,6 +54,12 @@ public sealed class FloorCheck
     /// <summary>Hit the barrier and didn't finish.</summary>
     public bool BarrierDnf { get; set; }
 
+    /// <summary>Reputation the race cost, taken when it was counted (penalties, a DQ, a barrier DNF).</summary>
+    public decimal ReputationCost { get; set; }
+
+    /// <summary>The cost took reputation far enough below the class's bar that the team let the player go.</summary>
+    public bool LetGo { get; set; }
+
     /// <summary>Below the floor: the points count, but nothing New Game+ comes of it.</summary>
     public bool Reduced => Flags.Count > 0;
 }
@@ -78,6 +84,7 @@ public static class FloorChecks
         var (strength, aggression) = Proof(round, install);
         result.Floor = Check(floor, race, qualifying, strength);
         if (aggression is { } a && a < Floor.Aggression) result.Floor.Flags.Add(FloorFlag.Aggression);
+        Consequences.AfterRace(career, round, result.Floor, now);
 
         var flagged = career.CurrentSeason.Rounds.Count(r => r.Result?.Floor?.Reduced == true);
         if (flagged >= FlagsToEnd) career.NewGamePlus!.EndedAt = now;

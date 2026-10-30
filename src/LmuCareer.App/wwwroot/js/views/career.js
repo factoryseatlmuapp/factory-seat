@@ -112,15 +112,22 @@ export async function careerView(view, id, tab) {
 
   if (floorNotice) {
     const round = floorNotice;
+    const check = round.result.floor;
     floorNotice = null;
     showModal([
-      h("h2", {}, t("Below the New Game+ floor")),
-      h("div", { class: "notice bad" },
-        h("b", {}, round.eventName),
-        h("ul", { style: { margin: "6px 0 0", paddingLeft: "18px" } }, round.result.floor.flags.map((f) => h("li", {}, floorFlagText(f, round))))),
-      h("p", { class: "muted" }, data.career.newGamePlus?.endedAt
-        ? t("That's {n} rounds below the floor this season: the career is a normal career from now on. Its New Game+ results so far stand.", { n: flaggedRounds() })
-        : t("The points count, but the race earns no New Game+ credit: no New Game+ achievements, and its trophy plate goes on the normal shelf. Rounds below the floor this season: {n} of {max}.", { n: flaggedRounds(), max: 3 })),
+      h("h2", {}, check.letGo ? t("Let go") : check.flags.length ? t("Below the New Game+ floor") : t("A costly race")),
+      check.letGo ? h("div", { class: "notice bad" },
+        t("{team} let you go: your reputation ({rep}) fell more than 10 below what {carClass} teams look for. The rest of their season is skipped; offers come in at the season's end, from the class your reputation still fits.",
+          { team: season().contract?.teamName || season().car.teamName || t("Your team"), rep: number(data.career.reputation), carClass: classLabel(round) })) : null,
+      check.flags.length ? [
+        h("div", { class: "notice bad" },
+          h("b", {}, round.eventName),
+          h("ul", { style: { margin: "6px 0 0", paddingLeft: "18px" } }, check.flags.map((f) => h("li", {}, floorFlagText(f, round))))),
+        h("p", { class: "muted" }, data.career.newGamePlus?.endedAt
+          ? t("That's {n} rounds below the floor this season: the career is a normal career from now on. Its New Game+ results so far stand.", { n: flaggedRounds() })
+          : t("The points count, but the race earns no New Game+ credit: no New Game+ achievements, and its trophy plate goes on the normal shelf. Rounds below the floor this season: {n} of {max}.", { n: flaggedRounds(), max: 3 })),
+      ] : null,
+      check.reputationCost > 0 ? h("p", {}, t("Reputation {cost} for {what}.", { cost: `−${number(check.reputationCost)}`, what: costText(check) })) : null,
       h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Understood"))),
     ]);
   } else if (noticed) {
@@ -362,6 +369,22 @@ export async function careerView(view, id, tab) {
   /** Rounds of this season counted below the New Game+ floor. */
   function flaggedRounds() {
     return season().rounds.filter((r) => r.result?.floor?.flags.length).length;
+  }
+
+  /** What a New Game+ race cost reputation for: "2 penalties and a barrier DNF". */
+  function costText(check) {
+    const parts = [
+      check.penalties ? (check.penalties === 1 ? t("a penalty") : t("{n} penalties", { n: check.penalties })) : null,
+      check.disqualified ? t("a disqualification") : null,
+      check.barrierDnf ? t("a barrier DNF") : null,
+    ].filter(Boolean);
+    return parts.length > 1 ? t("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts.at(-1) }) : parts[0] ?? "";
+  }
+
+  /** The class a round was raced in, as the app names it. */
+  function classLabel(round) {
+    const carClass = (round.seriesId ? season().series.find((s) => s.id === round.seriesId)?.car : season().car)?.carClass ?? "";
+    return CLASS_NAMES[carClass] ?? carClass;
   }
 
   /** Why a race fell below the floor, in a line. */
@@ -1123,7 +1146,8 @@ export async function careerView(view, id, tab) {
     // Shown once the standings have loaded, since changing tab closes any open pop-up.
     noticed = accepted.noticed;
     const done = season().rounds.filter((r) => r.state === "Completed").at(-1);
-    floorNotice = done?.result?.floor?.flags.length ? done : null;
+    const check = done?.result?.floor;
+    floorNotice = check && (check.flags.length || check.reputationCost > 0 || check.letGo) ? done : null;
     if (done) saveTicks(ticksKey(id, season().number, done.number), new Set());
     const me = done && playerEntry(done);
     toast(me ? t("{eventName}: {finish}, {points} points.", { eventName: done.eventName, finish: finish(me), points: number(driverPoints(me)) }) : t("Round counted."));
