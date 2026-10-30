@@ -148,6 +148,8 @@ public sealed class ApiHost
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "seeAchievements" => See(args),
         "trophyRoom" => TrophyRooms(),
+        "seasonRecap" => SeasonRecap.For(Load(args), args.GetProperty("season").GetInt32(), TrophyRooms()),
+        "saveImage" => SaveImage(args),
         "countRaceBeforeStart" => Change(args, c => CareerActions.CountRaceBeforeStart(
             c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."),
             CareerActions.CheckArmedRound(_store, c, ResultsFolder, _install?.RaceSavesFolder))),
@@ -753,6 +755,16 @@ public sealed class ApiHost
         if (file is null) return new { exported = false };
         _store.Export(career.Id, file);
         return new { exported = true };
+    }
+
+    /// <summary>Saves a picture the page drew (a PNG, as base64) where the player picks.</summary>
+    private object SaveImage(JsonElement args)
+    {
+        var file = _window.PickSaveFile(T("Save image"),
+            string.Concat(Str(args, "fileName").Split(Path.GetInvalidFileNameChars())), new FileFilter(T("PNG image"), "*.png"));
+        if (file is null) return new { saved = false };
+        File.WriteAllBytes(file, Convert.FromBase64String(Str(args, "png")));
+        return new { saved = true };
     }
 
     private object ImportCareer()

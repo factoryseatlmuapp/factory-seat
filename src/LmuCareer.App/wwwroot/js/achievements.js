@@ -188,6 +188,25 @@ export function achievementTile(id, kind) {
   return tile;
 }
 
+/** An achievement's name, for places that only have its id. */
+export const achievementName = (id) => INFO[id]?.name() ?? id;
+
+/** The tile as a picture to draw on a canvas (a page's CSS doesn't reach inside one). */
+export function achievementPicture(id, def) {
+  const [from, to] = def?.newGamePlus ? ["#e2b33a", "#a87a12"] : def?.secret ? ["#0a0a0c", "#0a0a0c"] : ["#e3192f", "#e3192f"];
+  const cut = def?.newGamePlus ? "#b88a1a" : from;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" width="128" height="128">`
+    + `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${from}"/><stop offset="1" stop-color="${to}"/></linearGradient>`
+    + SPRITE.replaceAll("var(--tile)", cut).replaceAll(' href="#', ' xlink:href="#') + `</defs>`
+    + `<rect width="64" height="64" rx="3" fill="url(#g)"/><svg x="5" y="5" width="54" height="54" viewBox="0 0 64 64"><use xlink:href="#i-${INFO[id]?.icon ?? "rook"}"/></svg></svg>`;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+
 const tierOf = (def) => (def.newGamePlus ? "ngplus" : def.secret ? "secret" : "normal");
 
 /** "Earned 3 Nov 2026 · Sebring · Ginetta G61-LT-P3", or as much of it as is known. */

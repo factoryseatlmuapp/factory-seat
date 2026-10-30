@@ -524,6 +524,7 @@ select.input { padding: 6px 8px; }
 .trophy-focus { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); text-align: center; pointer-events: none;
   opacity: 0; transition: opacity 0.3s; }
 .trophy-focus.on { opacity: 1; }
+.recap-preview { display: block; width: 100%; border: 1px solid var(--border-soft); margin: 4px 0 14px; }
 .trophy-records { position: absolute; right: 20px; top: 64px; width: 300px; padding: 12px 14px; background: rgba(13, 17, 29, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.13); border-left: 4px solid var(--accent); }
 .trophy-records h3 { font: 700 18px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }

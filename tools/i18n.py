@@ -49,6 +49,8 @@ GROUPS = [
     ("career.js", "Career"),
     ("achievements.js", "Achievements"),
     ("trophyRoom.js", "Achievements"),
+    ("trophies.js", "Achievements"),
+    ("recapCard.js", "Season card"),
     ("settings.js", "Settings"),
     ("RoundMatcher.cs", "Race checks (why a race did or didn't count)"),
     ("CareerActions.cs", "Race checks (why a race did or didn't count)"),

@@ -9,6 +9,7 @@ import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
 import { achievementList, achievementCount, achievementTile, popUnlocks } from "../achievements.js";
+import { openRecapCard } from "../recapCard.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -1083,7 +1084,9 @@ export async function careerView(view, id, tab) {
         h("div", { class: "hero-mark" }, t("Season {number}", { number: season().number })),
         h("div", {},
           h("h1", { class: "hero-title" }, t("Season complete")),
-          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified")))),
+          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified"))),
+        h("div", { class: "spacer" }),
+        recapButton(season().number)),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1fr 1.35fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "section-title" }, t("Season review")),
@@ -1145,7 +1148,9 @@ export async function careerView(view, id, tab) {
         h("div", { class: "hero-mark" }, t("Season {number}", { number: season().number })),
         h("div", {},
           h("h1", { class: "hero-title" }, t("Season complete")),
-          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified")))),
+          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified"))),
+        h("div", { class: "spacer" }),
+        recapButton(season().number)),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1fr 1fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "section-title" }, t("Season review")),
@@ -1159,6 +1164,12 @@ export async function careerView(view, id, tab) {
             h("h3", {}, t("Build the next season")),
             h("div", { class: "muted" }, t("Any class, any car, your calendar.")),
             h("div", { class: "row", style: { marginTop: "10px" } }, h("div", { class: "spacer" }), h("span", { class: "btn small" }, t("Start")))))));
+  }
+
+  /** The season card: the season as a picture to save or share. */
+  function recapButton(seasonNumber) {
+    return h("button", { class: "btn", onclick: () => openRecapCard({ careerId: id, season: seasonNumber, carName, achievements: data.achievements }) },
+      t("Season card"));
   }
 
   function offerCard(offer) {
@@ -1873,7 +1884,7 @@ export async function careerView(view, id, tab) {
             render();
           } }, chip(c).textContent))) : null),
       body,
-      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+      h("div", { class: "modal-actions" }, recapButton(s.season), h("button", { class: "btn", onclick: closeModal }, t("Close"))),
     ], { wide: true });
     render();
   }

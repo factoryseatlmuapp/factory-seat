@@ -197,3 +197,47 @@ public class TrophyRoomTests
         Assert.DoesNotContain(room.Records, r => r.Id == "fastest-to-hypercar");
     }
 }
+
+public class SeasonRecapTests
+{
+    private static Career Champion(string name, params int[] ranks) => new()
+    {
+        Name = name,
+        CurrentSeason = new Season
+        {
+            Number = 1, Car = new CareerCar("Lexus RCF LMGT3", "GT3", "69", "Sample Racing"),
+            Rounds = [.. ranks.Select((rank, i) => ProgressionTests.Counted(i + 1, playerRank: rank))],
+        },
+    };
+
+    [Fact]
+    public void The_card_has_the_championship_the_numbers_and_every_finish()
+    {
+        var career = Champion("Test", 1, 1, 3);
+        var room = TrophyRoom.For(career, ContentCatalog.Default);
+
+        var recap = SeasonRecap.For(career, 1, [room]);
+
+        Assert.Equal(1, recap.Position);
+        Assert.Equal((3, 2, 3), (recap.Races, recap.Wins, recap.Podiums));
+        Assert.Equal([1, 1, 3], recap.Rounds.Select(r => r.ClassRank));
+        var table = career.CurrentSeason.Standings().Single().Drivers;
+        Assert.Equal(table[0].Points - table[1].Points, recap.Gap);
+        Assert.Single(recap.Titles);
+    }
+
+    [Fact]
+    public void A_record_is_new_only_when_it_beats_every_other_career()
+    {
+        var career = Champion("Now", 1, 1, 1);
+        var older = Champion("Before", 1, 1, 4);
+        var rooms = new[] { TrophyRoom.For(career, ContentCatalog.Default), TrophyRoom.For(older, ContentCatalog.Default) };
+
+        var recap = SeasonRecap.For(career, 1, rooms);
+        Assert.Contains(recap.NewRecords, r => r.Id == "wins-in-a-season");
+        Assert.DoesNotContain(recap.NewRecords, r => r.Id == "hours-raced");
+
+        // The older career's own season beat nothing: three wins beat its two.
+        Assert.DoesNotContain(SeasonRecap.For(older, 1, rooms).NewRecords, r => r.Id == "wins-in-a-season");
+    }
+}
