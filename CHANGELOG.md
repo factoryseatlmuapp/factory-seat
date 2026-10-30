@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0 "Full Push"
+
+- **Achievements:** 20 in all, 15 for any career and 5 that only New Game+ can earn. A pop-up as each is earned, and the Career tab lists them all with progress; secret ones stay hidden until earned. A career from before 1.4 is credited with what it had already done. (#7)
+- **The trophy room:** a 3D shelf with a trophy per track (a plate for each class win there) and a cup per title, for this career or all of them.
+- **Records:** wins and poles in a season, win streak, title margin, seasons with one make, fastest to Hypercar, longest race won, hours raced.
+- **Season card:** a finished season as a shareable image (copy, or save as PNG), with new records stamped.
+- **New Game+.** Retire a career into the Hall of Fame once it has finished a season of 5 or more counted races in its first class. Its achievements unlock head starts for a New Game+ career: the ladder again on a raised floor. Each round sets its AI Strength from the class's band (LMGT3 90–95, LMP3 92–95, LMGTE 93–96, LMP2 95–98, Hypercar 99–104) with aggression on High; a third of the rounds are wet, picked by each track's chance of rain; damage is on by race length (100% up to 30 minutes, 75% to 90, 60% to 6 hours, 50% beyond) and never invulnerable; mechanical failures on; fuel and tyre use at Real or more. Each race is checked from the results file, LMU's weekend saves and Settings.JSON (a pace check stands in when neither proves the AI Strength). A race below its floor still scores but earns no New Game+ credit; three in a season make the career a normal one. Penalties (−1), a disqualification (−3) and a DNF into the wall (−2) cost reputation as they're counted. From LMP3 up, a team lets the player go mid-season 10 below the class's bar; being let go costs one loyalty stage, and the offers come from the class the reputation fits. Test days are checked too: one below the floor earns no offer.
+- **New Game+ achievements and the gold wing:** pole, win from pole, a full 24-hour win, Daytona + Sebring + Le Mans at full length, WEC and IMSA titles in one season. Only races that passed their floor count, and their trophies stand in the trophy room's New Game+ wing.
+- **Press answers:** outcomes are hidden until an answer is given (Settings › Press, or peek per question). Roll the dice (on by default): an answer can land more than one way, and how it landed is kept. Older answers keep their fixed worth.
+- **Change the next race's length** from the briefing before its weekend; Time Scale, Fuel Usage, Tyre Wear and stints follow. (#23)
+- **A race finished in the hour before Start race weekend** is offered when the weekend starts: count it, or race again.
+- **Stream overlay:** Settings › Streaming › Set up writes an OBS browser source for the next race next to `briefing.json`.
+- LMP2 IMSA seasons race the endurance rounds only (Daytona, Sebring, Petit Le Mans).
+- Settings › Language › Suggest a fix opens the translation form on GitHub.
+- Italian: the front-runner budget badge reads "Budget da podio" (Luca Bassini).
+- `briefing.json` adds `round.floor`, a New Game+ round's floor. Nothing that was there changes. See `docs/briefing-json.md`.
+
 ## 1.3.1
 
 - **Linux build,** for LMU through Steam's Proton: a tarball with an `install.sh` that adds Factory Seat to your applications menu. It finds LMU through native, Flatpak or Snap Steam. Known so far: the interface sounds may be silent. (#19)
