@@ -625,7 +625,8 @@ public sealed class ApiHost
     /// <summary>The career for the page, after checking for achievements its latest change earned.</summary>
     private object CareerView(Career career)
     {
-        if (Achievements.Update(career, _catalog, DateTimeOffset.Now).Count > 0) _store.Save(career);
+        // A New Game+ season's rounds get their floor as soon as they exist.
+        if ((Achievements.Update(career, _catalog, DateTimeOffset.Now).Count > 0) | Floor.Fill(career)) _store.Save(career);
         WriteBriefing(career);
         return CareerViewData(career);
     }

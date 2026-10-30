@@ -94,6 +94,9 @@ public sealed class Round
     /// at their invitation. Outside every championship, like a guest drive.
     /// </summary>
     public TestDay? Test { get; set; }
+
+    /// <summary>New Game+: the AI Strength, weather and damage this round must be raced at. Null otherwise.</summary>
+    public RoundFloor? Floor { get; set; }
 }
 
 /// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>

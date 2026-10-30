@@ -107,3 +107,69 @@ public class NewGamePlusTests
         }
     }
 }
+
+public class FloorTests
+{
+    private static Career NewGamePlus(string carClass, params string[] tracks)
+    {
+        var career = new Career
+        {
+            NewGamePlus = new NewGamePlusState(),
+            CurrentSeason = new Season
+            {
+                Number = 1, Car = new CareerCar("Car", carClass, "1", "Team"),
+                Rounds = [.. tracks.Select((track, i) => new Round { Number = i + 1, TrackFolder = track, RaceMinutes = 60 })],
+            },
+        };
+        return career;
+    }
+
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(3, 1)]
+    [InlineData(4, 2)]
+    [InlineData(8, 3)]
+    public void A_third_of_the_rounds_are_wet_rounded_up(int rounds, int wet)
+    {
+        Assert.Equal(wet, Floor.WetRounds(rounds));
+    }
+
+    [Fact]
+    public void Every_round_gets_strength_in_its_class_band_damage_by_length_and_a_third_wet()
+    {
+        var career = NewGamePlus("LMP2", "Spa_2023", "Qatar_2024", "Monza_2023", "Bahrain_2023", "Fuji_2023", "LeMans_2023");
+        career.CurrentSeason.Rounds[0].RaceMinutes = 20;
+
+        Assert.True(Floor.Fill(career, new Random(1)));
+
+        var floors = career.CurrentSeason.Rounds.Select(r => r.Floor!).ToList();
+        Assert.All(floors, f => Assert.InRange(f.AiStrength, 95, 98));
+        Assert.Equal(100, floors[0].MinDamage);
+        Assert.Equal(75, floors[1].MinDamage);
+        Assert.Equal(2, floors.Count(f => f.Wet));
+        Assert.False(Floor.Fill(career)); // drawn once
+    }
+
+    [Fact]
+    public void Rain_falls_where_it_really_rains()
+    {
+        var wetAtSpa = 0;
+        for (var seed = 0; seed < 200; seed++)
+        {
+            var career = NewGamePlus("GT3", "Spa_2023", "Qatar_2024", "BahrainWEC_2023");
+            Floor.Fill(career, new Random(seed));
+            if (career.CurrentSeason.Rounds[0].Floor!.Wet) wetAtSpa++;
+        }
+        Assert.True(wetAtSpa > 170, $"Spa wet {wetAtSpa} of 200");
+    }
+
+    [Fact]
+    public void A_normal_career_has_no_floor()
+    {
+        var career = NewGamePlus("GT3", "Spa_2023");
+        career.NewGamePlus = null;
+
+        Assert.False(Floor.Fill(career));
+        Assert.Null(career.CurrentSeason.Rounds[0].Floor);
+    }
+}

@@ -280,7 +280,9 @@ export async function careerView(view, id, tab) {
 
     const key = ticksKey(id, season().number, round.number);
     const ticks = loadTicks(key);
-    const items = ["circuit", "layout", "car", "length", "fuel", "tyres", "start", "timeScale"];
+    const floor = round.floor;
+    const items = ["circuit", "layout", "car", "length", "fuel", "tyres", "start", "timeScale",
+      ...(floor ? ["aiStrength", "aggression", "weather", "damage", "failures", "rules"] : [])];
     const counter = h("span", { class: "faint" });
     const count = () => {
       counter.textContent = t("{done} of {total} set", { done: items.filter((x) => ticks.has(x)).length, total: items.length });
@@ -329,16 +331,32 @@ export async function careerView(view, id, tab) {
             setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("fuel") }),
             setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("tyres") }),
             setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
-            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") }))),
+            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") })),
+          floor ? floorRows(floor, tick) : null),
         h("div", {},
           h("div", { class: "section-title" }, t("Race weekend")),
           weekendPanel(round, isArmed),
           h("div", { class: "section-title", style: { marginTop: "24px" } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
-          pacePanel(),
+          floor ? null : pacePanel(),
           sponsorPanel(),
           guestPanel(),
           testPanel())));
+  }
+
+  /** New Game+: what this round must be raced at. Factory Seat checks it when the result comes in. */
+  function floorRows(floor, tick) {
+    return [
+      h("div", { class: "lmu-path", style: { marginTop: "16px" } }, h("span", { class: "ngp-chip" }, t("NG+")), " ", t("The floor")),
+      h("div", { class: "rows" },
+        setting(t("AI Strength"), `${floor.aiStrength}%`, { big: true, hint: t("Exactly this: set before you start the weekend."), tick: tick("aiStrength") }),
+        setting(t("AI Aggression"), t("High"), { big: true, tick: tick("aggression") }),
+        setting(t("Weather"), floor.wet ? t("Rain") : t("Your choice"), { big: true,
+          hint: floor.wet ? t("A wet round: set rain for the race. It counts as wet once a car runs a lap on wet tyres.") : null, tick: tick("weather") }),
+        setting(t("Damage"), t("{n}% or more", { n: floor.minDamage }), { big: true, hint: t("Never invulnerable."), tick: tick("damage") }),
+        setting(t("Mechanical failures"), t("Normal or more"), { big: true, tick: tick("failures") }),
+        setting(t("Rules"), t("On"), { big: true, hint: t("Penalties and track limits apply, and cost reputation."), tick: tick("rules") })),
+    ];
   }
 
   function testPanel() {
