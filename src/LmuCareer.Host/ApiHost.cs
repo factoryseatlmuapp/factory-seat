@@ -147,6 +147,7 @@ public sealed class ApiHost
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "seeAchievements" => See(args),
+        "trophyRoom" => TrophyRooms(),
         "countRaceBeforeStart" => Change(args, c => CareerActions.CountRaceBeforeStart(
             c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."),
             CareerActions.CheckArmedRound(_store, c, ResultsFolder, _install?.RaceSavesFolder))),
@@ -538,6 +539,24 @@ public sealed class ApiHost
         Inbox.MarkRead(career, args.TryGetProperty("messageId", out var message) ? message.GetString() : null);
         _store.Save(career);
         return CareerViewData(career);
+    }
+
+    /// <summary>Every career's wins and titles, for the trophy room (it shows one career or all of them). A save that won't load is left out.</summary>
+    private IReadOnlyList<CareerTrophies> TrophyRooms()
+    {
+        var rooms = new List<CareerTrophies>();
+        foreach (var summary in _store.List())
+        {
+            try
+            {
+                rooms.Add(TrophyRoom.For(_store.Load(summary.Id).Career));
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
+            {
+                Log($"trophy room: {summary.Name} not read: {ex.Message}");
+            }
+        }
+        return rooms;
     }
 
     /// <summary>The unlock pop-ups have been shown. Not playing: the career keeps its place in the list.</summary>

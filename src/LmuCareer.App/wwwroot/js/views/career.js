@@ -1492,6 +1492,30 @@ export async function careerView(view, id, tab) {
     ], { wide: true });
   }
 
+  function trophyCard() {
+    const wins = [...data.career.pastSeasons, season()].flatMap((s) => s.rounds)
+      .filter((r) => r.state === "Completed" && !r.test && playerEntry(r)?.classified && playerEntry(r)?.classRank === 1).length;
+    const open = async (e) => {
+      const button = e.currentTarget;
+      button.disabled = true;
+      try {
+        const rooms = await attempt(call("trophyRoom", {}));
+        if (!rooms) return;
+        const { openTrophyRoom } = await import("../trophyRoom.js");
+        await openTrophyRoom({ rooms, careerId: id, tracks: cat.tracks, carName });
+      } finally {
+        button.disabled = false;
+      }
+    };
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Trophy room")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "muted", style: { marginBottom: "10px" } }, wins
+          ? tn(wins, "One class win so far: a plate on that track's trophy.", "{n} class wins so far, each a plate on that track's trophy.")
+          : t("A trophy for every track, and a plate on it for every class win. Titles go on the top shelf.")),
+        h("button", { class: "btn ghost small", onclick: open }, t("Enter the trophy room")))];
+  }
+
   function achievementsCard() {
     const { earned, total } = achievementCount(data.career, data.achievements);
     const kinds = new Map(data.achievements.all.map((a) => [a.id, a.secret ? "secret" : "normal"]));
@@ -1533,6 +1557,7 @@ export async function careerView(view, id, tab) {
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your team")),
             teamCard()],
+          trophyCard(),
           // Nationality only picks local sponsors, which a championship-only career doesn't have.
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),

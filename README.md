@@ -149,6 +149,7 @@ Factory Seat is free and always will be. If it's put some extra miles on your Le
 
 - Track outlines: map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL.
 - Barlow Condensed font by The Barlow Project Authors, SIL Open Font License 1.1.
+- 3D trophy room built with [three.js](https://threejs.org/) (MIT).
 - Team and event names are used only to describe the racing. No logos or game assets are included.
 
 ## License

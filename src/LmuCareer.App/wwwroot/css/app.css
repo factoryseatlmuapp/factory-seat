@@ -512,3 +512,17 @@ select.input { padding: 6px 8px; }
 @keyframes ach-in { from { transform: translateX(120%); } to { transform: translateX(0); } }
 @keyframes ach-out { to { transform: translateX(120%); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ach-pop, .ach-pop.leaving { animation: none; } }
+
+/* ---------- Trophy room ---------- */
+.trophy-room { position: fixed; inset: 0; z-index: 80; background: #0b0f1a; color: #f2f4f8; }
+.trophy-room canvas { display: block; }
+.trophy-hud { position: absolute; left: 20px; top: 16px; }
+.trophy-hud h1 { font: 700 28px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.04em; margin: 0; }
+.trophy-hud p { margin: 4px 0 10px; color: #a0a8b9; font-size: 13px; }
+.trophy-scope { display: flex; gap: 6px; }
+.trophy-close { position: absolute; right: 20px; top: 16px; }
+.trophy-focus { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity 0.3s; }
+.trophy-focus.on { opacity: 1; }
+.trophy-focus h2 { font: 700 30px/1.1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+.trophy-focus p { margin: 2px 0 0; color: #a0a8b9; font-size: 13px; }

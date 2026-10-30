@@ -166,3 +166,27 @@ public class AchievementsTests
         Assert.Equal(Achievements.All.Count, Achievements.All.Select(a => a.Id).Distinct().Count());
     }
 }
+
+public class TrophyRoomTests
+{
+    [Fact]
+    public void Wins_go_on_their_track_and_a_finished_season_on_top_of_the_table_is_a_title()
+    {
+        var win = ProgressionTests.Counted(1, playerRank: 1);
+        win.TrackFolder = "Spa_2023";
+        var second = ProgressionTests.Counted(2, playerRank: 2);
+        second.TrackFolder = "Monza_2023";
+        var career = new Career
+        {
+            Name = "Test",
+            CurrentSeason = new Season { Number = 1, Car = new CareerCar("Lexus RCF LMGT3", "GT3", "69", "Sample Racing"), Rounds = [win, second] },
+        };
+
+        var room = TrophyRoom.For(career);
+
+        var plate = Assert.Single(room.Wins);
+        Assert.Equal(("Spa_2023", "GT3", 1), (plate.TrackFolder, plate.CarClass, plate.Season));
+        var title = Assert.Single(room.Titles);
+        Assert.Equal(("GT3", 1, ""), (title.CarClass, title.Season, title.SeriesId));
+    }
+}
