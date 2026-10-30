@@ -173,3 +173,148 @@ public class FloorTests
         Assert.Null(career.CurrentSeason.Rounds[0].Floor);
     }
 }
+
+public class FloorCheckTests
+{
+    private static readonly RoundFloor Dry = new(93, Wet: false, MinDamage: 75);
+
+    private static ResultsXml Field(int damage = 100, int mechFail = 1, string aids = "PlayerControl,TC=2", double playerBest = 101.5, string? lapsXml = null) =>
+        new ResultsXml { Damage = damage, MechFail = mechFail, Fuel = 1, Tires = 1 }
+            .Car("Me", player: true, classPos: 1, best: playerBest, control: [(1, 10, aids)])
+            .Car("AI 1", classPos: 2, best: 102.5, lapsXml: lapsXml);
+
+    [Fact]
+    public void A_race_on_the_floor_passes()
+    {
+        var check = FloorChecks.Check(Dry, Field().Parse(), null, aiStrengthSeen: 93);
+        Assert.False(check.Reduced);
+    }
+
+    [Theory]
+    [InlineData(50, 1, "PlayerControl,TC=2", FloorFlag.DamageLow)]
+    [InlineData(100, 1, "PlayerControl,TC=2,Invulnerable", FloorFlag.Invulnerable)]
+    [InlineData(100, 0, "PlayerControl,TC=2", FloorFlag.FailuresOff)]
+    public void Settings_below_the_floor_are_flagged(int damage, int mechFail, string aids, FloorFlag flag)
+    {
+        var check = FloorChecks.Check(Dry, Field(damage, mechFail, aids).Parse(), null, aiStrengthSeen: 93);
+        Assert.Equal([flag], check.Flags);
+    }
+
+    [Fact]
+    public void A_wet_round_needs_a_car_on_wet_tyres()
+    {
+        var wet = Dry with { Wet = true };
+        Assert.Contains(FloorFlag.StayedDry, FloorChecks.Check(wet, Field().Parse(), null, 93).Flags);
+
+        var wetLap = "<Lap num=\"1\" p=\"2\" et=\"120.5\" fcompound=\"1,Wet\" rcompound=\"1,Wet\">130.1</Lap>";
+        var check = FloorChecks.Check(wet, Field(lapsXml: wetLap).Parse(), null, 93);
+        Assert.True(check.RanWet);
+        Assert.False(check.Reduced);
+    }
+
+    [Fact]
+    public void The_wrong_AI_strength_is_flagged_when_LMU_proves_it()
+    {
+        Assert.Equal([FloorFlag.AiStrength], FloorChecks.Check(Dry, Field().Parse(), null, aiStrengthSeen: 85).Flags);
+    }
+
+    [Theory]
+    [InlineData(98.0, 98.0, true)]    // 4.4% faster in both: the AI was turned down
+    [InlineData(98.0, 101.5, false)]  // only fast in qualifying
+    public void Without_proof_the_pace_check_flags_only_a_gap_in_both_sessions(double qualifyingBest, double raceBest, bool flagged)
+    {
+        var qualifying = new ResultsXml { Session = "Qualify" }
+            .Car("Me", player: true, classPos: 1, best: qualifyingBest).Car("AI 1", classPos: 2, best: 102.5).Parse();
+        var check = FloorChecks.Check(Dry, Field(playerBest: raceBest).Parse(), qualifying, aiStrengthSeen: null);
+
+        Assert.Equal(flagged, check.Flags.Contains(FloorFlag.Pace));
+    }
+
+    [Fact]
+    public void Penalties_and_a_barrier_DNF_are_counted_for_reputation()
+    {
+        var race = new ResultsXml { Fuel = 1, Tires = 1 }
+            .Car("Me", player: true, classPos: 2, status: "DNF")
+            .Car("AI 1", classPos: 1)
+            .Event("<Penalty Driver=\"Me\" ID=\"0\" Penalty=\"Drive Thru\" Reason=\"Track Limits\" et=\"60\">Drive Thru</Penalty>")
+            .Event("<Incident et=\"90\">Me(0) reported contact (1948.99) with Immovable</Incident>")
+            .Parse();
+
+        var check = FloorChecks.Check(Dry, race, null, 93);
+
+        Assert.Equal(1, check.Penalties);
+        Assert.True(check.BarrierDnf);
+    }
+}
+
+public class AiProofTests : IDisposable
+{
+    private readonly string _dir = Path.Combine(Path.GetTempPath(), "fs-aiproof-" + Guid.NewGuid().ToString("N"));
+
+    public AiProofTests() => Directory.CreateDirectory(_dir);
+
+    public void Dispose() => Directory.Delete(_dir, true);
+
+    private string WriteSave(string name, string json)
+    {
+        using var packed = new MemoryStream();
+        using (var zlib = new System.IO.Compression.ZLibStream(packed, System.IO.Compression.CompressionLevel.Fastest, leaveOpen: true))
+            zlib.Write(System.Text.Encoding.UTF8.GetBytes(json));
+        var file = Path.Combine(_dir, name);
+        File.WriteAllText(file, $"{{\"compressedData\":\"{Convert.ToBase64String(packed.ToArray())}\",\"unCompressedDataSize\":1}}sig:abc=");
+        return file;
+    }
+
+    [Fact]
+    public void A_weekend_save_gives_the_players_AI_strength()
+    {
+        var file = WriteSave("1.json", "{\"entries\":[{\"selectedAIStrength\":-1},{\"selectedAIStrength\":93},{\"selectedAIStrength\":-1}]}");
+
+        Assert.Equal(93, LmuCareer.Core.Content.AiProof.Save(file)?.Strength);
+        Assert.Equal(93, LmuCareer.Core.Content.AiProof.NewestSave([_dir], DateTimeOffset.Now.AddMinutes(-5))?.Strength);
+        Assert.Null(LmuCareer.Core.Content.AiProof.NewestSave([_dir], DateTimeOffset.Now.AddMinutes(5))); // older than the weekend
+    }
+
+    [Fact]
+    public void Settings_give_strength_and_aggression()
+    {
+        var file = Path.Combine(_dir, "Settings.JSON");
+        File.WriteAllText(file, "{\"Game Options\":{\"AI Driver Strength\":94,\"AI Aggression Mode\":2,\"AI Mistakes\":0.0}}");
+
+        var seen = LmuCareer.Core.Content.AiProof.Settings(file);
+        Assert.Equal((94, 2), (seen?.Strength, seen?.Aggression));
+    }
+
+    [Fact]
+    public void A_broken_file_proves_nothing()
+    {
+        var file = Path.Combine(_dir, "2.json");
+        File.WriteAllText(file, "not a save");
+        Assert.Null(LmuCareer.Core.Content.AiProof.Save(file));
+    }
+}
+
+public class NewGamePlusEndsTests
+{
+    [Fact]
+    public void A_third_flagged_round_turns_the_career_normal()
+    {
+        var career = new Career
+        {
+            NewGamePlus = new NewGamePlusState(),
+            CurrentSeason = new Season { Number = 1, Car = new CareerCar("Lexus RCF LMGT3", "GT3", "1", "Team") },
+        };
+        var floor = new RoundFloor(93, false, 75);
+        for (var n = 1; n <= 3; n++)
+        {
+            var round = ProgressionTests.Counted(n, playerRank: 1);
+            round.Floor = floor;
+            career.CurrentSeason.Rounds.Add(round);
+            var race = new ResultsXml { Damage = 0, Fuel = 1, Tires = 1 }.Car("Me", player: true).Car("AI 1", classPos: 2).Parse();
+            FloorChecks.AfterRace(career, round, race, null, DateTimeOffset.Now);
+
+            Assert.True(round.Result!.Floor!.Reduced);
+            Assert.Equal(n < 3, career.IsNewGamePlus);
+        }
+    }
+}

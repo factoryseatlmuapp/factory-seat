@@ -97,6 +97,9 @@ public sealed class Round
 
     /// <summary>New Game+: the AI Strength, weather and damage this round must be raced at. Null otherwise.</summary>
     public RoundFloor? Floor { get; set; }
+
+    /// <summary>New Game+: LMU's AI settings as Settings.JSON had them when the weekend started.</summary>
+    public Content.AiSettingsSeen? AiAtStart { get; set; }
 }
 
 /// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>
@@ -148,6 +151,9 @@ public sealed class TestOffer
 
 public sealed class RoundResult
 {
+    /// <summary>New Game+: how the race measured up to the round's floor. Null on a normal career.</summary>
+    public FloorCheck? Floor { get; set; }
+
     public string RaceFile { get; set; } = "";
     public string? QualifyingFile { get; set; }
     public DateTimeOffset AcceptedAt { get; set; }

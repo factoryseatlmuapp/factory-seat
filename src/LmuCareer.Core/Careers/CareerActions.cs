@@ -169,11 +169,13 @@ public static class CareerActions
     /// race the player counted under a different number makes that number the career car's.
     /// </summary>
     public static ScoredRace AcceptArmedRound(
-        CareerStore store, Career career, RoundEvaluation evaluation, bool takeDnf, bool acceptDifferences, DateTimeOffset now)
+        CareerStore store, Career career, RoundEvaluation evaluation, bool takeDnf, bool acceptDifferences, DateTimeOffset now,
+        Content.LmuInstall? install = null)
     {
         var season = career.CurrentSeason;
         var round = season.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
         var scored = RoundFlow.Accept(round, evaluation, now, takeDnf, acceptDifferences);
+        FloorChecks.AfterRace(career, round, scored.Race, evaluation.Qualifying?.Session, now, install);
 
         if (scored.Race.Player is { } player)
         {

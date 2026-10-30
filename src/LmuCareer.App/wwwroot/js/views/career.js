@@ -19,6 +19,8 @@ const dismissed = new Set();
 
 // A team that noticed the race just counted, to announce on the next screen.
 let noticed = null;
+// New Game+: a race just counted below its floor, to explain once the standings show.
+let floorNotice = null;
 
 // The message to open when the Inbox tab is reached from the strip on the Next race page.
 let openMessage = null;
@@ -108,7 +110,20 @@ export async function careerView(view, id, tab) {
   await ({ briefing, inbox, calendar, standings, career: history }[tab] ?? briefing)();
   popAchievements();
 
-  if (noticed) {
+  if (floorNotice) {
+    const round = floorNotice;
+    floorNotice = null;
+    showModal([
+      h("h2", {}, t("Below the New Game+ floor")),
+      h("div", { class: "notice bad" },
+        h("b", {}, round.eventName),
+        h("ul", { style: { margin: "6px 0 0", paddingLeft: "18px" } }, round.result.floor.flags.map((f) => h("li", {}, floorFlagText(f, round))))),
+      h("p", { class: "muted" }, data.career.newGamePlus?.endedAt
+        ? t("That's {n} rounds below the floor this season: the career is a normal career from now on. Its New Game+ results so far stand.", { n: flaggedRounds() })
+        : t("The points count, but the race earns no New Game+ credit: no New Game+ achievements, and its trophy plate goes on the normal shelf. Rounds below the floor this season: {n} of {max}.", { n: flaggedRounds(), max: 3 })),
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Understood"))),
+    ]);
+  } else if (noticed) {
     const n = noticed;
     noticed = null;
     sound.confirm();
@@ -344,10 +359,33 @@ export async function careerView(view, id, tab) {
           testPanel())));
   }
 
+  /** Rounds of this season counted below the New Game+ floor. */
+  function flaggedRounds() {
+    return season().rounds.filter((r) => r.result?.floor?.flags.length).length;
+  }
+
+  /** Why a race fell below the floor, in a line. */
+  function floorFlagText(flag, round) {
+    const floor = round.floor ?? {};
+    const check = round.result.floor;
+    switch (flag) {
+      case "DamageLow": return t("Damage was set below {n}%.", { n: floor.minDamage });
+      case "Invulnerable": return t("The car was invulnerable.");
+      case "FailuresOff": return t("Mechanical failures were off.");
+      case "RatesLow": return t("Fuel or tyre use was set below real.");
+      case "StayedDry": return t("A wet round, but no car ran a lap on wet tyres.");
+      case "AiStrength": return t("LMU says AI Strength was {seen}%, not {n}%.", { seen: check.aiStrengthSeen, n: floor.aiStrength });
+      case "Aggression": return t("AI aggression wasn't on High.");
+      case "Pace": return t("No save or settings proved the AI Strength, and you beat the fastest AI in your class by {q}% in qualifying and {r}% in the race.", { q: number(check.qualifyingGap), r: number(check.raceGap) });
+      default: return flag;
+    }
+  }
+
   /** New Game+: what this round must be raced at. Factory Seat checks it when the result comes in. */
   function floorRows(floor, tick) {
     return [
-      h("div", { class: "lmu-path", style: { marginTop: "16px" } }, h("span", { class: "ngp-chip" }, t("NG+")), " ", t("The floor")),
+      h("div", { class: "lmu-path", style: { marginTop: "16px" } }, h("span", { class: "ngp-chip" }, t("NG+")), " ", t("The floor"),
+        flaggedRounds() ? h("span", { class: "faint" }, " · ", t("{n} of {max} rounds below it this season", { n: flaggedRounds(), max: 3 })) : null),
       h("div", { class: "rows" },
         setting(t("AI Strength"), `${floor.aiStrength}%`, { big: true, hint: t("Exactly this: set before you start the weekend."), tick: tick("aiStrength") }),
         setting(t("AI Aggression"), t("High"), { big: true, tick: tick("aggression") }),
@@ -1085,6 +1123,7 @@ export async function careerView(view, id, tab) {
     // Shown once the standings have loaded, since changing tab closes any open pop-up.
     noticed = accepted.noticed;
     const done = season().rounds.filter((r) => r.state === "Completed").at(-1);
+    floorNotice = done?.result?.floor?.flags.length ? done : null;
     if (done) saveTicks(ticksKey(id, season().number, done.number), new Set());
     const me = done && playerEntry(done);
     toast(me ? t("{eventName}: {finish}, {points} points.", { eventName: done.eventName, finish: finish(me), points: number(driverPoints(me)) }) : t("Round counted."));

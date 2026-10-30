@@ -141,7 +141,7 @@ public sealed class ApiHost
         "deleteCareer" => DeleteCareer(args),
         "exportCareer" => ExportCareer(args),
         "importCareer" => ImportCareer(),
-        "armRound" => Change(args, c => RoundFlow.Arm(StillRacing(c).CurrentSeason, DateTimeOffset.Now)),
+        "armRound" => Change(args, c => Arm(StillRacing(c))),
         "retireCareer" => RetireCareer(args),
         "hallOfFame" => new { entries = _hall.Entries(), headStarts = HeadStarts.Unlocked(_hall.Entries()) },
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
@@ -742,6 +742,13 @@ public sealed class ApiHost
     }
 
     /// <summary>Signs an offer and starts the next season on the calendar from the season builder.</summary>
+    /// <summary>Starts the race weekend; New Game+ notes LMU's AI settings as they are now, to check against later.</summary>
+    private void Arm(Career career)
+    {
+        var round = RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
+        if (career.IsNewGamePlus && _install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+    }
+
     /// <summary>A retired career keeps its records but races no more.</summary>
     private static Career StillRacing(Career career) =>
         career.RetiredAt is null ? career : throw new PlayerError("This career has retired: start a New Game+ career to race again.");
@@ -835,7 +842,7 @@ public sealed class ApiHost
         CareerActions.AcceptArmedRound(_store, career, evaluation,
             takeDnf: args.TryGetProperty("takeDnf", out var dnf) && dnf.GetBoolean(),
             acceptDifferences: args.TryGetProperty("acceptDifferences", out var despite) && despite.GetBoolean(),
-            DateTimeOffset.Now);
+            DateTimeOffset.Now, _install);
 
         // A big win can get the player noticed by a better team, and a result above expectations by a sponsor.
         var noticed = round is null ? null : Progression.NoticeResult(career, round, _catalog, _install);

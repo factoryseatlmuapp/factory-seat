@@ -22,6 +22,9 @@ public enum Controller { Player, AI }
 /// <summary>A run of laps driven by one controller; a mid-race AI handover splits the car's laps into several of these.</summary>
 public sealed record ControlSegment(int StartLap, int EndLap, Controller Controller)
 {
+    /// <summary>LMU's "Invulnerable" aid was on: the car took no damage.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Invulnerable { get; init; }
+
     public int LapCount => Math.Max(0, EndLap - StartLap + 1);
 }
 
@@ -146,6 +149,12 @@ public sealed record SessionResult(
     IReadOnlyList<EntryResult> Entries,
     IReadOnlyList<RaceEvent> Events)
 {
+    /// <summary>LMU's damage setting, in percent (0 = none); null in a file without it.</summary>
+    public double? DamageMultiplier { get; init; }
+
+    /// <summary>LMU's mechanical failures setting (0 = off, 1 = normal, 2 = time-scaled); null in a file without it.</summary>
+    public int? MechanicalFailures { get; init; }
+
     /// <summary>The track's folder under Installed\Locations, from the TrackData path (e.g. Spa_2023).</summary>
     public string TrackFolder { get; init; } = "";
 
