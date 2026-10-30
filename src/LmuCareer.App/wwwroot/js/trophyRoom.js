@@ -79,8 +79,8 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
 
   // ---------- Materials ----------
   const M = {
-    gold: new THREE.MeshPhysicalMaterial({ color: 0xe8b94f, metalness: 1, roughness: 0.26, clearcoat: 0.6, clearcoatRoughness: 0.1, envMapIntensity: 2.2 }),
-    silver: new THREE.MeshPhysicalMaterial({ color: 0xdfe3ea, metalness: 1, roughness: 0.2, clearcoat: 0.5, envMapIntensity: 2.2 }),
+    gold: new THREE.MeshPhysicalMaterial({ color: 0xe8b94f, metalness: 1, roughness: 0.34, clearcoat: 0.6, clearcoatRoughness: 0.1, envMapIntensity: 3.4 }),
+    silver: new THREE.MeshPhysicalMaterial({ color: 0xf0f2f6, metalness: 1, roughness: 0.32, clearcoat: 0.5, envMapIntensity: 4 }),
     lacquer: new THREE.MeshPhysicalMaterial({ color: 0x0d0f14, metalness: 0.1, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.08 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: 0.62 }),
     red: new THREE.MeshPhysicalMaterial({ color: 0xc8102e, metalness: 0.3, roughness: 0.3, clearcoat: 1 }),
