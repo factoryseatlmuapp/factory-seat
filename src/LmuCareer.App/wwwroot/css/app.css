@@ -526,6 +526,8 @@ select.input { padding: 6px 8px; }
 .trophy-focus.on { opacity: 1; }
 .ngp-chip { display: inline-block; padding: 1px 6px 0; border-radius: 3px; font: 700 14px "Barlow Condensed", var(--cjk);
   color: #1a1306; background: linear-gradient(145deg, #e2b33a, #a87a12); }
+.btn.ngp-wing:not(.ghost) { color: #1a1306; background: linear-gradient(145deg, #e2b33a, #a87a12); border-color: #c9a227; }
+.btn.ngp-wing.ghost { color: #e2b33a; border-color: #8a6716; }
 .ngp-card h3 { margin: 0; }
 .card.ngp-card.selected, .card.ngp-start.selected { border-color: #c9a227; }
 .ngp-rules { margin: 10px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 13px; line-height: 1.5; }

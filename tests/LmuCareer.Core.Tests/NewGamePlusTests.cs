@@ -459,3 +459,95 @@ public class ConsequencesTests
     public void Let_go_drops_one_loyalty_stage(decimal points, decimal after) =>
         Assert.Equal(after, Consequences.StageDown(points));
 }
+
+public class NewGamePlusAchievementsTests
+{
+    private static readonly ContentCatalog Catalog = ContentCatalog.Default;
+    private static readonly DateTimeOffset Now = new(2026, 11, 1, 20, 0, 0, TimeSpan.Zero);
+
+    /// <summary>A counted race, checked against its floor (below it when <paramref name="reduced"/>).</summary>
+    private static Round Race(int number, int rank, bool pole = false, bool reduced = false, string track = "Autodromo Enzo e Dino Ferrari", int minutes = 30)
+    {
+        var round = ProgressionTests.Counted(number, rank);
+        round.TrackCourse = track;
+        round.RaceMinutes = minutes;
+        round.RealDurationHours = 24;
+        round.Floor = new RoundFloor(93, false, 100);
+        round.Result!.Floor = reduced ? new FloorCheck { Flags = [FloorFlag.DamageLow] } : new FloorCheck();
+        if (pole) round.Result.Entries = round.Result.Entries.Select(e => e.Entry.IsPlayer ? e with { ClassPole = true } : e).ToList();
+        return round;
+    }
+
+    private static Career NewGamePlus(params Round[] rounds)
+    {
+        var career = ProgressionTests.CareerWith(0, "GT3", rounds);
+        career.NewGamePlus = new NewGamePlusState();
+        career.AchievementsStarted = true;
+        return career;
+    }
+
+    private static IEnumerable<string> Earned(Career career) => Achievements.Update(career, Catalog, Now).Select(e => e.Id);
+
+    [Fact]
+    public void Pole_and_a_win_from_pole_count_only_above_the_floor()
+    {
+        Assert.DoesNotContain("pole", Earned(NewGamePlus(Race(1, 1, pole: true, reduced: true))));
+
+        var earned = Earned(NewGamePlus(Race(1, 1, pole: true))).ToList();
+        Assert.Contains("pole", earned);
+        Assert.Contains("win-from-pole", earned);
+    }
+
+    [Fact]
+    public void A_normal_career_never_earns_them()
+    {
+        var career = ProgressionTests.CareerWith(0, "GT3", Race(1, 1, pole: true));
+        Assert.DoesNotContain("pole", Earned(career));
+    }
+
+    [Theory]
+    [InlineData(1440, true)]
+    [InlineData(360, false)]
+    public void Double_points_needs_a_full_24_hour_win(int minutes, bool earned) =>
+        Assert.Equal(earned, Earned(NewGamePlus(Race(1, 1, minutes: minutes))).Contains("double-points"));
+
+    [Fact]
+    public void The_crown_jewels_are_full_length_wins_at_Daytona_Sebring_and_Le_Mans()
+    {
+        var sebring = Race(2, 1, track: "Sebring International Raceway", minutes: 720);
+        sebring.RealDurationHours = 12;
+        var career = NewGamePlus(
+            Race(1, 1, track: "Daytona International Speedway", minutes: 1440),
+            sebring,
+            Race(3, 1, track: "Circuit de la Sarthe", minutes: 1440, reduced: true),
+            Race(5, 1, track: "Circuit de la Sarthe", minutes: 360)); // won, but a 6-hour Le Mans
+        Assert.DoesNotContain("crown-jewels", Earned(career));
+        Assert.Contains(Achievements.Progress(career, Catalog), p => p is { Id: "crown-jewels", Done: 2, Goal: 3 });
+
+        career.CurrentSeason.Rounds.Add(Race(4, 1, track: "Circuit de la Sarthe", minutes: 1440));
+        var jewels = Achievements.Update(career, Catalog, Now).Single(e => e.Id == "crown-jewels");
+        Assert.Equal("Round 4", jewels.EventName);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)] // one IMSA round below the floor: that title isn't New Game+
+    public void Both_sides_of_the_pond_is_WEC_and_IMSA_titles_in_one_season(bool imsaReduced, bool earned)
+    {
+        var imsa = new[] { Race(3, 1, reduced: imsaReduced), Race(4, 1) };
+        foreach (var round in imsa) round.SeriesId = "imsa";
+        var career = NewGamePlus([Race(1, 1), Race(2, 1), .. imsa]);
+        career.CurrentSeason.Series = [new SeriesEntry { Id = "imsa", Name = "IMSA", Car = career.CurrentSeason.Car }];
+
+        Assert.Equal(earned, Earned(career).Contains("both-sides"));
+        Assert.Equal([true, !imsaReduced], TrophyRoom.For(career, Catalog).Titles.Select(x => x.NewGamePlus));
+    }
+
+    [Fact]
+    public void A_reduced_win_goes_on_the_normal_shelf()
+    {
+        var career = NewGamePlus(Race(1, 1), Race(2, 1, reduced: true));
+        var wins = TrophyRoom.For(career, Catalog).Wins;
+        Assert.Equal([true, false], wins.Select(w => w.NewGamePlus));
+    }
+}

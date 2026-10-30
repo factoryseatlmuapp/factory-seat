@@ -3,18 +3,22 @@ using LmuCareer.Core.Content;
 namespace LmuCareer.Core.Careers;
 
 /// <summary>A class win: a plate on that track's trophy.</summary>
-public sealed record TrophyWin(string TrackFolder, string EventName, string CarClass, string CarType, int Season);
+/// <param name="NewGamePlus">Won in a New Game+ race that passed its floor: the plate goes on the New Game+ wing.</param>
+public sealed record TrophyWin(string TrackFolder, string EventName, string CarClass, string CarType, int Season, bool NewGamePlus = false);
 
 /// <summary>A class championship won: a cup on the title shelf.</summary>
 /// <param name="SeriesId">Empty for the season's own championship; "imsa" for IMSA beside it.</param>
-public sealed record TrophyTitle(string CarClass, string CarType, int Season, string SeriesId);
+/// <param name="NewGamePlus">Every round of the championship passed its New Game+ floor.</param>
+public sealed record TrophyTitle(string CarClass, string CarType, int Season, string SeriesId, bool NewGamePlus = false);
 
 /// <summary>One career's best at a record: the page takes the best across the careers it shows.</summary>
 /// <param name="Season">The season it was set in, when it belongs to one.</param>
 public sealed record RecordValue(string Id, decimal Value, int? Season = null);
 
+/// <param name="NewGamePlus">A New Game+ career (now or once): the room has a New Game+ wing.</param>
 public sealed record CareerTrophies(
-    Guid CareerId, string CareerName, IReadOnlyList<TrophyWin> Wins, IReadOnlyList<TrophyTitle> Titles, IReadOnlyList<RecordValue> Records);
+    Guid CareerId, string CareerName, IReadOnlyList<TrophyWin> Wins, IReadOnlyList<TrophyTitle> Titles, IReadOnlyList<RecordValue> Records,
+    bool NewGamePlus = false);
 
 /// <summary>
 /// The trophy room: every class win (by track) and every class title a career has won, from its
@@ -36,7 +40,7 @@ public static class TrophyRoom
                 .Where(r => r.State == RoundState.Completed && r.Test is null
                     && r.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer) is { Classified: true, ClassRank: 1 })
                 .OrderBy(r => r.Result!.AcceptedAt)
-                .Select(r => new TrophyWin(r.TrackFolder, r.EventName, s.CarFor(r).CarClass, s.CarFor(r).CarType, s.Number)))
+                .Select(r => new TrophyWin(r.TrackFolder, r.EventName, s.CarFor(r).CarClass, s.CarFor(r).CarType, s.Number, FloorChecks.Credited(r))))
             .ToList();
 
         // A title is the top of the player's class table once the season is over, in each championship raced.
@@ -47,11 +51,11 @@ public static class TrophyRoom
             {
                 var table = season.Standings(seriesId).FirstOrDefault(t => t.CarClass.Equals(car.CarClass, StringComparison.OrdinalIgnoreCase));
                 if (table?.Drivers.FirstOrDefault() is { IsPlayer: true })
-                    titles.Add(new TrophyTitle(car.CarClass, car.CarType, season.Number, seriesId));
+                    titles.Add(new TrophyTitle(car.CarClass, car.CarType, season.Number, seriesId, FloorChecks.Credited(season, seriesId)));
             }
         }
 
-        return new CareerTrophies(career.Id, career.Name, wins, titles, Records(career, seasons, catalog));
+        return new CareerTrophies(career.Id, career.Name, wins, titles, Records(career, seasons, catalog), career.NewGamePlus is not null);
     }
 
     private static IReadOnlyList<RecordValue> Records(Career career, IReadOnlyList<Season> seasons, ContentCatalog catalog)

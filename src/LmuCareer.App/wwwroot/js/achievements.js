@@ -241,9 +241,11 @@ export function achievementList(career, achievements, carName) {
           def.secret ? h("span", { class: "ach-tag sec" }, t("Secret")) : null),
         h("div", { class: "ach-rule" }, info.rule()),
         got ? h("div", { class: "ach-meta" }, earnedLine(got, carName))
-          : def.newGamePlus ? h("div", { class: "ach-meta" }, t("Comes with New Game+"))
+          : def.newGamePlus && !career.newGamePlus ? h("div", { class: "ach-meta" }, t("Comes with New Game+"))
+          : def.newGamePlus && career.newGamePlus.endedAt ? h("div", { class: "ach-meta" }, t("New Game+ ended for this career."))
           : p ? [h("div", { class: "ach-meta" }, `${p.done} / ${p.goal}`),
               h("div", { class: "ach-bar" }, h("span", { style: { width: `${Math.round((100 * p.done) / p.goal)}%` } }))]
+          : def.newGamePlus ? h("div", { class: "ach-meta" }, t("Only races that pass their New Game+ floor count."))
           : null));
   };
   const normal = achievements.all.filter((a) => !a.newGamePlus);
@@ -254,9 +256,9 @@ export function achievementList(career, achievements, carName) {
     ng.map(row));
 }
 
-/** How many of the career's achievements are earned, out of the ones it can earn now (not New Game+). */
+/** How many of the career's achievements are earned, out of the ones it can earn (New Game+ ones only in a New Game+ career). */
 export function achievementCount(career, achievements) {
-  const normal = achievements.all.filter((a) => !a.newGamePlus);
+  const normal = achievements.all.filter((a) => !a.newGamePlus || career.newGamePlus);
   return { earned: career.achievements.filter((a) => normal.some((d) => d.id === a.id)).length, total: normal.length };
 }
 

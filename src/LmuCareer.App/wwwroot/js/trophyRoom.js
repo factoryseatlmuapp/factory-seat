@@ -4,7 +4,8 @@ import { TRACKS, CLASS_LABEL, RECORDS } from "./trophies.js";
 
 // The 3D trophy room: one trophy per track, a plate on its base for each class win there, and a
 // silver cup on the top shelf for each title. Built from code with three.js (lathes, tubes,
-// extrusions), so a new track only needs a landmark. Opened from the Career tab.
+// extrusions), so a new track only needs a landmark. Opened from the Career tab. New Game+ wins and
+// titles (from races that passed their floor) stand in a gold-lit wing of their own.
 
 /** Each track's landmark and the short name on its shelf plaque, by its folder in LMU. */
 const MAX_PLATES = 6;
@@ -23,6 +24,9 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
   await document.fonts.load('700 40px "Barlow Condensed"').catch(() => {});
 
   let lifetime = false;
+  let wing = false;
+  const hasWing = rooms.some((r) => r.newGamePlus);
+  const heading = h("h1", {}, t("Trophy room"));
   const overlay = h("div", { class: "trophy-room" });
   const focusName = h("h2", {});
   const focusEl = h("div", { class: "trophy-focus" }, focusName, h("p", {}, t("Drag to turn · click outside or press Esc to put it back")));
@@ -32,7 +36,7 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
   let boardOpen = false;
   put();
   overlay.append(
-    h("div", { class: "trophy-hud" }, h("h1", {}, t("Trophy room")), summary, scope),
+    h("div", { class: "trophy-hud" }, heading, summary, scope),
     board,
     h("button", { class: "btn ghost trophy-close", onclick: () => close(), "data-sound": "back" }, t("Close")),
     focusEl);
@@ -484,8 +488,10 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
     setFocus(null);
 
     const shown = rooms.filter((r) => lifetime || r.careerId === careerId);
-    const wins = shown.flatMap((r) => r.wins.map((w) => ({ ...w, career: r.careerName })));
-    const titles = shown.flatMap((r) => r.titles.map((x) => ({ ...x, career: r.careerName })));
+    // The New Game+ wing holds what passed the floor; everything else, reduced races included, the normal shelves.
+    const wins = shown.flatMap((r) => r.wins.filter((w) => !!w.newGamePlus === wing).map((w) => ({ ...w, career: r.careerName })));
+    const titles = shown.flatMap((r) => r.titles.filter((x) => !!x.newGamePlus === wing).map((x) => ({ ...x, career: r.careerName })));
+    theme();
 
     ROW_Y.forEach((y) => shelfAt(y, COLS * GAP + 0.6));
     const titleSlots = Math.max(3, Math.min(MAX_TITLES, titles.length));
@@ -522,6 +528,16 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
       { wins: wins.length, tracks: won, total: tracks.length, titles: titles.length });
   }
 
+  /** The New Game+ wing is lit and finished in gold; the normal room in blue and red. */
+  function theme() {
+    heading.textContent = wing ? t("New Game+ wing") : t("Trophy room");
+    scene.background.set(wing ? 0x140f06 : 0x0b0f1a);
+    M.wall.color.set(wing ? 0x231a0b : 0x0f1422);
+    M.shelf.color.set(wing ? 0x3b2c12 : 0x161d2d);
+    rimBlue.color.set(wing ? 0xe2b33a : 0x2860c8);
+    rimRed.color.set(wing ? 0xa87a12 : 0xe3192f);
+  }
+
   /** The best of each record across the careers shown (a sum for hours raced), and where it was set. */
   function records(shown) {
     const rows = RECORDS.map(([id, name, show, pick]) => {
@@ -542,6 +558,7 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
     scope.replaceChildren(
       h("button", { class: "btn small" + (lifetime ? " ghost" : ""), onclick: () => { lifetime = false; put(); if (rack) build(); } }, t("This career")),
       h("button", { class: "btn small" + (lifetime ? "" : " ghost"), onclick: () => { lifetime = true; put(); if (rack) build(); } }, t("All careers")),
+      hasWing ? h("button", { class: "btn small ngp-wing" + (wing ? "" : " ghost"), onclick: () => { wing = !wing; put(); if (rack) build(); } }, t("NG+ wing")) : null,
       h("button", { class: "btn small" + (boardOpen ? "" : " ghost"), onclick: () => { boardOpen = !boardOpen; board.hidden = !boardOpen; put(); } }, t("Records")));
   }
 

@@ -41,6 +41,9 @@ public static class Achievements
     public const int CenturyRaces = 100;
     public const int OneMakeSeasons = 3;
 
+    /// <summary>A full 24-hour race, as the results file has it.</summary>
+    public const int TwentyFourHours = 1440;
+
     public static readonly IReadOnlyList<AchievementInfo> All =
     [
         new("rook"),
@@ -75,7 +78,7 @@ public static class Achievements
         var backfill = !career.AchievementsStarted;
         career.AchievementsStarted = true;
         var earned = new List<EarnedAchievement>();
-        foreach (var info in All.Where(a => !a.NewGamePlus && !career.Achievements.Any(e => e.Id == a.Id)))
+        foreach (var info in All.Where(a => (!a.NewGamePlus || career.NewGamePlus is not null) && !career.Achievements.Any(e => e.Id == a.Id)))
         {
             if (Check(career, info.Id, catalog) is not { } where) continue;
             var achievement = new EarnedAchievement
@@ -106,13 +109,17 @@ public static class Achievements
     public static IReadOnlyList<AchievementProgress> Progress(Career career, ContentCatalog catalog)
     {
         var progress = new List<AchievementProgress>();
-        foreach (var info in All.Where(a => a.Goal is not null && !a.Secret && !a.NewGamePlus && !career.Achievements.Any(e => e.Id == a.Id)))
+        foreach (var info in All.Where(a => a.Goal is not null && !a.Secret && (!a.NewGamePlus || career.NewGamePlus is not null)
+            && !career.Achievements.Any(e => e.Id == a.Id)))
         {
             var done = info.Id switch
             {
                 "century" => Raced(career).Count(),
                 "one-make" => SeasonsByBrand(career, catalog).Select(g => g.Count()).DefaultIfEmpty().Max(),
                 "factory-driver" => career.Loyalty.Select(l => (int)Loyalties.Stage(l.Points)).DefaultIfEmpty().Max(),
+                "crown-jewels" => Credited(career).Where(x => Won(x.Round) && FullLength(x.Round, x.Round.RealDurationHours * 60))
+                    .Select(x => Jewel(x.Round)).OfType<string>().Distinct().Count(),
+                "both-sides" => Finished(career).Select(Titles).DefaultIfEmpty().Max(),
                 _ => 0,
             };
             progress.Add(new AchievementProgress(info.Id, Math.Min(done, info.Goal!.Value), info.Goal!.Value));
@@ -168,6 +175,23 @@ public static class Achievements
                 return InSeason(Seasons(career).FirstOrDefault(s => s.Car.CarClass == "Hyper" && s.Contract?.ReputationDoor == true));
             case "nemesis":
                 return InSeason(Finished(career).FirstOrDefault(s => BeatRival(career, s)));
+
+            // New Game+: only races that passed their floor count.
+            case "pole":
+                return AtFirst(Credited(career).Where(x => Me(x.Round)?.ClassPole == true));
+            case "win-from-pole":
+                return AtFirst(Credited(career).Where(x => Won(x.Round) && Me(x.Round)!.ClassPole));
+            case "double-points":
+                return AtFirst(Credited(career).Where(x => Won(x.Round) && FullLength(x.Round, TwentyFourHours)));
+            case "crown-jewels":
+            {
+                var jewels = new HashSet<string>();
+                foreach (var x in Credited(career).Where(x => Won(x.Round) && FullLength(x.Round, x.Round.RealDurationHours * 60)))
+                    if (Jewel(x.Round) is { } jewel && jewels.Add(jewel) && jewels.Count == 3) return At(x);
+                return null;
+            }
+            case "both-sides":
+                return InSeason(Finished(career).FirstOrDefault(s => Titles(s) >= 2));
             default:
                 return null;
         }
@@ -187,6 +211,29 @@ public static class Achievements
             .Select(r => (s, r)));
 
     private static Scoring.ScoredEntry? Me(Round round) => round.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer);
+
+    private static bool Won(Round round) => Me(round) is { Classified: true, ClassRank: 1 };
+
+    /// <summary>New Game+: counted races that passed their floor, in order (guest drives carry no floor).</summary>
+    private static IEnumerable<(Season Season, Round Round)> Credited(Career career) =>
+        Raced(career).Where(x => FloorChecks.Credited(x.Round));
+
+    /// <summary>Raced as long as the real event (or at least <paramref name="minutes"/>), as briefed, to the end.</summary>
+    private static bool FullLength(Round round, double minutes) =>
+        minutes > 0 && round.RaceMinutes >= minutes && round.Result is { QuitEarly: false, AcceptedDespite.Count: 0 };
+
+    /// <summary>Daytona, Sebring or Le Mans: the crown jewels of endurance racing.</summary>
+    private static string? Jewel(Round round) =>
+        round.TrackCourse.Contains("Daytona", StringComparison.OrdinalIgnoreCase) ? "daytona"
+        : round.TrackCourse.Contains("Sebring", StringComparison.OrdinalIgnoreCase) ? "sebring"
+        : round.TrackCourse.StartsWith("Circuit de la Sarthe", StringComparison.OrdinalIgnoreCase) ? "le-mans"
+        : null;
+
+    /// <summary>New Game+: class titles a finished season won in championships raced wholly above the floor (the season's own, IMSA).</summary>
+    private static int Titles(Season season) =>
+        season.Series.Select(x => (Id: x.Id, Car: x.Car)).Prepend((Id: "", Car: season.Car)).Count(c =>
+            FloorChecks.Credited(season, c.Id)
+            && season.Standings(c.Id).FirstOrDefault(t => t.CarClass.Equals(c.Car.CarClass, StringComparison.OrdinalIgnoreCase))?.Drivers.FirstOrDefault() is { IsPlayer: true });
 
     /// <summary>Finished seasons by the make of the season's car, in order.</summary>
     private static IEnumerable<IGrouping<string, Season>> SeasonsByBrand(Career career, ContentCatalog catalog) =>

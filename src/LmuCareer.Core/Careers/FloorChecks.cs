@@ -67,6 +67,16 @@ public sealed class FloorCheck
 /// <summary>New Game+'s checks on a counted race (design doc, Oct 16 and Oct 28).</summary>
 public static class FloorChecks
 {
+    /// <summary>A race that earns New Game+ credit: checked against its floor, and not below it.</summary>
+    public static bool Credited(Round round) => round.Result?.Floor is { Reduced: false };
+
+    /// <summary>A championship whose every counted round earned New Game+ credit: its title goes on the New Game+ wing.</summary>
+    public static bool Credited(Season season, string seriesId)
+    {
+        var counted = season.SeriesRounds(seriesId).Where(r => r.State == RoundState.Completed && r.Test is null).ToList();
+        return counted.Count > 0 && counted.All(Credited);
+    }
+
     /// <summary>Flagged rounds in one season that turn the career normal, for good.</summary>
     public const int FlagsToEnd = 3;
 
