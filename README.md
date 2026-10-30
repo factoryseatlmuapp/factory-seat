@@ -76,6 +76,7 @@ At the end of the season you get a review, a reputation change, and offers for n
 - **DLC ownership is on trust.** LMU installs every pack's files whether you own it or not, so the app asks you which packs you have. Offers and calendars only use those.
 - **Your careers** are saved in `%AppData%\LmuCareer` (`~/.config/LmuCareer` on Linux). Uninstalling asks before it deletes them.
 - **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings. The app collects no data and has no accounts or servers. Its window is drawn by Microsoft's WebView2 runtime, a Windows component that may contact Microsoft for its own updates, just as it does for other apps that use it.
+- **Code signing:** official Windows releases are built by GitHub Actions from this public source; see the [code signing policy](docs/CODE_SIGNING.md).
 
 ## FAQ
 
