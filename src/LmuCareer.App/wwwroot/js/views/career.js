@@ -2,6 +2,7 @@ import { call, onEvent } from "../api.js";
 import { h, put, clear, setting, chip, trackSvg } from "../dom.js";
 import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack, countryPicker } from "../app.js";
 import { sound } from "../sound.js";
+import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
@@ -1599,7 +1600,20 @@ export async function careerView(view, id, tab) {
         h("div", { class: "muted" }, t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
         h("div", { class: "row", style: { marginTop: "14px" } },
           h("button", { class: "btn", onclick: () => go("#/new") }, t("Start a New Game+ career")),
-          h("button", { class: "btn ghost", onclick: () => go("#/careers") }, t("Hall of Fame")))));
+          h("button", { class: "btn ghost", onclick: showHallEntry }, t("Hall of Fame")))));
+  }
+
+  /** This career's Hall of Fame entry, with the way to the rest of them. */
+  async function showHallEntry() {
+    const hall = await call("hallOfFame");
+    const entry = hall.entries.find((e) => e.careerId === data.career.id);
+    showModal([
+      h("h2", {}, t("Hall of Fame")),
+      entry ? hallCard(entry) : h("p", { class: "muted" }, t("This career isn't in the Hall of Fame.")),
+      h("div", { class: "modal-actions" },
+        h("button", { class: "btn ghost", onclick: () => { closeModal(); go("#/careers"); } }, t("The whole Hall of Fame")),
+        h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ]);
   }
 
   /** Retiring: the career goes into the Hall of Fame and its achievements unlock New Game+ head starts. */
