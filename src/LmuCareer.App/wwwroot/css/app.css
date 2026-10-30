@@ -524,6 +524,13 @@ select.input { padding: 6px 8px; }
 .trophy-focus { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); text-align: center; pointer-events: none;
   opacity: 0; transition: opacity 0.3s; }
 .trophy-focus.on { opacity: 1; }
+.ngp-chip { display: inline-block; padding: 1px 6px 0; border-radius: 3px; font: 700 14px "Barlow Condensed", var(--cjk);
+  color: #1a1306; background: linear-gradient(145deg, #e2b33a, #a87a12); }
+.ngp-card h3 { margin: 0; }
+.card.ngp-card.selected, .card.ngp-start.selected { border-color: #c9a227; }
+.ngp-rules { margin: 10px 0 0; padding-left: 18px; color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+.ngp-start { display: flex; gap: 10px; align-items: flex-start; }
+.ngp-start input { margin-top: 3px; }
 .recap-preview { display: block; width: 100%; border: 1px solid var(--border-soft); margin: 4px 0 14px; }
 .trophy-records { position: absolute; right: 20px; top: 64px; width: 300px; padding: 12px 14px; background: rgba(13, 17, 29, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.13); border-left: 4px solid var(--accent); }

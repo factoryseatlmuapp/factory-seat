@@ -5,6 +5,7 @@ import { seasonBuilder } from "./seasonBuilder.js";
 import { packChecklist } from "./packs.js";
 import { careerGuide } from "./guide.js";
 import { t, lmu, mark } from "../i18n.js";
+import { HEAD_STARTS, floorRules, unlockedBy } from "../newGamePlus.js";
 
 // New career: Driver (and how to play), Content (DLC owned), Path (a career's road to Hypercar),
 // Car, then the season builder.
@@ -35,6 +36,8 @@ const START_CLASSES = {
 
 export async function newCareerView(view) {
   const cat = await catalog();
+  const hall = await call("hallOfFame").catch(() => ({ entries: [], headStarts: [] }));
+  const latest = [...hall.entries].sort((a, b) => b.retiredAt.localeCompare(a.retiredAt))[0];
 
   const draft = {
     name: "",
@@ -51,6 +54,10 @@ export async function newCareerView(view) {
     // [{ spec: { eventId } | { custom: {...} }, round }]
     rounds: null,
     seasonFor: null,
+    // New Game+ (once a career has retired): head starts picked and the career it carries on from.
+    newGamePlus: false,
+    headStarts: [],
+    legacy: latest?.careerId ?? null,
   };
   let tab = "driver";
 
@@ -106,12 +113,46 @@ export async function newCareerView(view) {
                 class: "card quiet clickable" + (draft.mode === value ? " selected" : ""),
                 onclick: () => setMode(value),
               }, h("h3", {}, title), h("div", { class: "faint", style: { marginTop: "6px" } }, text))))),
+        draft.mode === "championship" || !hall.entries.length ? null : newGamePlusField(),
         // Nationality only picks local sponsors, which a championship-only career doesn't have.
         draft.mode === "championship" ? null : h("div", { class: "field" }, h("label", {}, t("Nationality")),
           countryPicker(draft.nationality, (code) => { draft.nationality = code; }),
           h("small", { class: "faint" }, t("Local sponsors come from your home country. You can change it later on the Career tab.")))),
       footer(next("content")));
     name.focus();
+  }
+
+  /** New Game+: the floor, the head starts the Hall of Fame has unlocked, and the career it follows. */
+  function newGamePlusField() {
+    const legacy = hall.entries.find((e) => e.careerId === draft.legacy) ?? latest;
+    const toggle = (id) => {
+      draft.headStarts = draft.headStarts.includes(id) ? draft.headStarts.filter((x) => x !== id) : [...draft.headStarts, id];
+      if (id === "carry-number" && draft.headStarts.includes(id)) {
+        draft.carNumber ||= legacy.carNumber;
+        draft.teamName ||= legacy.teamName;
+      }
+      show("driver");
+    };
+    return h("div", { class: "field" }, h("label", {}, t("New Game+")),
+      h("div", { class: "card quiet ngp-card" + (draft.newGamePlus ? " selected" : "") },
+        h("div", { class: "row", style: { cursor: "pointer" }, onclick: () => { draft.newGamePlus = !draft.newGamePlus; show("driver"); } },
+          h("input", { type: "checkbox", checked: draft.newGamePlus, tabindex: "-1", style: { pointerEvents: "none" } }),
+          h("h3", {}, t("Replay the ladder on the raised floor")), h("span", { class: "ngp-chip" }, t("NG+"))),
+        floorRules(),
+        draft.newGamePlus ? [
+          hall.entries.length > 1 ? h("div", { class: "field", style: { marginTop: "10px" } }, h("label", {}, t("Carries on from")),
+            h("select", { class: "input", onchange: (e) => { draft.legacy = e.target.value; show("driver"); } },
+              hall.entries.map((e) => h("option", { value: e.careerId, selected: e.careerId === legacy.careerId }, e.name)))) : null,
+          h("div", { class: "section-title", style: { marginTop: "14px" } }, t("Head starts")),
+          hall.headStarts.length
+            ? h("div", { class: "grid-2" }, hall.headStarts.map((id) => h("div", {
+              class: "card quiet clickable ngp-start" + (draft.headStarts.includes(id) ? " selected" : ""),
+              title: t("Unlocked by {achievement}", { achievement: unlockedBy(id) }),
+              onclick: () => toggle(id),
+            },
+              h("input", { type: "checkbox", checked: draft.headStarts.includes(id), tabindex: "-1", style: { pointerEvents: "none" } }),
+              h("div", {}, h("b", {}, HEAD_STARTS[id]?.name() ?? id), h("div", { class: "faint" }, HEAD_STARTS[id]?.text() ?? "")))))
+            : h("div", { class: "faint" }, t("No head starts unlocked yet: they come from the achievements of retired careers."))] : null));
   }
 
   // ---------- Content ----------
@@ -254,6 +295,7 @@ export async function newCareerView(view) {
       carNumber: draft.carNumber,
       teamName: draft.teamName,
       rounds,
+      newGamePlus: draft.newGamePlus && draft.mode !== "championship" ? { headStarts: draft.headStarts, legacy: draft.legacy } : null,
     }));
     if (result) go(`#/career/${result.id}`);
   }

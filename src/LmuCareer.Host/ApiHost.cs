@@ -26,6 +26,7 @@ public sealed class ApiHost
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Locales _locales = Locales.Load();
     private readonly CareerStore _store = new(CareerStore.DefaultRoot);
+    private readonly HallOfFame _hall = new(CareerStore.DefaultRoot);
     private readonly ContentCatalog _catalog = ContentCatalog.Default;
     private readonly ResultsWatcher _watcher;
     private LmuInstall? _install;
@@ -140,7 +141,9 @@ public sealed class ApiHost
         "deleteCareer" => DeleteCareer(args),
         "exportCareer" => ExportCareer(args),
         "importCareer" => ImportCareer(),
-        "armRound" => Change(args, c => RoundFlow.Arm(c.CurrentSeason, DateTimeOffset.Now)),
+        "armRound" => Change(args, c => RoundFlow.Arm(StillRacing(c).CurrentSeason, DateTimeOffset.Now)),
+        "retireCareer" => RetireCareer(args),
+        "hallOfFame" => new { entries = _hall.Entries(), headStarts = HeadStarts.Unlocked(_hall.Entries()) },
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
         "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason,
             args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
@@ -477,9 +480,34 @@ public sealed class ApiHost
             },
         };
         if (career.CurrentSeason.Rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
+        if (args.TryGetProperty("newGamePlus", out var ngp) && ngp.ValueKind == JsonValueKind.Object) StartNewGamePlus(career, ngp);
 
         _store.Save(career);
         return new { id = career.Id };
+    }
+
+    /// <summary>
+    /// Makes a new career New Game+, with the head starts picked (only ones the Hall of Fame has
+    /// unlocked count). Needs a retired career; championship-only careers have no ladder to replay.
+    /// </summary>
+    private void StartNewGamePlus(Career career, JsonElement ngp)
+    {
+        var hall = _hall.Entries();
+        if (hall.Count == 0) throw new PlayerError("New Game+ opens once a career has retired.");
+        if (career.ChampionshipOnly) throw new PlayerError("New Game+ is a career: it can't be championship only.");
+        var unlocked = HeadStarts.Unlocked(hall);
+        var picked = Strings(ngp, "headStarts").Where(unlocked.Contains).Distinct().ToList();
+        var legacy = ngp.TryGetProperty("legacy", out var l) && Guid.TryParse(l.GetString(), out var id)
+            ? hall.FirstOrDefault(e => e.CareerId == id) : null;
+        legacy ??= hall.OrderByDescending(e => e.RetiredAt).First();
+
+        career.NewGamePlus = new NewGamePlusState { HeadStarts = picked, Legacy = legacy.CareerId, OldRival = legacy.Rival };
+        career.Reputation = HeadStarts.StartingReputation(picked);
+        if (picked.Contains(HeadStarts.FrontRunner) && career.CurrentSeason.Contract is { } contract)
+        {
+            contract.Tier = 1;
+            contract.TargetPosition = Progression.TargetFor(1);
+        }
     }
 
     /// <summary>A round spec from the season builder, with the career's class added.</summary>
@@ -623,6 +651,7 @@ public sealed class ApiHost
     {
         career,
         // Every achievement and progress on the ones still to earn; what's earned is in the career (unseen ones pop up).
+        canRetire = Retirement.CanRetire(career),
         achievements = new
         {
             all = Achievements.All,
@@ -712,9 +741,23 @@ public sealed class ApiHost
     }
 
     /// <summary>Signs an offer and starts the next season on the calendar from the season builder.</summary>
-    private object StartNextSeason(JsonElement args)
+    /// <summary>A retired career keeps its records but races no more.</summary>
+    private static Career StillRacing(Career career) =>
+        career.RetiredAt is null ? career : throw new PlayerError("This career has retired: start a New Game+ career to race again.");
+
+    /// <summary>Retires a career into the Hall of Fame: its achievements unlock head starts for New Game+.</summary>
+    private object RetireCareer(JsonElement args)
     {
         var career = Load(args);
+        var entry = Retirement.Retire(career, _catalog, DateTimeOffset.Now);
+        _hall.Add(entry);
+        _store.Save(career);
+        return new { entry, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
+    }
+
+    private object StartNextSeason(JsonElement args)
+    {
+        var career = StillRacing(Load(args));
         var offer = career.Offers.FirstOrDefault(o => o.Id == Str(args, "offerId"))
             ?? throw new KeyNotFoundException("That offer isn't on the table any more.");
         var rounds = args.GetProperty("rounds").EnumerateArray().Select(r => RoundFor(Merge(r, offer.CarClass))).ToList();
@@ -776,7 +819,7 @@ public sealed class ApiHost
 
     private object AcceptRound(JsonElement args)
     {
-        var career = Load(args);
+        var career = StillRacing(Load(args));
         var evaluation = CareerActions.CheckArmedRound(_store, career, ResultsFolder, _install?.RaceSavesFolder);
         var round = career.CurrentSeason.ArmedRound;
 

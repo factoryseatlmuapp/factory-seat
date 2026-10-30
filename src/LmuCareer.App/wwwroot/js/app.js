@@ -158,6 +158,9 @@ async function route() {
 }
 
 window.addEventListener("hashchange", route);
+// Script errors go to page-errors.log beside the saves, for bug reports.
+window.addEventListener("error", (e) => call("log", { message: `Page error: ${e.message} (${e.filename}:${e.lineno})` }).catch(() => {}));
+window.addEventListener("unhandledrejection", (e) => call("log", { message: `Page error: ${e.reason?.stack ?? e.reason}` }).catch(() => {}));
 document.getElementById("open-settings").addEventListener("click", () => openSettings());
 
 // ---------- Start ----------

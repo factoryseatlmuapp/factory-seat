@@ -92,7 +92,7 @@ export async function careerView(view, id, tab) {
     back: "#/careers",
     tabs: TABS.map((x) => x.id === "briefing" && !nextRound()
       ? { ...x, label: t("Off-season"), dot: data.career.offers.length > 0 }
-      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed(), count: x.id === "inbox" ? data.unread : 0 }),
+      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed() && !data.career.retiredAt, count: x.id === "inbox" ? data.unread : 0 }),
     active: tab,
     onTab: show,
   });
@@ -210,6 +210,8 @@ export async function careerView(view, id, tab) {
     const car = season().car;
     const canChange = canChangeCar();
     return h("div", { class: "car-strip" },
+      data.career.retiredAt ? h("span", { class: "faint" }, t("Retired")) : null,
+      data.career.newGamePlus && !data.career.newGamePlus.endedAt ? h("span", { class: "ngp-chip" }, t("NG+")) : null,
       h("span", { class: "lmu-path" }, t("Your car")),
       chip(car.carClass),
       h("span", { class: "car-name" }, carName(car.carType)),
@@ -262,6 +264,7 @@ export async function careerView(view, id, tab) {
   // ---------- Next race ----------
 
   function briefing() {
+    if (data.career.retiredAt) return retiredBriefing();
     const round = nextRound();
     if (!round) return offSeason();
     if (round.test) return testBriefing(round);
@@ -1503,6 +1506,45 @@ export async function careerView(view, id, tab) {
     ], { wide: true });
   }
 
+  /** A retired career races no more: its tab points to the Hall of Fame and New Game+. */
+  function retiredBriefing() {
+    put(view,
+      h("div", { class: "hero" },
+        h("div", { class: "hero-mark" }, t("Retired")),
+        h("div", {},
+          h("h1", { class: "hero-title" }, t("Career over")),
+          h("div", { class: "hero-sub" }, t("Retired {date}", { date: dateTime(data.career.retiredAt) })))),
+      h("div", { class: "card quiet", style: { maxWidth: "720px" } },
+        h("div", { class: "muted" }, t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
+        h("div", { class: "row", style: { marginTop: "14px" } },
+          h("button", { class: "btn", onclick: () => go("#/new") }, t("Start a New Game+ career")),
+          h("button", { class: "btn ghost", onclick: () => go("#/careers") }, t("Hall of Fame")))));
+  }
+
+  /** Retiring: the career goes into the Hall of Fame and its achievements unlock New Game+ head starts. */
+  function retireCard() {
+    if (data.career.retiredAt) {
+      return [h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retired")),
+        h("div", { class: "card quiet muted" }, t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
+    }
+    if (!data.canRetire) return null;
+    const retire = async () => {
+      if (!await confirmDialog(t("Retire {name}?", { name: data.career.name }),
+        t("The career stops racing for good and goes into the Hall of Fame. Its achievements unlock head starts for a New Game+ career. This can't be undone."),
+        { confirm: t("Retire") })) return;
+      const result = await attempt(call("retireCareer", { id }));
+      if (!result) return;
+      toast(t("{name} is in the Hall of Fame. New Game+ is open on the New career screen.", { name: data.career.name }));
+      go("#/careers");
+    };
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retire")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "muted", style: { marginBottom: "10px" } },
+          t("Done with this career? Retire it into the Hall of Fame. Its achievements unlock head starts for New Game+: the ladder again, on a raised floor.")),
+        h("button", { class: "btn ghost small", onclick: retire }, t("Retire this career")))];
+  }
+
   function trophyCard() {
     const wins = [...data.career.pastSeasons, season()].flatMap((s) => s.rounds)
       .filter((r) => r.state === "Completed" && !r.test && playerEntry(r)?.classified && playerEntry(r)?.classRank === 1).length;
@@ -1569,6 +1611,7 @@ export async function careerView(view, id, tab) {
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your team")),
             teamCard()],
           trophyCard(),
+          retireCard(),
           // Nationality only picks local sponsors, which a championship-only career doesn't have.
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),

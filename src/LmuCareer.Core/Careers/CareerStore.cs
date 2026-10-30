@@ -12,7 +12,9 @@ public sealed record CareerSummary(
     int RoundsDone,
     int RoundsTotal,
     DateTimeOffset LastPlayedAt,
-    decimal Reputation = 0);
+    decimal Reputation = 0,
+    bool NewGamePlus = false,
+    bool Retired = false);
 
 public sealed record LoadedCareer(Career Career, bool RecoveredFromBackup);
 
@@ -158,7 +160,9 @@ public sealed class CareerStore
         c.CurrentSeason.Rounds.Count(r => r.State is RoundState.Completed or RoundState.Skipped),
         c.CurrentSeason.Rounds.Count,
         c.LastPlayedAt,
-        c.Reputation);
+        c.Reputation,
+        c.IsNewGamePlus,
+        c.RetiredAt is not null);
 
     private string PathFor(Guid id) => Path.Combine(_careersDir, id.ToString("N") + Extension);
 

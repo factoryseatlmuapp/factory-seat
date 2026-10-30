@@ -2,12 +2,14 @@ import { call } from "../api.js";
 import { h, put, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, toast } from "../app.js";
 import { t, dateTime } from "../i18n.js";
+import { hallCard } from "../newGamePlus.js";
 
 // Home: continue a career, or start a new one. Laid out like LMU's Race Weekend screen.
 
 export async function careersView(view) {
   setChrome({ crumb: t("Careers") });
   const careers = await call("listCareers");
+  const hall = await call("hallOfFame").catch(() => ({ entries: [] }));
   const cat = await catalog();
   const carName = (carType) => cat.cars.find((c) => c.carTypes.includes(carType))?.name ?? carType;
 
@@ -29,7 +31,12 @@ export async function careersView(view) {
           h("div", { class: "row", style: { marginBottom: "auto", justifyContent: "flex-end" } },
             chip("GT3"), chip("LMP3"), chip("LMP2"), chip("Hyper"), chip("GTE")),
           h("div", { class: "card-title" }, t("Start a career")),
-          h("div", { class: "muted" }, t("From LMGT3 rookie to a factory Hypercar seat, one season at a time."))))));
+          h("div", { class: "muted" }, hall.entries.length
+            ? t("From LMGT3 rookie to a factory Hypercar seat, one season at a time. New Game+ is open: pick it on the first step.")
+            : t("From LMGT3 rookie to a factory Hypercar seat, one season at a time."))),
+        hall.entries.length ? [
+          h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Hall of Fame")),
+          h("div", { class: "stack" }, [...hall.entries].sort((a, b) => b.retiredAt.localeCompare(a.retiredAt)).map(hallCard))] : null)));
 
   function careerCard(c) {
     const done = c.roundsTotal > 0 ? Math.round((100 * c.roundsDone) / c.roundsTotal) : 0;
@@ -37,6 +44,8 @@ export async function careersView(view) {
       h("div", { class: "row" },
         h("h3", {}, c.name),
         h("div", { class: "spacer" }),
+        c.newGamePlus ? h("span", { class: "ngp-chip" }, t("NG+")) : null,
+        c.retired ? h("span", { class: "faint" }, t("Retired")) : null,
         chip(c.carClass)),
       h("div", { class: "muted", style: { marginTop: "4px" } },
         [carName(c.carType), t("Season {number}", { number: c.seasonNumber }),

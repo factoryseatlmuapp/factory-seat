@@ -535,4 +535,14 @@ public sealed class Career
 
     /// <summary>False on a career from before achievements, until its first check backfills them.</summary>
     public bool AchievementsStarted { get; set; }
+
+    /// <summary>New Game+: the raised floor and head starts. Null on a normal career.</summary>
+    public NewGamePlusState? NewGamePlus { get; set; }
+
+    /// <summary>When the career retired into the Hall of Fame: it races no more.</summary>
+    public DateTimeOffset? RetiredAt { get; set; }
+
+    /// <summary>New Game+ and still on the floor (not turned normal by flagged rounds).</summary>
+    [JsonIgnore]
+    public bool IsNewGamePlus => NewGamePlus is { EndedAt: null };
 }
