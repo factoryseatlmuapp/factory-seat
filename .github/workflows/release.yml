@@ -1,0 +1,82 @@
+# Builds the Windows installer and the Linux tarball on GitHub's machines, from the public source.
+# - push to the `ci` branch or "Run workflow" in the Actions tab: build + tests only, files kept as run artifacts
+# - push a version tag (v1.4.0): the same, then a DRAFT release with both files attached. Publishing stays manual
+#   (opsec scan, VirusTotal, notes first).
+# Code signing (SignPath) slots in between build and release once the project is approved; see the TODO below.
+name: Release build
+
+on:
+  push:
+    branches: [ci]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Tools (Inno Setup, Pillow)
+        run: |
+          choco install innosetup -y --no-progress
+          python -m pip install --quiet pillow
+
+      - name: Tests
+        run: dotnet test tests/LmuCareer.Core.Tests -c Release
+
+      - name: Windows installer
+        run: powershell -File installer\build.ps1
+
+      - name: Linux tarball
+        run: python installer/build-linux.py
+
+      # TODO (after SignPath approval): sign publish\FactorySeat.exe before Inno packs it, then the installer, with
+      # signpath/github-action-submit-signing-request. Signing is what makes this workflow worth having.
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem publish\installer\*.exe, publish\linux\*.tar.gz |
+            ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Tee-Object publish\SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: factory-seat-${{ github.ref_name }}
+          path: |
+            publish/installer/*.exe
+            publish/linux/*.tar.gz
+            publish/SHA256SUMS.txt
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: factory-seat-${{ github.ref_name }}
+          path: dist
+
+      - name: Draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --draft \
+            --title "Factory Seat ${GITHUB_REF_NAME#v}" --notes "Draft built by GitHub Actions. Notes to follow." \
+            $(find dist -type f)
