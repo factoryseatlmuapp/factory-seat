@@ -8,7 +8,7 @@ import { t, tn, lmu, mark, number } from "../i18n.js";
 // events added from the library or made up. Used for a new career's first season and for every
 // season after it.
 
-const RACE_LENGTHS = [5, 10, 15, 20, 30, 45, 60, 72, 90, 120, 144, 180, 240, 360, 480, 600, 720, 1440];
+export const RACE_LENGTHS = [5, 10, 15, 20, 30, 45, 60, 72, 90, 120, 144, 180, 240, 360, 480, 600, 720, 1440];
 const SHORT_SEASON = 6;
 
 /**

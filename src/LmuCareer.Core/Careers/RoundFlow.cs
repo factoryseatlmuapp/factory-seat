@@ -63,6 +63,21 @@ public static class RoundFlow
         round.ArmedAt = null;
     }
 
+    /// <summary>
+    /// Changes how long the season's next round is raced, before its weekend starts: Time Scale,
+    /// Fuel Usage, Tyre Wear and stints follow, as in the season builder. Null minutes puts back
+    /// its usual length.
+    /// </summary>
+    public static Round SetLength(Season season, int? minutes)
+    {
+        var round = season.NextRound ?? throw new InvalidOperationException("The season has no rounds left.");
+        if (round.State != RoundState.Upcoming)
+            throw new PlayerError("The race weekend has started. Cancel the weekend first to change the race length.");
+        if (minutes is < 5 or > 1440) throw new PlayerError("A race runs between 5 minutes and 24 hours.");
+        Content.CalendarBuilder.ApplyLength(round, minutes, season.CarFor(round).CarClass);
+        return round;
+    }
+
     public static void Skip(Round round)
     {
         if (round.State == RoundState.Completed) throw new InvalidOperationException("The round has already been run.");

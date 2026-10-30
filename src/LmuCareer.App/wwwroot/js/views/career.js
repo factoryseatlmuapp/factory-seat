@@ -6,6 +6,7 @@ import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
+import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
@@ -316,7 +317,9 @@ export async function careerView(view, id, tab) {
           h("div", { class: "rows" },
             setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like. After you start the weekend, your engineer reads it for pace."), untickable: true }),
             setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid."), untickable: true }),
-            setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true, tick: tick("length") }),
+            setting(lmu("Race length"), [formatMinutes(round.raceMinutes), isArmed ? null
+              : h("button", { class: "btn ghost small", style: { marginLeft: "10px" }, onclick: () => changeLength(round) }, t("Change"))],
+              { big: true, tick: tick("length") }),
             setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("fuel") }),
             setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("tyres") }),
             setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
@@ -834,6 +837,25 @@ export async function careerView(view, id, tab) {
       toast(t("Race weekend started. Set it up in LMU and go racing."));
       show("briefing");
     }
+  }
+
+  /** A different length for the next race, before its weekend: Time Scale, Fuel Usage, Tyre Wear and stints follow. */
+  function changeLength(round) {
+    const length = h("select", { class: "input", style: { width: "180px" } },
+      h("option", { value: "" }, t("Usual length")),
+      RACE_LENGTHS.map((m) => h("option", { value: m, selected: m === round.raceMinutes }, formatMinutes(m))));
+    const apply = async () => {
+      if (await attempt(call("setRoundLength", { id, minutes: length.value ? +length.value : null }))) { closeModal(); show("briefing"); }
+    };
+    showModal([
+      h("h2", {}, t("Race length")),
+      h("p", { class: "muted" }, t("Race {event} for longer or shorter than planned. Time Scale, Fuel Usage, Tyre Wear and the pit plan change to fit; the points it's worth don't.", { event: round.eventName })),
+      length,
+      h("div", { class: "modal-actions" },
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Back")),
+        h("button", { class: "btn", "data-sound": "confirm", onclick: apply }, t("Save"))),
+    ]);
   }
 
   async function disarm() {

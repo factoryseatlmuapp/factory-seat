@@ -141,6 +141,8 @@ public sealed class ApiHost
         "importCareer" => ImportCareer(),
         "armRound" => Change(args, c => RoundFlow.Arm(c.CurrentSeason, DateTimeOffset.Now)),
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
+        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason,
+            args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "acceptRound" => AcceptRound(args),

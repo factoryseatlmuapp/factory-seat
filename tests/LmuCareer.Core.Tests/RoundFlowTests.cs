@@ -419,4 +419,25 @@ public class RoundFlowTests
         RoundFlow.Skip(armed);
         Assert.Equal(3, season.NextRound!.Number);
     }
+
+    [Fact]
+    public void The_next_round_can_change_length_until_its_weekend_starts()
+    {
+        var catalog = Content.ContentCatalog.Default;
+        var season = new Season
+        {
+            Number = 1,
+            Car = Car,
+            Rounds = Content.CalendarBuilder.Number([Content.CalendarBuilder.RoundFor(catalog, catalog.Event("le-mans-24")!, "GT3", DriverRating.Silver)]),
+        };
+        var usual = season.Rounds[0].RaceMinutes;
+
+        var round = RoundFlow.SetLength(season, 45);
+        Assert.Equal((45, 32, 2m), (round.RaceMinutes, (int)round.TimeScale, round.PointsWeight));
+        Assert.Equal(usual, RoundFlow.SetLength(season, null).RaceMinutes);
+        Assert.Throws<PlayerError>(() => RoundFlow.SetLength(season, 2));
+
+        RoundFlow.Arm(season, ArmedAt);
+        Assert.Throws<PlayerError>(() => RoundFlow.SetLength(season, 60));
+    }
 }
