@@ -1,5 +1,6 @@
 import { h } from "./dom.js";
-import { t } from "./i18n.js";
+import { t, number } from "./i18n.js";
+import { formatMinutes } from "./app.js";
 
 // The 3D trophy room: one trophy per track, a plate on its base for each class win there, and a
 // silver cup on the top shelf for each title. Built from code with three.js (lathes, tubes,
@@ -16,6 +17,18 @@ const TRACKS = {
 };
 
 const CLASS_LABEL = { Hyper: "HYPERCAR", LMP2: "LMP2", LMP3: "LMP3", GT3: "GT3", GTE: "GTE" };
+/** The records board, in order: name, how a value reads, and how the best is picked across careers. */
+const RECORDS = [
+  ["wins-in-a-season", () => t("Most wins in a season"), (v) => (v === 1 ? t("1 win") : t("{n} wins", { n: v }))],
+  ["poles-in-a-season", () => t("Most poles in a season"), (v) => (v === 1 ? t("1 pole") : t("{n} poles", { n: v }))],
+  ["win-streak", () => t("Longest win streak"), (v) => t("{n} in a row", { n: v })],
+  ["title-margin", () => t("Biggest title margin"), (v) => t("{n} points", { n: number(v) })],
+  ["loyalty-streak", () => t("Longest loyalty streak"), (v) => (v === 1 ? t("1 season") : t("{n} seasons", { n: v }))],
+  ["fastest-to-hypercar", () => t("Fastest climb to Hypercar"), (v) => t("Season {n}", { n: v }), "lowest"],
+  ["longest-win", () => t("Longest race won"), (v) => formatMinutes(v)],
+  ["hours-raced", () => t("Hours raced"), (v) => t("{n} h", { n: number(v) }), "sum"],
+];
+
 const MAX_PLATES = 6;
 const MAX_TITLES = 6;
 
@@ -37,9 +50,12 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
   const focusEl = h("div", { class: "trophy-focus" }, focusName, h("p", {}, t("Drag to turn · click outside or press Esc to put it back")));
   const scope = h("div", { class: "trophy-scope" });
   const summary = h("p", {});
+  const board = h("div", { class: "trophy-records" });
+  let boardOpen = false;
   put();
   overlay.append(
     h("div", { class: "trophy-hud" }, h("h1", {}, t("Trophy room")), summary, scope),
+    board,
     h("button", { class: "btn ghost trophy-close", onclick: () => close(), "data-sound": "back" }, t("Close")),
     focusEl);
   document.body.append(overlay);
@@ -522,9 +538,24 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
       } else place(ghostTrophy(), x, TITLE_Y, TITLE_SCALE, t("Championship"), false);
     }
 
+    records(shown);
     const won = new Set(wins.map((w) => w.trackFolder)).size;
     summary.textContent = t("{wins} class wins at {tracks} of {total} tracks · {titles} titles",
       { wins: wins.length, tracks: won, total: tracks.length, titles: titles.length });
+  }
+
+  /** The best of each record across the careers shown (a sum for hours raced), and where it was set. */
+  function records(shown) {
+    const rows = RECORDS.map(([id, name, show, pick]) => {
+      const all = shown.flatMap((r) => r.records.filter((x) => x.id === id).map((x) => ({ ...x, career: r.careerName })));
+      if (all.length === 0) return h("div", { class: "trophy-record empty" }, h("span", {}, name()), h("b", {}, "–"));
+      if (pick === "sum") return h("div", { class: "trophy-record" }, h("span", {}, name()), h("b", {}, show(all.reduce((s, x) => s + x.value, 0))));
+      const best = all.reduce((a, b) => (pick === "lowest" ? b.value < a.value : b.value > a.value) ? b : a);
+      const where = [lifetime ? best.career : null, best.season ? t("Season {n}", { n: best.season }) : null].filter(Boolean).join(" · ");
+      return h("div", { class: "trophy-record" }, h("span", {}, name(), where ? h("small", {}, where) : null), h("b", {}, show(best.value)));
+    });
+    board.replaceChildren(h("h3", {}, lifetime ? t("Records: all careers") : t("Records: this career")), ...rows);
+    board.hidden = !boardOpen;
   }
 
   function tn(n) { return n === 1 ? t("1 win") : t("{n} wins", { n }); }
@@ -532,7 +563,8 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
   function put() {
     scope.replaceChildren(
       h("button", { class: "btn small" + (lifetime ? " ghost" : ""), onclick: () => { lifetime = false; put(); if (rack) build(); } }, t("This career")),
-      h("button", { class: "btn small" + (lifetime ? "" : " ghost"), onclick: () => { lifetime = true; put(); if (rack) build(); } }, t("All careers")));
+      h("button", { class: "btn small" + (lifetime ? "" : " ghost"), onclick: () => { lifetime = true; put(); if (rack) build(); } }, t("All careers")),
+      h("button", { class: "btn small" + (boardOpen ? "" : " ghost"), onclick: () => { boardOpen = !boardOpen; board.hidden = !boardOpen; put(); } }, t("Records")));
   }
 
   function dispose(root) {

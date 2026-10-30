@@ -182,11 +182,18 @@ public class TrophyRoomTests
             CurrentSeason = new Season { Number = 1, Car = new CareerCar("Lexus RCF LMGT3", "GT3", "69", "Sample Racing"), Rounds = [win, second] },
         };
 
-        var room = TrophyRoom.For(career);
+        var room = TrophyRoom.For(career, ContentCatalog.Default);
 
         var plate = Assert.Single(room.Wins);
         Assert.Equal(("Spa_2023", "GT3", 1), (plate.TrackFolder, plate.CarClass, plate.Season));
         var title = Assert.Single(room.Titles);
         Assert.Equal(("GT3", 1, ""), (title.CarClass, title.Season, title.SeriesId));
+
+        decimal Record(string id) => room.Records.Single(r => r.Id == id).Value;
+        Assert.Equal(1, Record("wins-in-a-season"));
+        Assert.Equal(1, Record("win-streak"));
+        var table = career.CurrentSeason.Standings().Single().Drivers;
+        Assert.Equal(table[0].Points - table[1].Points, Record("title-margin"));
+        Assert.DoesNotContain(room.Records, r => r.Id == "fastest-to-hypercar");
     }
 }

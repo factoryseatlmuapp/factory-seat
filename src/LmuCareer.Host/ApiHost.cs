@@ -549,7 +549,7 @@ public sealed class ApiHost
         {
             try
             {
-                rooms.Add(TrophyRoom.For(_store.Load(summary.Id).Career));
+                rooms.Add(TrophyRoom.For(_store.Load(summary.Id).Career, _catalog));
             }
             catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
             {

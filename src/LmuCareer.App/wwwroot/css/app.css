@@ -524,5 +524,13 @@ select.input { padding: 6px 8px; }
 .trophy-focus { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); text-align: center; pointer-events: none;
   opacity: 0; transition: opacity 0.3s; }
 .trophy-focus.on { opacity: 1; }
+.trophy-records { position: absolute; right: 20px; top: 64px; width: 300px; padding: 12px 14px; background: rgba(13, 17, 29, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.13); border-left: 4px solid var(--accent); }
+.trophy-records h3 { font: 700 18px/1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; }
+.trophy-record { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08); font-size: 13px; color: #a0a8b9; }
+.trophy-record small { display: block; color: #697387; font-size: 11px; }
+.trophy-record b { font: 700 18px/1 "Barlow Condensed", var(--cjk); color: #f2f4f8; white-space: nowrap; }
+.trophy-record.empty b { color: #59627a; }
 .trophy-focus h2 { font: 700 30px/1.1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
 .trophy-focus p { margin: 2px 0 0; color: #a0a8b9; font-size: 13px; }
