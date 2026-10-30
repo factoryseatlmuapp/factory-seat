@@ -127,7 +127,8 @@ public static class FloorChecks
         return (strength, aggression);
     }
 
-    public static FloorCheck Check(RoundFloor floor, SessionResult race, SessionResult? qualifying, int? aiStrengthSeen)
+    /// <param name="paceCheck">False for a test day: being quick there is the point, not a sign of a weak AI.</param>
+    public static FloorCheck Check(RoundFloor floor, SessionResult race, SessionResult? qualifying, int? aiStrengthSeen, bool paceCheck = true)
     {
         var check = new FloorCheck { AiStrengthSeen = aiStrengthSeen };
         var player = race.Player;
@@ -145,7 +146,7 @@ public static class FloorChecks
         {
             if (seen != floor.AiStrength) check.Flags.Add(FloorFlag.AiStrength);
         }
-        else if (player is not null)
+        else if (player is not null && paceCheck)
         {
             check.QualifyingGap = qualifying is null ? null : Gap(qualifying, player.CarClass);
             check.RaceGap = Gap(race, player.CarClass);
@@ -165,6 +166,23 @@ public static class FloorChecks
             var lastContact = mine.Where(e => e.Kind == RaceEventKind.Incident && e.ElapsedSeconds >= lastLap).MaxBy(e => e.ElapsedSeconds);
             check.BarrierDnf = player.Status == FinishStatus.Dnf && lastContact?.Object == "Immovable";
         }
+        return check;
+    }
+
+    /// <summary>
+    /// New Game+: checks a test day's practice against its floor (strength, aggression, damage,
+    /// failures, rates; no rain, no pace check, no reputation cost). Every session counts: one
+    /// below the floor sinks the test.
+    /// </summary>
+    public static FloorCheck? ForTest(Career career, Round round, IReadOnlyList<SessionResult> practice, Content.LmuInstall? install)
+    {
+        if (!career.IsNewGamePlus || round.Floor is not { } floor || practice.Count == 0) return null;
+        var (strength, aggression) = Proof(round, install);
+        var check = new FloorCheck { AiStrengthSeen = strength };
+        foreach (var session in practice)
+            foreach (var flag in Check(floor with { Wet = false }, session, null, strength, paceCheck: false).Flags)
+                if (!check.Flags.Contains(flag)) check.Flags.Add(flag);
+        if (aggression is { } a && a < Floor.Aggression) check.Flags.Add(FloorFlag.Aggression);
         return check;
     }
 

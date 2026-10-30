@@ -71,6 +71,21 @@ public static class CareerActions
     }
 
     /// <summary>Checks the results files written from <paramref name="from"/> (and before <paramref name="until"/>) against the round.</summary>
+    /// <summary>
+    /// Judges the armed test day from the practice since its weekend started; in New Game+, its
+    /// sessions are checked against the test's floor first.
+    /// </summary>
+    public static TestResult CompleteTest(CareerStore store, Career career, string resultsFolder, Content.LmuInstall? install, DateTimeOffset now)
+    {
+        var round = career.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
+        if (round.Test is { } test && career.IsNewGamePlus)
+        {
+            var checks = ReadChecks(store, career, round, resultsFolder, round.ArmedAt!.Value, until: null);
+            test.Floor = FloorChecks.ForTest(career, round, Preparation.PracticeSessions(checks, round, career.CurrentSeason.CarFor(round)), install);
+        }
+        return TestDays.Complete(career, now);
+    }
+
     private static List<SessionCheck> ReadChecks(
         CareerStore store, Career career, Round round, string resultsFolder, DateTimeOffset from, DateTimeOffset? until)
     {

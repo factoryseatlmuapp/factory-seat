@@ -834,7 +834,7 @@ public sealed class ApiHost
         // A test day is judged on its practice laps, which the check above has just read.
         if (round?.Test is not null)
         {
-            TestDays.Complete(career, DateTimeOffset.Now);
+            CareerActions.CompleteTest(_store, career, ResultsFolder, _install, DateTimeOffset.Now);
             _store.Save(career);
             return new { view = CareerView(career), noticed = (TeamInterest?)null };
         }

@@ -125,6 +125,9 @@ public sealed class TestDay
 
     /// <summary>How it went, once the test is done; null until then.</summary>
     public TestResult? Result { get; set; }
+
+    /// <summary>New Game+: how the practice measured up to the test's floor. Below it, the test earns no offer.</summary>
+    public FloorCheck? Floor { get; set; }
 }
 
 public sealed record TestResult(int Laps, double PlayerBest, double AiBest, bool Passed)
