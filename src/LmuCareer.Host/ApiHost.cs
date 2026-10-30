@@ -126,6 +126,7 @@ public sealed class ApiHost
         "setLmuRoot" => SetLmuRoot(Str(args, "path")),
         "setPrefs" => SetPrefs(args),
         "openLocales" => OpenLocales(),
+        "setUpOverlay" => SetUpOverlay(),
         "setTitleBar" => SetTitleBar(args.GetProperty("dark").GetBoolean()),
         "catalog" => CatalogView(),
         "defaultSeason" => CalendarBuilder.DefaultSeason(_catalog, Str(args, "carClass"), DriverRating.Silver,
@@ -287,6 +288,14 @@ public sealed class ApiHost
                 "Restart the app (or pick the language again in Settings) to see your changes.\r\n");
         }
         _window.OpenFolder(Locales.OwnFolder);
+        return null;
+    }
+
+    /// <summary>Puts a fresh copy of the OBS overlay next to briefing.json and opens the folder.</summary>
+    private object? SetUpOverlay()
+    {
+        StreamOverlay.Write(CareerStore.DefaultRoot);
+        _window.OpenFolder(CareerStore.DefaultRoot);
         return null;
     }
 

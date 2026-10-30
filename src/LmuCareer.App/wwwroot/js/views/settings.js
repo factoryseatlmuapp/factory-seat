@@ -77,6 +77,11 @@ export async function openSettings() {
         setting(t("What's new tour"), h("button", { class: "btn ghost small", onclick: () => { save({ tourSeen: null }); toast(t("The tour runs the next time you open a career.")); } },
           t("Show the tour again")), { hint: t("A short walk through what 1.2 added.") })),
 
+      h("div", { class: "rows-title" }, t("Streaming")),
+      h("div", { class: "rows" },
+        setting(t("OBS overlay"), h("button", { class: "btn ghost small", onclick: () => attempt(call("setUpOverlay")) }, t("Set up")),
+          { hint: t("Shows your race briefing on stream. Puts the overlay next to your saves and opens the folder: add it to OBS as a Browser source (Local file), 460 × 780. The README there has the rest.") })),
+
       h("div", { class: "rows-title" }, "Le Mans Ultimate"),
       h("div", { class: "rows" },
         setting(t("Install folder"), h("button", { class: "btn ghost small", onclick: () => { closeModal(); go("#/setup"); } }, t("Change")),
