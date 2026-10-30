@@ -82,7 +82,8 @@ public static class Achievements
             {
                 Id = info.Id,
                 EarnedAt = now,
-                Season = where.Season,
+                // Judged on how the career stands now: backfilled, the season it really happened in isn't known.
+                Season = backfill && where.SeasonOf is null ? 0 : where.Season,
                 EventName = where.Round?.EventName ?? "",
                 CarType = where.Round is { } round ? where.SeasonOf!.CarFor(round).CarType : "",
                 Backfilled = backfill,
