@@ -47,6 +47,8 @@ export async function openSettings() {
       h("div", { class: "rows-title" }, t("Display")),
       h("div", { class: "rows" },
         setting(t("Language"), h("div", { class: "row", style: { gap: "8px" } },
+          h("button", { class: "btn ghost small", title: t("Opens a GitHub form in your browser"),
+            onclick: () => window.open("https://github.com/factoryseatlmuapp/factory-seat/issues/new?template=translation.yml") }, t("Suggest a fix")),
           h("button", { class: "btn ghost small", title: t("Fixes and new languages go in this folder"), onclick: () => attempt(call("openLocales")) }, t("Open folder")),
           languagePicker()),
           { hint: t("Translations are made by players. Spot a mistake? You can fix it yourself.") }),
