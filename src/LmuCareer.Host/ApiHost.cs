@@ -564,10 +564,13 @@ public sealed class ApiHost
         return CareerView(career);
     }
 
+    /// <summary>The career for the page, after checking for achievements its latest change earned.</summary>
     private object CareerView(Career career)
     {
+        var unlocked = Achievements.Update(career, _catalog, DateTimeOffset.Now);
+        if (unlocked.Count > 0) _store.Save(career);
         WriteBriefing(career);
-        return CareerViewData(career);
+        return CareerViewData(career, unlocked);
     }
 
     /// <summary>
@@ -587,9 +590,16 @@ public sealed class ApiHost
         }
     }
 
-    private object CareerViewData(Career career) => new
+    private object CareerViewData(Career career, IReadOnlyList<EarnedAchievement>? unlocked = null) => new
     {
         career,
+        // Every achievement, what this career has earned, progress on the rest, and what was just earned (to pop up).
+        achievements = new
+        {
+            all = Achievements.All,
+            progress = Achievements.Progress(career, _catalog),
+            unlocked = unlocked ?? [],
+        },
         sponsors = career.CurrentSeason.Sponsors.Select(d => new
         {
             deal = d,

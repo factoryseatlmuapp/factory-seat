@@ -184,6 +184,9 @@ public sealed class Contract
 
     /// <summary>Seasons the contract runs, this one included: 2 on a two-season deal's first season.</summary>
     public int SeasonsLeft { get; set; } = 1;
+
+    /// <summary>A Hypercar seat won on reputation alone, not through a ladder or a make.</summary>
+    public bool ReputationDoor { get; set; }
 }
 
 /// <summary>A team that noticed a big result mid-season: it makes an offer when the season ends.</summary>
@@ -293,6 +296,9 @@ public sealed class TeamOffer
 
     /// <summary>How the team is doing: what it can afford, such as running IMSA as well.</summary>
     public TeamStatus Status { get; set; } = TeamStatus.Stable;
+
+    /// <summary>A Hypercar seat offered on reputation alone.</summary>
+    public bool ReputationDoor { get; set; }
 
     /// <summary>
     /// The team that runs the player in IMSA beside this seat: this team itself, a partner team of
@@ -523,4 +529,10 @@ public sealed class Career
 
     /// <summary>False on a career from before the inbox, until its first open writes its starting mail.</summary>
     public bool InboxStarted { get; set; }
+
+    /// <summary>Achievements earned, in the order they were.</summary>
+    public List<EarnedAchievement> Achievements { get; set; } = [];
+
+    /// <summary>False on a career from before achievements, until its first check backfills them.</summary>
+    public bool AchievementsStarted { get; set; }
 }

@@ -459,6 +459,7 @@ public static class Progression
                     var reason = Phrase.Of("your reputation");
                     offers[^1].Reason = reason.ToString();
                     offers[^1].ReasonText = reason;
+                    offers[^1].ReputationDoor = true;
                     doors++;
                 }
             }
@@ -558,6 +559,7 @@ public static class Progression
                 Tier = offer.Tier,
                 TargetPosition = offer.TargetPosition,
                 Numbers = offer.Numbers,
+                ReputationDoor = offer.ReputationDoor,
                 SeasonsLeft = Math.Max(1, offer.Seasons),
             },
             Rounds = CalendarBuilder.Number(rounds),
