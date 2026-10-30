@@ -29,6 +29,28 @@ public class ImsaTests
         Assert.Equal(["sebring-12"], Imsa.Calendar(Catalog, "GT3", DriverRating.Silver, []).Select(r => r.EventId));
     }
 
+    [Fact]
+    public void Lmp2_races_only_the_endurance_rounds()
+    {
+        var rounds = Imsa.Calendar(Catalog, "LMP2", DriverRating.Silver, AllPacks);
+        Assert.Equal(["daytona-24", "sebring-12", "petit-le-mans"], rounds.Select(r => r.EventId));
+    }
+
+    [Fact]
+    public void Lmp2_needs_all_three_endurance_rounds_for_an_imsa_seat()
+    {
+        // US Track Pack 1 gives GT3 a season (Daytona, Sebring, Laguna Seca) but LMP2 only two endurance rounds.
+        var career = ProgressionTests.CareerWith(30, "LMP2", ProgressionTests.Season(6, _ => 5));
+        career.OwnedContent = ["us-1"];
+        var lmp2 = new TeamOffer { Id = "o", Kind = OfferKind.Move, TeamName = "United Autosports", CarClass = "LMP2", CarFolder = "", Tier = 1, TargetPosition = 6 };
+        var gt3 = Offer("Team WRT", "BMW_M4_LMGT3_2023", 1);
+
+        Teams.AddImsa(career, [lmp2, gt3], Catalog, null, new Always(0.5));
+
+        Assert.Equal("", lmp2.ImsaTeam);
+        Assert.Equal("Team WRT", gt3.ImsaTeam);
+    }
+
     [Theory]
     [InlineData("Hyper", true)]
     [InlineData("GT3", true)]
