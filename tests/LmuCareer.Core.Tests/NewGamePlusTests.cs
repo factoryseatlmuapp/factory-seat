@@ -230,20 +230,35 @@ public class FloorCheckTests
         Assert.Equal(flagged, check.Flags.Contains(FloorFlag.Pace));
     }
 
-    [Fact]
-    public void Penalties_and_a_barrier_DNF_are_counted_for_reputation()
+    [Theory]
+    [InlineData(300, true)]  // into the wall on the last lap: the wall ended it
+    [InlineData(90, false)]  // a tap laps before retiring with something else
+    public void Penalties_and_a_barrier_DNF_are_counted_for_reputation(int wallAt, bool barrierDnf)
     {
         var race = new ResultsXml { Fuel = 1, Tires = 1 }
             .Car("Me", player: true, classPos: 2, status: "DNF")
             .Car("AI 1", classPos: 1)
             .Event("<Penalty Driver=\"Me\" ID=\"0\" Penalty=\"Drive Thru\" Reason=\"Track Limits\" et=\"60\">Drive Thru</Penalty>")
-            .Event("<Incident et=\"90\">Me(0) reported contact (1948.99) with Immovable</Incident>")
+            .Event($"<Incident et=\"{wallAt}\">Me(0) reported contact (1948.99) with Immovable</Incident>")
             .Parse();
 
         var check = FloorChecks.Check(Dry, race, null, 93);
 
         Assert.Equal(1, check.Penalties);
-        Assert.True(check.BarrierDnf);
+        Assert.Equal(barrierDnf, check.BarrierDnf);
+    }
+
+    [Fact]
+    public void A_car_hit_by_another_after_the_wall_is_not_a_barrier_DNF()
+    {
+        var race = new ResultsXml { Fuel = 1, Tires = 1 }
+            .Car("Me", player: true, classPos: 2, status: "DNF")
+            .Car("AI 1", classPos: 1)
+            .Event("<Incident et=\"300\">Me(0) reported contact (40.0) with Immovable</Incident>")
+            .Event("<Incident et=\"302\">Me(0) reported contact (80.0) with another vehicle AI 1(1)</Incident>")
+            .Parse();
+
+        Assert.False(FloorChecks.Check(Dry, race, null, 93).BarrierDnf);
     }
 }
 
@@ -283,6 +298,24 @@ public class AiProofTests : IDisposable
 
         var seen = LmuCareer.Core.Content.AiProof.Settings(file);
         Assert.Equal((94, 2), (seen?.Strength, seen?.Aggression));
+    }
+
+    [Fact]
+    public void Settings_only_prove_a_weekend_when_LMU_wrote_them_after_it_started()
+    {
+        var install = new LmuCareer.Core.Content.LmuInstall(_dir, [], []);
+        Directory.CreateDirectory(Path.GetDirectoryName(install.SettingsFile)!);
+        File.WriteAllText(install.SettingsFile, "{\"Game Options\":{\"AI Driver Strength\":87,\"AI Aggression Mode\":2}}");
+        var round = new Round { Floor = new RoundFloor(94, false, 100) };
+
+        // LMU still open: the slider moved to 94 for the weekend, but the file still has the old 87.
+        File.SetLastWriteTimeUtc(install.SettingsFile, DateTime.UtcNow.AddHours(-1));
+        round.ArmedAt = DateTimeOffset.Now.AddMinutes(-30);
+        Assert.Equal((null, null), FloorChecks.Proof(round, install));
+
+        // LMU closed after the race: the file is the weekend's.
+        File.SetLastWriteTimeUtc(install.SettingsFile, DateTime.UtcNow);
+        Assert.Equal((87, 2), FloorChecks.Proof(round, install));
     }
 
     [Fact]

@@ -97,6 +97,8 @@ public static class FloorChecks
         var aggression = new[] { start?.Aggression, now?.Aggression }.Where(a => a is not null).Min();
 
         if (save?.Strength is { } saved) return (saved, aggression);
+        // LMU writes Settings.JSON on exit: one not written since the weekend started says nothing about it.
+        if (!File.Exists(install.SettingsFile) || File.GetLastWriteTimeUtc(install.SettingsFile) < since.UtcDateTime) return (null, null);
         // Both reads must say the same: a slider turned down and back between them shows as the odd one out.
         int? strength = (start?.Strength, now?.Strength) switch
         {
@@ -140,8 +142,11 @@ public static class FloorChecks
             var mine = race.Events.Where(e => e.Driver is { } d && Standings.NameKey(d) == me).ToList();
             check.Penalties = mine.Count(e => e.Kind == RaceEventKind.Penalty && e.Text != "Disqualify");
             check.Disqualified = player.Status == FinishStatus.Dq;
-            check.BarrierDnf = player.Status == FinishStatus.Dnf
-                && mine.Any(e => e.Kind == RaceEventKind.Incident && e.Object == "Immovable");
+            // The wall ended the race: the last contact, on the last lap or two, was with the barrier
+            // (a tap on lap 3 and an engine failure on lap 40 isn't a barrier DNF).
+            var lastLap = player.LapRecords.Count > 0 ? player.LapRecords.Max(l => l.ElapsedSeconds) : 0;
+            var lastContact = mine.Where(e => e.Kind == RaceEventKind.Incident && e.ElapsedSeconds >= lastLap).MaxBy(e => e.ElapsedSeconds);
+            check.BarrierDnf = player.Status == FinishStatus.Dnf && lastContact?.Object == "Immovable";
         }
         return check;
     }
