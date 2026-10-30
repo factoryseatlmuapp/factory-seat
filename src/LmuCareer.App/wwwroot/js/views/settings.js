@@ -70,6 +70,17 @@ export async function openSettings() {
           { canDown: volume > 0, canUp: volume < 10 })),
         setting(t("Test"), h("button", { class: "btn ghost small", "data-sound": "none", onclick: () => sound.confirm() }, t("Play")))),
 
+      h("div", { class: "rows-title" }, t("Press")),
+      h("div", { class: "rows" },
+        setting(t("Show answer outcomes"), h("button", {
+          class: "toggle" + (s.showAnswerOutcomes ? " on" : ""), "data-sound": "none",
+          onclick: () => save({ showAnswerOutcomes: !s.showAnswerOutcomes }),
+        }), { hint: t("Off: interview answers don't say what they'll do until you've given one. You can still peek on each question.") }),
+        setting(t("Roll the dice"), h("button", {
+          class: "toggle" + (s.rollAnswers ? " on" : ""), "data-sound": "none",
+          onclick: () => save({ rollAnswers: !s.rollAnswers }),
+        }), { hint: t("On: each answer can land more than one way, and chance picks which. Off: it always lands the usual way. Answers already given keep how they landed.") })),
+
       h("div", { class: "rows-title" }, t("Updates")),
       h("div", { class: "rows" },
         setting(t("Check for new versions"), h("button", {

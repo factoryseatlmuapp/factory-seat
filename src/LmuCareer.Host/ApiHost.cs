@@ -157,7 +157,7 @@ public sealed class ApiHost
         "roundAnalysis" => RoundAnalysis(args),
         "seasonStandings" => SeasonStandings(args),
         "answerInterview" => Change(args, c => Paddock.Answer(c, Str(args, "messageId"),
-            Enum.Parse<InterviewTone>(Str(args, "tone")))),
+            Enum.Parse<InterviewTone>(Str(args, "tone")), _settings.RollAnswers ? Random.Shared : null)),
         "answerApproach" => Change(args, c => Sponsorship.AnswerApproach(c, Str(args, "messageId"),
             args.TryGetProperty("sign", out var sign) && sign.GetBoolean())),
         "setNationality" => Change(args, c => c.Nationality = Nationality(Str(args, "nationality"))),
@@ -358,6 +358,8 @@ public sealed class ApiHost
         if (args.TryGetProperty("soundVolume", out var volume)) _settings.SoundVolume = Math.Clamp(volume.GetDouble(), 0, 1);
         if (args.TryGetProperty("muted", out var muted)) _settings.Muted = muted.GetBoolean();
         if (args.TryGetProperty("checkForUpdates", out var updates)) _settings.CheckForUpdates = updates.GetBoolean();
+        if (args.TryGetProperty("showAnswerOutcomes", out var showOutcomes)) _settings.ShowAnswerOutcomes = showOutcomes.GetBoolean();
+        if (args.TryGetProperty("rollAnswers", out var roll)) _settings.RollAnswers = roll.GetBoolean();
         if (args.TryGetProperty("tourSeen", out var tour)) _settings.TourSeen = tour.ValueKind == JsonValueKind.String ? tour.GetString() : null;
         if (args.TryGetProperty("customSponsors", out var own))
             _settings.CustomSponsors = (JsonSerializer.Deserialize<List<OwnSponsor>>(own.GetRawText(), Json) ?? [])

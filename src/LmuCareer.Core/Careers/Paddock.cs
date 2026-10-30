@@ -18,12 +18,30 @@ public enum Moment
 
 public enum InterviewTone { Humble, Confident, BlameTeam }
 
+/// <summary>One way an answer can land: reputation now, and what the next round can still cost.</summary>
+public sealed class InterviewOutcome
+{
+    /// <summary>Out of 100, when the dice are rolled.</summary>
+    public int Chance { get; set; }
+    public int Now { get; set; }
+
+    /// <summary>Lost if the next championship round misses: the podium after a good moment, the target after a bad one.</summary>
+    public int Bet { get; set; }
+
+    public Phrase Effect { get; set; } = new Phrase("");
+}
+
 /// <summary>One answer the player can give, with what it says and what it does to reputation.</summary>
 public sealed class InterviewOption
 {
     public InterviewTone Tone { get; set; }
     public Phrase Line { get; set; } = new Phrase("");
+
+    /// <summary>What it does when the dice aren't rolled: the first of <see cref="Outcomes"/>.</summary>
     public Phrase Effect { get; set; } = new Phrase("");
+
+    /// <summary>How it can land; the first is the one it always gets without the dice. Empty on older saves.</summary>
+    public List<InterviewOutcome> Outcomes { get; set; } = [];
 }
 
 /// <summary>The interview question in an inbox message, and how it was answered.</summary>
@@ -33,6 +51,9 @@ public sealed class InterviewQuestion
     public Phrase Question { get; set; } = new Phrase("");
     public List<InterviewOption> Options { get; set; } = [];
     public InterviewTone? Answer { get; set; }
+
+    /// <summary>How the answer landed; null on answers from before the dice.</summary>
+    public InterviewOutcome? Landed { get; set; }
 
     /// <summary>The next race counted before it was answered: it no longer can be.</summary>
     public bool Lapsed { get; set; }
@@ -45,6 +66,11 @@ public sealed class InterviewAnswer
     public string EventName { get; set; } = "";
     public Moment Moment { get; set; }
     public InterviewTone Tone { get; set; }
+
+    /// <summary>Which of the answer's outcomes it got (0 = the usual one), and what that's worth. Null on older saves.</summary>
+    public int Variant { get; set; }
+    public int? Now { get; set; }
+    public int Bet { get; set; }
 }
 
 /// <summary>
@@ -178,35 +204,27 @@ public static class Paddock
         var blamedAlready = season.Interviews.Any(a => a.Tone == InterviewTone.BlameTeam);
         var options = new List<InterviewOption>
         {
-            new()
-            {
-                Tone = InterviewTone.Humble,
-                Line = good
+            Option(InterviewTone.Humble, good
                     ? Phrase.Of("The team gave me a great car. I just tried not to waste it.")
                     : Phrase.Of("That's on me. I'll learn from it and come back stronger."),
-                Effect = Phrase.Of("Safe: +1 reputation"),
-            },
-            new()
-            {
-                Tone = InterviewTone.Confident,
-                Line = good
-                    ? Phrase.Of("We were the class of the field. Expect more of the same.")
-                    : Phrase.Of("One bad day changes nothing. We'll be back on top next time."),
-                Effect = good
-                    ? Phrase.Of("+2 now, −2 if you miss the podium in the next round")
-                    : Phrase.Of("+1 now, −2 if you miss the team's target again in the next round"),
-            },
+                Outcome(75, 1, 0, Phrase.Of("Safe: +1 reputation")),
+                Outcome(25, 0, 0, Phrase.Of("No change: the paddock found it bland"))),
+            good
+                ? Option(InterviewTone.Confident, Phrase.Of("We were the class of the field. Expect more of the same."),
+                    Outcome(50, 2, 2, Phrase.Of("+2 now, −2 if you miss the podium in the next round")),
+                    Outcome(50, 3, 3, Phrase.Of("The quote goes viral: +3 now, −3 if you miss the podium in the next round")))
+                : Option(InterviewTone.Confident, Phrase.Of("One bad day changes nothing. We'll be back on top next time."),
+                    Outcome(50, 1, 2, Phrase.Of("+1 now, −2 if you miss the team's target again in the next round")),
+                    Outcome(50, 0, 2, Phrase.Of("It sounds like denial: no change now, −2 if you miss the team's target again in the next round"))),
         };
         if (!good)
         {
-            options.Add(new InterviewOption
-            {
-                Tone = InterviewTone.BlameTeam,
-                Line = Phrase.Of("The car wasn't where it needed to be. The team has work to do."),
-                Effect = blamedAlready
-                    ? Phrase.Of("−3: you've blamed the team once already this season")
-                    : Phrase.Of("No change, once: a second time this season costs 3"),
-            });
+            var line = Phrase.Of("The car wasn't where it needed to be. The team has work to do.");
+            options.Add(blamedAlready
+                ? Option(InterviewTone.BlameTeam, line, Outcome(100, -3, 0, Phrase.Of("−3: you've blamed the team once already this season")))
+                : Option(InterviewTone.BlameTeam, line,
+                    Outcome(50, 0, 0, Phrase.Of("No change, once: a second time this season costs 3")),
+                    Outcome(50, -1, 0, Phrase.Of("The team reads it: −1, and a second time this season costs 3"))));
         }
 
         var message = Message(season, round, MessageKind.Interview, now, Phrase.Of("Paddock press"),
@@ -215,8 +233,18 @@ public static class Paddock
         return message;
     }
 
-    /// <summary>Records the player's answer to an interview still open.</summary>
-    public static void Answer(Career career, string messageId, InterviewTone tone)
+    private static InterviewOption Option(InterviewTone tone, Phrase line, params InterviewOutcome[] outcomes) =>
+        new() { Tone = tone, Line = line, Effect = outcomes[0].Effect, Outcomes = [.. outcomes] };
+
+    private static InterviewOutcome Outcome(int chance, int now, int bet, Phrase effect) =>
+        new() { Chance = chance, Now = now, Bet = bet, Effect = effect };
+
+    /// <summary>
+    /// Records the player's answer to an interview still open. With dice, the answer lands one of
+    /// its outcomes by chance; without, it gets the usual one. Either way, what it got is kept, so
+    /// changing the setting later never changes an answer already given.
+    /// </summary>
+    public static void Answer(Career career, string messageId, InterviewTone tone, Random? dice = null)
     {
         var message = career.Inbox.FirstOrDefault(m => m.Id == messageId)
             ?? throw new PlayerError("That message isn't in your inbox any more.");
@@ -226,7 +254,12 @@ public static class Paddock
             throw new PlayerError("Too late: the next race has counted since.");
         if (interview.Options.All(o => o.Tone != tone)) throw new PlayerError("That answer isn't one of the options.");
 
+        var option = interview.Options.First(o => o.Tone == tone);
+        var variant = dice is null || option.Outcomes.Count < 2 ? 0 : Roll(option.Outcomes, dice);
+        var landed = option.Outcomes.ElementAtOrDefault(variant);
+
         interview.Answer = tone;
+        interview.Landed = landed;
         message.Read = true;
         var round = career.CurrentSeason.Rounds.FirstOrDefault(r => r.Number == message.Round);
         career.CurrentSeason.Interviews.Add(new InterviewAnswer
@@ -235,7 +268,21 @@ public static class Paddock
             EventName = round?.EventName ?? "",
             Moment = interview.Moment,
             Tone = tone,
+            Variant = variant,
+            Now = landed?.Now,
+            Bet = landed?.Bet ?? 0,
         });
+    }
+
+    private static int Roll(List<InterviewOutcome> outcomes, Random dice)
+    {
+        var roll = dice.NextDouble() * outcomes.Sum(o => o.Chance);
+        for (var i = 0; i < outcomes.Count; i++)
+        {
+            roll -= outcomes[i].Chance;
+            if (roll < 0) return i;
+        }
+        return outcomes.Count - 1;
     }
 
     /// <summary>A championship round counted: questions from earlier rounds can't be answered any more.</summary>
@@ -258,30 +305,39 @@ public static class Paddock
         {
             var @event = ("event", (object?)answer.EventName);
             var good = IsGood(answer.Moment);
-            switch (answer.Tone)
+
+            // Answers from before the dice were worth fixed amounts, worked out here.
+            var now = answer.Now ?? answer.Tone switch
             {
-                case InterviewTone.Humble:
-                    yield return ReputationItem.For(Phrase.Of("Humble interview after the {event}", @event), 1);
-                    break;
+                InterviewTone.Humble => 1,
+                InterviewTone.Confident => good ? 2 : 1,
+                _ => blamed ? -3 : 0,
+            };
+            var bet = answer.Now is null ? (answer.Tone == InterviewTone.Confident ? 2 : 0) : answer.Bet;
 
-                case InterviewTone.Confident:
-                    yield return ReputationItem.For(Phrase.Of("Confident interview after the {event}", @event), good ? 2 : 1);
-                    // The bet: the next championship round that counted, in either series, settles it.
-                    var next = season.Rounds.Where(r => !r.Guest)
-                        .Where(r => r.Number > answer.Round && r.State == RoundState.Completed && r.Result is not null)
-                        .OrderBy(r => r.Number).FirstOrDefault();
-                    var rank = next?.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer)?.ClassRank;
-                    if (next is not null && (good ? rank is not (1 or 2 or 3) : rank is null || rank > target))
-                        yield return ReputationItem.For(good
-                            ? Phrase.Of("Talked big after the {event}, then missed the podium", @event)
-                            : Phrase.Of("Promised a comeback after the {event}, then missed the target again", @event), -2);
-                    break;
-
-                case InterviewTone.BlameTeam:
-                    if (blamed) yield return ReputationItem.For(Phrase.Of("Blamed the team again after the {event}", @event), -3);
-                    blamed = true;
-                    break;
+            if (now != 0)
+            {
+                yield return ReputationItem.For(answer.Tone switch
+                {
+                    InterviewTone.Humble => Phrase.Of("Humble interview after the {event}", @event),
+                    InterviewTone.Confident when answer.Variant == 1 && good => Phrase.Of("Confident interview after the {event} went viral", @event),
+                    InterviewTone.Confident => Phrase.Of("Confident interview after the {event}", @event),
+                    _ when blamed => Phrase.Of("Blamed the team again after the {event}", @event),
+                    _ => Phrase.Of("Blamed the team after the {event}, and the team read it", @event),
+                }, now);
             }
+            if (answer.Tone == InterviewTone.BlameTeam) blamed = true;
+            if (bet == 0) continue;
+
+            // The bet: the next championship round that counted, in either series, settles it.
+            var next = season.Rounds.Where(r => !r.Guest)
+                .Where(r => r.Number > answer.Round && r.State == RoundState.Completed && r.Result is not null)
+                .OrderBy(r => r.Number).FirstOrDefault();
+            var rank = next?.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer)?.ClassRank;
+            if (next is not null && (good ? rank is not (1 or 2 or 3) : rank is null || rank > target))
+                yield return ReputationItem.For(good
+                    ? Phrase.Of("Talked big after the {event}, then missed the podium", @event)
+                    : Phrase.Of("Promised a comeback after the {event}, then missed the target again", @event), -bet);
         }
     }
 

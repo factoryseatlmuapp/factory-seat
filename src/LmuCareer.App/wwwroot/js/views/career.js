@@ -1262,20 +1262,38 @@ export async function careerView(view, id, tab) {
       selected.approach ? approachBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
 
-    /** The question, and either the three answers to pick from or the one given. */
+    /**
+     * The question, and either the answers to pick from or the one given. What each answer does is
+     * hidden unless the player shows it (Settings, or a peek here); with the dice, it's every way the
+     * answer could land.
+     */
     function interviewBlock(m) {
       const q = m.interview;
       const chosen = q.options.find((o) => o.tone === q.answer);
-      return h("div", { class: "interview" },
+      const rolled = state.settings.rollAnswers;
+      const effect = (o) => rolled && o.outcomes?.length > 1
+        ? o.outcomes.map((x) => h("div", {}, t("{chance}%: {effect}", { chance: x.chance, effect: t(x.effect) })))
+        : t(o.effect);
+      const block = h("div", { class: "interview" + (state.settings.showAnswerOutcomes ? "" : " outcomes-hidden") });
+      return put(block,
         h("p", { class: "interview-question" }, `“${t(q.question)}”`),
-        chosen ? h("div", { class: "notice good" }, h("b", {}, t("You said")), h("div", {}, `“${t(chosen.line)}”`), h("div", { class: "faint" }, t(chosen.effect)))
+        chosen ? h("div", { class: "notice good" }, h("b", {}, t("You said")), h("div", {}, `“${t(chosen.line)}”`),
+          h("div", { class: "faint" }, t((q.landed ?? chosen).effect)))
         : q.lapsed ? h("div", { class: "notice" }, t("You didn't answer before your next race counted. The moment's gone."))
         : [
-          h("div", { class: "faint", style: { marginBottom: "8px" } }, t("Pick one. It's paid in reputation at the season review.")),
+          h("div", { class: "row faint", style: { marginBottom: "8px" } },
+            h("span", {}, rolled
+              ? t("Pick one. How it lands is down to the paddock; it's paid in reputation at the season review.")
+              : t("Pick one. It's paid in reputation at the season review.")),
+            h("span", { class: "spacer" }),
+            state.settings.showAnswerOutcomes ? null : h("button", { class: "btn ghost small", onclick: (e) => {
+              block.classList.toggle("outcomes-hidden");
+              e.currentTarget.textContent = block.classList.contains("outcomes-hidden") ? t("Show outcomes") : t("Hide outcomes");
+            } }, t("Show outcomes"))),
           q.options.map((o) => h("button", { class: "interview-option", onclick: () => answer(m, o.tone) },
             h("span", { class: "interview-tone" }, t(TONES[o.tone])),
             h("span", { class: "interview-line" }, `“${t(o.line)}”`),
-            h("span", { class: "interview-effect" }, t(o.effect)))),
+            h("span", { class: "interview-effect" }, effect(o)))),
         ]);
     }
 

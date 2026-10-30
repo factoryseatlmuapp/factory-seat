@@ -428,6 +428,7 @@ select.input { padding: 6px 8px; }
 .interview-option:hover { border-color: var(--text); }
 .interview-tone { grid-row: span 2; font: 700 18px "Barlow Condensed", var(--cjk); text-transform: uppercase; color: var(--accent); align-self: center; }
 .interview-effect { font-size: 13px; color: var(--text-dim); }
+.interview.outcomes-hidden .interview-effect { display: none; }
 .good-text { color: var(--good); }
 .bad-text { color: var(--bad); }
 
