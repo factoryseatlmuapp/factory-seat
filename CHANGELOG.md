@@ -12,6 +12,8 @@
 - **Change the next race's length** from the briefing before its weekend; Time Scale, Fuel Usage, Tyre Wear and stints follow. (#23)
 - **A race finished in the hour before Start race weekend** is offered when the weekend starts: count it, or race again.
 - **Stream overlay:** Settings › Streaming › Set up writes an OBS browser source for the next race next to `briefing.json`.
+- **Shuffle** in the season builder: a random calendar from the tracks you own, one event per track, sorted by month. 24-hour races already on it stay. The Calendar tab says where to change tracks next season.
+- Settings › Streaming links Milky28's free SimHub Companion overlay.
 - LMP2 IMSA seasons race the endurance rounds only (Daytona, Sebring, Petit Le Mans).
 - Settings › Language › Suggest a fix opens the translation form on GitHub.
 - Italian: the front-runner budget badge reads "Budget da podio" (Luca Bassini).
