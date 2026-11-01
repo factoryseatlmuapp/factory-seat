@@ -93,7 +93,9 @@ export async function openSettings() {
       h("div", { class: "rows-title" }, t("Streaming")),
       h("div", { class: "rows" },
         setting(t("OBS overlay"), h("button", { class: "btn ghost small", onclick: () => attempt(call("setUpOverlay")) }, t("Set up")),
-          { hint: t("Shows your race briefing on stream. Puts the overlay next to your saves and opens the folder: add it to OBS as a Browser source (Local file), 460 × 780. The README there has the rest.") })),
+          { hint: t("Shows your race briefing on stream. Puts the overlay next to your saves and opens the folder: add it to OBS as a Browser source (Local file), 460 × 780. The README there has the rest.") }),
+        setting(t("SimHub Companion"), h("button", { class: "btn ghost small", title: t("Opens the download page in your browser"), onclick: () => window.open("https://github.com/Milky28/factory-seat-companion") }, t("Get it")),
+          { hint: t("Milky28's free SimHub overlay checks LMU's race setup against your briefing, right over LMU's menus, so you don't have to switch windows. It's a community project, separate from Factory Seat.") })),
 
       h("div", { class: "rows-title" }, "Le Mans Ultimate"),
       h("div", { class: "rows" },
