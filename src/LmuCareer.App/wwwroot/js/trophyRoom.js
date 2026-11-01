@@ -555,11 +555,11 @@ export async function openTrophyRoom({ rooms, careerId, tracks, carName }) {
   function tn(n) { return n === 1 ? t("1 win") : t("{n} wins", { n }); }
 
   function put() {
-    scope.replaceChildren(
+    scope.replaceChildren(...[      // filter: replaceChildren renders a null placeholder as the text "null"
       h("button", { class: "btn small" + (lifetime ? " ghost" : ""), onclick: () => { lifetime = false; put(); if (rack) build(); } }, t("This career")),
       h("button", { class: "btn small" + (lifetime ? "" : " ghost"), onclick: () => { lifetime = true; put(); if (rack) build(); } }, t("All careers")),
       hasWing ? h("button", { class: "btn small ngp-wing" + (wing ? "" : " ghost"), onclick: () => { wing = !wing; put(); if (rack) build(); } }, t("NG+ wing")) : null,
-      h("button", { class: "btn small" + (boardOpen ? "" : " ghost"), onclick: () => { boardOpen = !boardOpen; board.hidden = !boardOpen; put(); } }, t("Records")));
+      h("button", { class: "btn small" + (boardOpen ? "" : " ghost"), onclick: () => { boardOpen = !boardOpen; board.hidden = !boardOpen; put(); } }, t("Records"))].filter(Boolean));
   }
 
   function dispose(root) {

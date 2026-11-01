@@ -1841,7 +1841,7 @@ export async function careerView(view, id, tab) {
     put(view,
       h("div", { class: "section-title" }, t("Season {n} calendar", { n: season().number })),
       h("div", { class: "faint", style: { margin: "-4px 2px 10px" } },
-        t("Want different tracks? You build each new season's calendar when you sign for it: shuffle it, reorder it, or add events.")),
+        t("Want different tracks? You build each new season's calendar at the beginning of the season: shuffle it, reorder it, or add events.")),
       h("div", { class: "card quiet", style: { padding: 0 } },
         season().rounds.map((r) => {
           const me = playerEntry(r);
