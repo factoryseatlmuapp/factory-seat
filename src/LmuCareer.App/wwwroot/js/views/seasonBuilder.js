@@ -117,6 +117,7 @@ export async function seasonBuilder(view, options) {
             clear(view);
             seasonBuilder(view, options);
           } }, label))) : null,
+      h("button", { class: "btn ghost small", title: t("A random calendar from the tracks you own. The 24-hour races stay."), onclick: shuffle }, t("Shuffle")),
       h("button", { class: "btn ghost small", onclick: () => { draft.rounds = null; clear(view); seasonBuilder(view, options); } }, t("Reset to default")),
       h("button", { class: "btn ghost small", onclick: addEvent }, t("+ Add event"))),
     list,
@@ -130,6 +131,41 @@ export async function seasonBuilder(view, options) {
   function confirm() {
     if (draft.rounds.length === 0) { toast(t("The season needs at least one round."), { error: true }); return; }
     onConfirm(draft.rounds.map((e) => ({ ...e.spec, minutes: e.round.raceMinutes })));
+  }
+
+  // ---------- Shuffle ----------
+
+  // A random calendar from the library, owned tracks only, one event per track, as many rounds as
+  // now (6 if empty). 24-hour races already on the calendar stay. Rounds are sorted by month.
+  let shuffling = false;
+  async function shuffle() {
+    if (shuffling) return;
+    shuffling = true;
+    try {
+      const keep = draft.rounds.filter((entry) => entry.round.realDurationHours >= 24);
+      const count = Math.max(draft.rounds.length || SHORT_SEASON, keep.length);
+      const taken = new Set(keep.map((entry) => entry.round.trackFolder));
+      const pool = cat.events.filter((e) => trackOwned(e.folder) && !taken.has(e.folder));
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      const picks = [];
+      for (const e of pool) {
+        if (keep.length + picks.length >= count) break;
+        if (taken.has(e.folder)) continue;
+        taken.add(e.folder);
+        picks.push(e);
+      }
+      const rounds = await Promise.all(picks.map((e) => call("roundFor", { eventId: e.id, carClass }).catch(() => null)));
+      const fresh = picks.map((e, i) => rounds[i] && { spec: { eventId: e.id }, round: rounds[i] }).filter(Boolean);
+      if (fresh.length === 0 && keep.length === 0) { toast(t("No events to shuffle in. Tick your packs first."), { error: true }); return; }
+      draft.rounds = [...keep, ...fresh].sort((a, b) => monthOf(a) - monthOf(b));
+      sound.click();
+      render();
+    } finally {
+      shuffling = false;
+    }
   }
 
   // ---------- Event library ----------
