@@ -15,6 +15,7 @@
 - **Shuffle** in the season builder: a random calendar from the tracks you own, one event per track, sorted by month. 24-hour races already on it stay. The Calendar tab says where to change tracks next season.
 - Settings › Streaming links Milky28's free SimHub Companion overlay.
 - Short races where a full tank lasts at Fuel Usage x3 (15 or 20 minutes in most classes) no longer plan a pit stop: the briefing says the stop isn't required, as the AI won't stop either. Seasons already under way pick up the new plan for the rounds still to race.
+- Lusail's pit plans for LMGT3 and Hypercar use a second measured race, pooled car by car: a tank lasts about 58 minutes in both, not 54 and 57, so stops there no longer come early. Thanks to davehenrie for the results file. (#17)
 - LMP2 IMSA seasons race the endurance rounds only (Daytona, Sebring, Petit Le Mans).
 - Settings › Language › Suggest a fix opens the translation form on GitHub.
 - Italian: the front-runner budget badge reads "Budget da podio" (Luca Bassini).
