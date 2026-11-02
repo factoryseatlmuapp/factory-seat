@@ -678,7 +678,10 @@ export async function careerView(view, id, tab) {
     const stops = round.stints - 1;
     const fuel = round.fuelMultiplier > 1 ? "x" + round.fuelMultiplier : lmu("Real");
     const time = formatMinutes(stint);
-    const steps = [
+    const steps = stops === 0 ? [
+      [t("Start on a full tank"), t("Pit stop not required: a full tank lasts the race at Fuel Usage {fuel}. The AI won't stop either.", { fuel })],
+      [t("To the flag"), t("One stint, about {time}.", { time })],
+    ] : [
       [t("Start"), t("First stint, about {time}.", { time })],
       stops === 1
         ? [t("Pit around halfway"), t("A tank won't reach the flag at Fuel Usage {fuel}, so plan one stop for fuel and tyres.", { fuel })]

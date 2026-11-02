@@ -179,4 +179,19 @@ public class ContentTests
         Assert.Equal(2, round.FuelMultiplier);
         Assert.Equal(2, round.Stints);
     }
+
+    [Theory]
+    // Reddit, Nov 2: a 15/20-minute race planned a stop no one needed; the AI ran it on one tank at x3.
+    [InlineData("GT3", "Spa_2023", 15, 1)]    // 51.5 min at Real: ~17 min at x3
+    [InlineData("GT3", "Spa_2023", 20, 2)]
+    [InlineData("LMP3", "Barcelona_2025", 20, 1)] // 73.2: ~24 min at x3
+    [InlineData("LMP3", "Barcelona_2025", 30, 2)]
+    [InlineData("LMP2", "Monza_2023", 15, 2)] // 42.2: ~14 min at x3, too close to call it
+    public void Short_races_skip_the_stop_only_when_a_tank_clearly_lasts(string carClass, string track, int minutes, int stints)
+    {
+        var round = new Round { TrackFolder = track, LayoutFile = "", RealDurationHours = 6 };
+        CalendarBuilder.ApplyLength(round, minutes, carClass);
+        Assert.Equal(3, round.FuelMultiplier);
+        Assert.Equal(stints, round.Stints);
+    }
 }

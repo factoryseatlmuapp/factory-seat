@@ -74,9 +74,21 @@ public static class RaceFormats
         }
 
         var tank = tankMinutes / multiplier;
-        var stints = fullPlan ? (int)Math.Ceiling(length / tank) : 2;
+        var stints = fullPlan ? (int)Math.Ceiling(length / tank) : TankReachesFlag(tank, length) ? 1 : 2;
         return new RaceFormat(length, timeScale, multiplier, multiplier, fullPlan, stints, tank);
     }
+
+    /// <summary>
+    /// True when a full tank clearly lasts the race even at x3, LMU's heaviest Fuel Usage: short
+    /// races (15 to 20 minutes in most classes) where no one needs to stop, the AI included.
+    /// </summary>
+    /// <remarks>
+    /// The plan's tank already errs long by <see cref="TankTimes.Margin"/> (so a planned stop is
+    /// always needed). Saying no stop is needed has to err the other way, so the tank as measured
+    /// must outlast the race by that margin too: running dry is worse than an extra stop.
+    /// </remarks>
+    public static bool TankReachesFlag(double tankMinutes, int raceMinutes) =>
+        tankMinutes >= raceMinutes * TankTimes.Margin * TankTimes.Margin;
 
     /// <summary>
     /// Share of the race the player must drive to score driver points, from WEC's rules: 45 minutes
