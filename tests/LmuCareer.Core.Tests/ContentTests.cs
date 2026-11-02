@@ -180,6 +180,23 @@ public class ContentTests
         Assert.Equal(2, round.Stints);
     }
 
+    [Fact]
+    public void A_season_planned_before_1_4_drops_the_unneeded_stop_on_rounds_still_to_race()
+    {
+        Round Short(RoundState state) => new()
+        {
+            TrackFolder = "Spa_2023", LayoutFile = "", RealDurationHours = 6, RaceMinutes = 15,
+            FuelMultiplier = 3, TireMultiplier = 3, Stints = 2, State = state,
+        };
+        var season = new Season { Car = new CareerCar("Porsche 911 GT3 R", "GT3", "", "") };
+        season.Rounds = [Short(RoundState.Completed), Short(RoundState.Upcoming), Short(RoundState.Armed),
+            new Round { TrackFolder = "Spa_2023", RealDurationHours = 6, RaceMinutes = 30, FuelMultiplier = 3, Stints = 2 }];
+
+        Assert.True(CalendarBuilder.RefreshPitPlans(season));
+        Assert.Equal([2, 1, 1, 2], season.Rounds.Select(r => r.Stints));
+        Assert.False(CalendarBuilder.RefreshPitPlans(season));
+    }
+
     [Theory]
     // Reddit, Nov 2: a 15/20-minute race planned a stop no one needed; the AI ran it on one tank at x3.
     [InlineData("GT3", "Spa_2023", 15, 1)]    // 51.5 min at Real: ~17 min at x3

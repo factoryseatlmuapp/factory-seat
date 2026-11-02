@@ -173,7 +173,11 @@ public sealed class CareerStore
     {
         try
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<Career>(File.ReadAllText(path), Json) : null;
+            if (!File.Exists(path)) return null;
+            var career = JsonSerializer.Deserialize<Career>(File.ReadAllText(path), Json);
+            // Seasons planned before 1.4 pick up the short-race "no stop" plan; it's saved with the next save.
+            if (career is not null) Content.CalendarBuilder.RefreshPitPlans(career.CurrentSeason);
+            return career;
         }
         catch (JsonException)
         {
