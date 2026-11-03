@@ -193,4 +193,13 @@ public class PreparationTests
         Assert.Null(Preparation.ReadPractice([Practice(20, course: "Sebring International Raceway")], Armed(), Car));
         Assert.Null(Preparation.ReadPractice([Practice(20, carType: "Ford Mustang LMGT3")], Armed(), Car));
     }
+
+    [Fact]
+    public void Practice_in_a_car_with_no_LMU_name_yet_counts_any_car_in_its_class()
+    {
+        // A test day in a car no race has named yet (MCParradox's LMP3 test, Discord 11/2): any car in class counts.
+        var unnamed = new CareerCar("", "GT3", "", "Sample Racing");
+        Assert.Equal(10, Preparation.ReadPractice([Practice(20)], Armed(), unnamed)!.Laps);
+        Assert.Null(Preparation.ReadPractice([Practice(20)], Armed(), unnamed with { CarClass = "LMP3" }));
+    }
 }
