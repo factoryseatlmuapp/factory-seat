@@ -77,7 +77,14 @@ export async function newCareerView(view) {
   function setMode(mode) {
     draft.mode = mode;
     if (!startClasses().includes(draft.carClass)) { draft.carClass = startClasses()[0]; draft.rounds = null; }
+    redraw();
+  }
+
+  /** Redraws the Driver step after a pick on it, where the player was: the name box's focus would jump to the top. */
+  function redraw() {
+    const y = scrollY;
     show("driver");
+    scrollTo(0, y);
   }
 
   function footer(...buttons) {
@@ -131,17 +138,17 @@ export async function newCareerView(view) {
         draft.carNumber ||= legacy.carNumber;
         draft.teamName ||= legacy.teamName;
       }
-      show("driver");
+      redraw();
     };
     return h("div", { class: "field" }, h("label", {}, t("New Game+")),
       h("div", { class: "card quiet ngp-card" + (draft.newGamePlus ? " selected" : "") },
-        h("div", { class: "row", style: { cursor: "pointer" }, onclick: () => { draft.newGamePlus = !draft.newGamePlus; show("driver"); } },
+        h("div", { class: "row", style: { cursor: "pointer" }, onclick: () => { draft.newGamePlus = !draft.newGamePlus; redraw(); } },
           h("input", { type: "checkbox", checked: draft.newGamePlus, tabindex: "-1", style: { pointerEvents: "none" } }),
           h("h3", {}, t("Replay the ladder on the raised floor")), h("span", { class: "ngp-chip" }, t("NG+"))),
         floorRules(),
         draft.newGamePlus ? [
           hall.entries.length > 1 ? h("div", { class: "field", style: { marginTop: "10px" } }, h("label", {}, t("Carries on from")),
-            h("select", { class: "input", onchange: (e) => { draft.legacy = e.target.value; show("driver"); } },
+            h("select", { class: "input", onchange: (e) => { draft.legacy = e.target.value; redraw(); } },
               hall.entries.map((e) => h("option", { value: e.careerId, selected: e.careerId === legacy.careerId }, e.name)))) : null,
           h("div", { class: "section-title", style: { marginTop: "14px" } }, t("Head starts")),
           hall.headStarts.length
