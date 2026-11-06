@@ -87,6 +87,9 @@ At the end of the season you get a review, a reputation change, and offers for n
 **Does it work online?**
 No. Only offline Race Weekends count, and only the one that matches your current briefing. Online races, test drives and any other offline races are ignored, so you can race whatever else you like in LMU without affecting your career.
 
+**Does the LMU API ban affect Factory Seat?**
+No. Factory Seat doesn't use any LMU API, online or local. It only reads the files LMU saves on your own PC (race results, settings and saves) after you race offline. It never talks to Studio 397's servers, never logs in to your account, and never changes the game. Its only internet connection is checking GitHub for app updates.
+
 **Do I need all the DLC?**
 No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks, and LMP3 is raced in the free ADESS AD25.
 
