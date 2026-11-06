@@ -106,7 +106,7 @@ Not yet. LMU removed the AI takeover button in 2024, so you drive the whole race
 Yes. Leave the car number and team blank when you start a career, and the app learns them from your first race. Race Control custom-team cars are recognised whatever number they run.
 
 **A race didn't count. Why?**
-A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If the track, layout and car are right but settings are off (race length, Fuel Usage, Tyre Wear), the app asks whether to count it anyway, however many are off. Fuel Usage, Tyre Wear and Time Scale only take effect from LMU's **Event Settings › Advanced** page. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
+A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. Forgot to press it? If a matching race finished in the hour before you do, the app asks whether to count it. If the track, layout and car are right but settings are off (race length, Fuel Usage, Tyre Wear), the app asks whether to count it anyway, however many are off. Fuel Usage, Tyre Wear and Time Scale only take effect from LMU's **Event Settings › Advanced** page. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
 
 ## Feedback and ideas
 
