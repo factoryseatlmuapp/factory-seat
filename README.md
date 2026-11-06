@@ -22,6 +22,8 @@ Race your way to a Hypercar seat, one season at a time: up the GT road from LMGT
 - **IMSA beside the WEC.** Teams with the budget run both championships, each with its own standings (needs three IMSA rounds in packs you own).
 - **GTE Classic,** a career of its own in the 2023 WEC: start in a privateer Am seat and earn a factory Pro drive.
 - **Rivals.** Keep tangling with, or finishing next to, the same AI driver and they become your rival in the paddock press.
+- **Achievements and a 3D trophy room.** 20 achievements to earn (a few of them secret), a trophy for every track and a cup for every title, records, and a season card to share.
+- **New Game+.** Retire a career into the Hall of Fame, then climb the ladder again on a raised floor: tougher AI, a third of the races wet, damage on, and every race checked against it. Your retired careers unlock head starts.
 - **Season builder.** A default world or European calendar for your class, with every race's length adjustable and events you can add, reorder or make up yourself.
 - **Race briefings** in LMU's own setting names: track and layout, race length, Time Scale, Fuel Usage, Tyre Wear and start time, plus a pit plan.
 - **Automatic results.** Leave the app open while you race. It watches LMU's results folder and pops up when the race ends. Only races that match the briefing count, so test drives and online races never do.
@@ -31,6 +33,7 @@ Race your way to a Hypercar seat, one season at a time: up the GT road from LMGT
 - **Guest drives** at Daytona, Sebring and Petit Le Mans, outside the championship.
 - **Pace check.** Compares your best laps with the fastest AI in your class and tells you whether to raise or lower AI Strength.
 - **Track maps** traced from OpenStreetMap.
+- **Streaming.** An OBS overlay for the next race, and a row for Milky28's free [SimHub Companion](https://github.com/Milky28/factory-seat-companion).
 - Several careers side by side, automatic backups, export and import, dark and light themes.
 - **8 languages:** English, German, French, Spanish, Brazilian Portuguese, Italian, Hungarian and Korean. [Spot a bad translation?](../../issues/new?template=translation.yml)
 
