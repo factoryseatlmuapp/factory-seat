@@ -81,7 +81,7 @@ public static class GuestDrives
                 EventName = e.Name,
                 TeamName = team.Name,
                 CarClass = carClass,
-                CarFolder = car!.Folder,
+                CarFolder = catalog.ForEvent(car!, e).Folder,
                 Tier = team.Tier,
                 Numbers = team.Numbers,
                 Audition = audition,
@@ -110,6 +110,7 @@ public static class GuestDrives
         if (offer.Accepted) throw new PlayerError("You've already agreed to that one.");
         var e = catalog.Event(offer.EventId) ?? throw new KeyNotFoundException($"No event \"{offer.EventId}\".");
         var car = catalog.Car(offer.CarFolder) ?? throw new KeyNotFoundException($"No car \"{offer.CarFolder}\".");
+        car = catalog.ForEvent(car, e);
 
         var round = CalendarBuilder.RoundFor(catalog, e, offer.CarClass, career.Rating, minutes);
         round.Guest = true;

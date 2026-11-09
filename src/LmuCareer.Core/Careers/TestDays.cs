@@ -75,7 +75,7 @@ public static class TestDays
                 Id = $"t{season.Number}-{offers.Count + 1}",
                 TeamName = s.Team.Name,
                 CarClass = carClass,
-                CarFolder = s.Car.Folder,
+                CarFolder = catalog.ForEvent(s.Car, venue).Folder,
                 Tier = s.Team.Tier,
                 Numbers = s.Team.Numbers,
                 VenueEventId = venue.Id,
@@ -206,6 +206,7 @@ public static class TestDays
     private static Round NewRound(ContentCatalog catalog, EventInfo venue, CarInfo car, string teamName, string carClass, int tier,
         IReadOnlyList<string> numbers, DriverRating rating, Phrase? reason)
     {
+        car = catalog.ForEvent(car, venue);
         var round = CalendarBuilder.RoundFor(catalog, venue, carClass, rating);
         var track = catalog.Track(venue.Folder);
         round.EventId = "";
