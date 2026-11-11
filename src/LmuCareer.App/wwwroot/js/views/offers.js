@@ -58,7 +58,7 @@ export const PERKS = {
   TeamBacking: [mark("Team backing"), mark("The team stands behind you: the season's first DNF costs no reputation.")],
   GuestDrivePriority: [mark("Guest drive priority"), mark("A guaranteed guest-drive offer at Daytona, Sebring or Petit Le Mans when you're eligible.")],
   DevelopmentDriver: [mark("Development driver"), mark("A guaranteed test day each season in the team's next-class car.")],
-  ReleaseClause: [mark("Release clause"), mark("Leave mid-contract if a team a class up makes you an offer.")],
+  ReleaseClause: [mark("Release clause"), mark("Other teams can still call while you're under contract, mid-season and at the season's end.")],
 };
 
 export const perkName = (perk) => (PERKS[perk] ? t(PERKS[perk][0]) : perk);

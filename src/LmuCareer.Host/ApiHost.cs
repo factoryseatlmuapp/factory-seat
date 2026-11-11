@@ -167,6 +167,11 @@ public sealed class ApiHost
         "counterOffer" => Change(args, c => Negotiation.Counter(StillRacing(c), Str(args, "offerId"),
             args.GetProperty("gain").GetDecimal(), args.GetProperty("loss").GetDecimal(),
             Strings(args, "perks").Select(Enum.Parse<Perk>).ToList(), _catalog, _install)),
+        "answerTeamOffer" => Change(args, c =>
+        {
+            if (args.TryGetProperty("sign", out var signEarly) && signEarly.GetBoolean()) MidSeason.Sign(StillRacing(c), Str(args, "offerId"), DateTimeOffset.Now);
+            else MidSeason.Decline(StillRacing(c), Str(args, "offerId"));
+        }),
         "retireNoSeat" => RetireNoSeat(args),
         "choosePath" => Change(args, c => Progression.ChoosePath(c, Str(args, "path") == "prototype" ? CareerPath.Prototype : CareerPath.Gt, _catalog, _install)),
         "withdrawTest" => Change(args, c => TestDays.Withdraw(c, Str(args, "offerId"))),
@@ -693,7 +698,9 @@ public sealed class ApiHost
             .OrderByDescending(l => l.Points),
         // For each offer on the table: what signing it does to the loyalty left behind, and the
         // standing the player already has with the make or team it's with.
-        offerNotes = career.Offers.Select(o => new
+        // 1.5: where the player stands now, for mid-season talks (the review has it after the season).
+        championshipPosition = MidSeason.Position(career.CurrentSeason),
+        offerNotes = career.Offers.Concat(career.EarlyOffers.Where(MidSeason.IsOpen)).Select(o => new
         {
             o.Id,
             leaving = career.CurrentSeason.Review is null ? null
@@ -871,7 +878,9 @@ public sealed class ApiHost
         var noticed = round is null ? null : Progression.NoticeResult(career, round, _catalog, _install);
         var approach = round is null ? null : Sponsorship.Approach(career, round, _catalog, _settings.BuiltLiveries,
             _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList(), Language, DateTimeOffset.Now);
-        if (noticed is not null || approach is not null) _store.Save(career);
+        // 1.5: a team a tier or class up can offer next season's seat, answered in the inbox.
+        var offered = round is null ? null : MidSeason.AfterRace(career, round, _catalog, _install, DateTimeOffset.Now);
+        if (noticed is not null || approach is not null || offered is not null) _store.Save(career);
         return new { view = CareerView(career), noticed };
     }
 

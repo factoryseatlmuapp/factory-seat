@@ -26,6 +26,15 @@ public enum MessageKind
 
     /// <summary>The press on a rivalry with an AI driver, the race it started.</summary>
     Rivalry,
+
+    /// <summary>1.5: a team offering next season's seat mid-season, with a deadline; answered in the inbox.</summary>
+    TeamOffer,
+
+    /// <summary>1.5: mid-season offers that ran out unanswered.</summary>
+    OfferLapsed,
+
+    /// <summary>1.5: the current team on the player signing early elsewhere.</summary>
+    SignedEarly,
 }
 
 /// <summary>
@@ -57,6 +66,10 @@ public sealed class InboxMessage
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SponsorApproach? Approach { get; set; }
 
+    /// <summary>For a team's mid-season offer: its id in <see cref="Career.EarlyOffers"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OfferId { get; set; }
+
     public static string IdFor(int season, int round, MessageKind kind) => $"{season}-{round}-{kind}".ToLowerInvariant();
 }
 
@@ -72,6 +85,7 @@ public static class Inbox
         // Questions and offers from earlier rounds can't be answered once another race has counted.
         Paddock.LapseOpenQuestions(career, round);
         Sponsorship.LapseOpenApproaches(career, round);
+        MidSeason.LapseOffers(career, round, now);
 
         // Newest last: what tops the inbox and the strip on Next race goes in last. The interview
         // waits for an answer, so it's on top; then the debrief.

@@ -147,8 +147,9 @@ public static class Progression
         career.Reputation = season.Review.ReputationAfter;
         career.Rating = RatingFor(career.Reputation);
         Loyalties.AfterSeason(career, catalog);
+        MidSeason.CloseSeason(career);
         career.Offers = MakeOffers(career, catalog, install, new Random(seed ?? Seed(career))).ToList();
-        Teams.AddImsa(career, career.Offers, catalog, install, new Random((seed ?? Seed(career)) ^ 0x1A5A));
+        AddImsa(career, catalog, install, new Random((seed ?? Seed(career)) ^ 0x1A5A));
         return true;
     }
 
@@ -375,7 +376,8 @@ public static class Progression
     public static TeamInterest? NoticeResult(Career career, Round round, ContentCatalog catalog, LmuInstall? install)
     {
         const int MaxInterest = 2;
-        if (career.ChampionshipOnly) return null;
+        // 1.5: mid-season offers (MidSeason) take over from interest.
+        if (career.ChampionshipOnly || MidSeason.Runs(career)) return null;
         var me = round.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer);
         if (me?.ClassRank != 1 || round.PointsWeight < 1.5m || career.Interest.Count >= MaxInterest) return null;
 
@@ -428,6 +430,8 @@ public static class Progression
     {
         var season = career.CurrentSeason;
         var review = season.Review ?? throw new InvalidOperationException("Review the season first.");
+        // 1.5: a deal signed early is the only one: announced mid-season, it starts now, on its agreed terms.
+        if (MidSeason.SignedEarly(career) is { } early) return [early];
         var reputation = career.Reputation;
         var currentClass = season.Car.CarClass;
         var currentCar = catalog.CarByType(season.Car.CarType);
@@ -604,7 +608,9 @@ public static class Progression
         var ladderClass = career.GteClassic ? "GTE" : Ladder.Contains(currentClass) ? currentClass : "GT3";
         // Let go, the calls come from the class the reputation still fits.
         if (letGo) ladderClass = Consequences.ClassAfterLetGo(career, ladderClass);
-        var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
+        // A release clause (a contract perk) opens the door to the class's other teams too.
+        var held = underContract && keeps && !Negotiation.Holds(season, Perk.ReleaseClause);
+        var moves = held ? 0 : promoted ? 1 : keeps ? 2 : 3;
         // A step up is never forced: a player out of contract always has a seat in their own class.
         var sameClass = offers.Count(o => o.CarClass == ladderClass);
         AddFrom(OfferKind.Move, ladderClass, BestTier(reputation, ladderClass),
@@ -733,6 +739,7 @@ public static class Progression
         career.CurrentSeason = next;
         career.Offers = [];
         career.Interest = [];
+        career.EarlyOffers = [];
         return next;
     }
 
@@ -765,6 +772,7 @@ public static class Progression
         career.CurrentSeason = next;
         career.Offers = [];
         career.Interest = [];
+        career.EarlyOffers = [];
         return next;
     }
 
@@ -779,8 +787,12 @@ public static class Progression
         if (career.CurrentSeason.Review is null) throw new PlayerError("The road is picked at the end of a season.");
         career.Path = path;
         career.Offers = MakeOffers(career, catalog, install, new Random(Seed(career))).ToList();
-        Teams.AddImsa(career, career.Offers, catalog, install, new Random(Seed(career) ^ 0x1A5A));
+        AddImsa(career, catalog, install, new Random(Seed(career) ^ 0x1A5A));
     }
+
+    /// <summary>IMSA and team status for the off-season offers; a deal signed early already has its own.</summary>
+    private static void AddImsa(Career career, ContentCatalog catalog, LmuInstall? install, Random random) =>
+        Teams.AddImsa(career, career.Offers.Where(o => o.Early is null).ToList(), catalog, install, random);
 
     /// <summary>The same career and season always get the same offers.</summary>
     internal static int Seed(Career career) =>

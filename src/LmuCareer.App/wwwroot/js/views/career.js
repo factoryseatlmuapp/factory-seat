@@ -70,7 +70,8 @@ function saveTicks(key, ticks) {
 const sponsorName = (deal) => (deal.localName && currentLanguage().startsWith("ko") ? deal.localName : deal.name);
 
 /** A message still waiting on the player: an interview not answered, a sponsor's offer not signed or declined. */
-const waitingOn = (m) => (m.interview && m.interview.answer == null && !m.interview.lapsed) || m.approach?.status === "Open";
+const waitingOn = (m, earlyOffers = []) => (m.interview && m.interview.answer == null && !m.interview.lapsed) || m.approach?.status === "Open"
+  || (m.offerId != null && earlyOffers.some((o) => o.id === m.offerId && o.early === "Open" && !o.walkedAway));
 
 /** Text the app saved in a career: its phrase when it has one, or the English it was saved in. */
 const saved = (phrase, english) => (phrase ? t(phrase) : english);
@@ -1268,6 +1269,7 @@ export async function careerView(view, id, tab) {
   /** Where the talks stand, for the card's corner: walked away, agreed, final offer, last resort. */
   function talksBadge(offer) {
     if (offer.walkedAway) return h("span", { class: "talks-badge bad" }, t("Walked away"));
+    if (offer.early === "Signed") return h("span", { class: "talks-badge good" }, t("Signed early"));
     if (offer.agreed) return h("span", { class: "talks-badge good" }, t("Agreed"));
     if (offer.finalOffer) return h("span", { class: "talks-badge warn" }, t("Final offer"));
     if (offer.lastResort) return h("span", { class: "talks-badge" }, t("Take it or leave it"));
@@ -1308,8 +1310,14 @@ export async function careerView(view, id, tab) {
 
   /** Your form against what a team expects: what the talks run on. */
   function formRead(offer) {
-    const position = season().review?.championshipPosition;
+    const midSeason = !season().review;
+    const position = midSeason ? data.championshipPosition : season().review.championshipPosition;
     const leverage = offer.targetPosition - (position ?? offer.targetPosition + 6);
+    if (midSeason) {
+      if (leverage >= 3) return t("You're well ahead of what they'd expect: they won't want to lose you.");
+      if (leverage >= 0) return t("Your form so far matches what they expect: a fair hand to play.");
+      return t("Your form so far is short of what they expect: push too hard and they may walk away.");
+    }
     if (leverage >= 3) return t("You beat what they'd expect by a distance: they won't want to lose you.");
     if (leverage >= 0) return t("Your season matched what they expect: a fair hand to play.");
     return t("Your season fell short of what they expect: push too hard and they may walk away.");
@@ -1336,8 +1344,12 @@ export async function careerView(view, id, tab) {
       put(clear(body),
         h("p", { class: "muted" }, formRead(offer)),
         h("div", { class: "rows" },
-          stepper(t("Gains"), "gain", t("Every reputation gain this season is multiplied by this.")),
-          stepper(t("Losses"), "loss", t("Every reputation loss this season is multiplied by this."))),
+          // A mid-season offer's deal starts next season; an off-season one's is the season about to start.
+          offer.early != null
+            ? [stepper(t("Gains"), "gain", t("Every reputation gain next season is multiplied by this.")),
+              stepper(t("Losses"), "loss", t("Every reputation loss next season is multiplied by this."))]
+            : [stepper(t("Gains"), "gain", t("Every reputation gain this season is multiplied by this.")),
+              stepper(t("Losses"), "loss", t("Every reputation loss this season is multiplied by this."))]),
         h("div", { class: "section-title", style: { marginTop: "14px" } }, t("Perks (up to {n})", { n: 3 })),
         h("div", { class: "offer-perks" }, Object.keys(PERKS).map((p) => {
           const on = ask.perks.has(p);
@@ -1359,8 +1371,12 @@ export async function careerView(view, id, tab) {
       if (!result) return;
       closeModal();
       data = result;
-      show("briefing");
-      const updated = data.career.offers.find((o) => o.id === offer.id);
+      // A mid-season offer is talked over in the inbox; an off-season one on the off-season page.
+      const early = offer.early != null;
+      const message = early ? data.career.inbox.find((m) => m.offerId === offer.id) : null;
+      if (message) openMessage = message.id;
+      show(early ? "inbox" : "briefing");
+      const updated = (early ? data.career.earlyOffers : data.career.offers).find((o) => o.id === offer.id);
       if (!updated?.reply) return;
       const said = t("{team}: {reply}", { team: offer.teamName, reply: saved(updated.reply, "") });
       const countered = !updated.agreed && !updated.walkedAway;
@@ -1506,7 +1522,7 @@ export async function careerView(view, id, tab) {
   function inboxStrip() {
     const newest = [...data.career.inbox].reverse().find((m) => !m.read);
     if (!newest) return null;
-    const waiting = waitingOn(newest);
+    const waiting = waitingOn(newest, data.career.earlyOffers);
     return h("button", { class: "inbox-strip", onclick: () => { openMessage = newest.id; show("inbox"); } },
       h("span", { class: "inbox-strip-label" }, t("Inbox")),
       h("span", { class: "faint" }, t(newest.from)),
@@ -1533,7 +1549,7 @@ export async function careerView(view, id, tab) {
         h("div", { class: "inbox-from" }, t(m.from)),
         h("div", { class: "inbox-subject" }, t(m.subject)),
         h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round }),
-          waitingOn(m) ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
+          waitingOn(m, data.career.earlyOffers) ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
 
     const drawDetail = () => put(clear(detail),
       h("div", { class: "faint" }, `${t(selected.from)} · ${dateTime(selected.at)}`),
@@ -1541,6 +1557,7 @@ export async function careerView(view, id, tab) {
       selected.interview ? null : selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
       selected.interview ? interviewBlock(selected) : null,
       selected.approach ? approachBlock(selected) : null,
+      selected.offerId ? teamOfferBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
 
     /**
@@ -1603,6 +1620,62 @@ export async function careerView(view, id, tab) {
         full ? h("div", { class: "faint" }, t("You already carry {n} personal sponsors this season.", { n: data.maxSponsors })) : null,
         h("div", { class: "row", style: { gap: "10px" } },
           h("button", { class: "btn", disabled: full, "data-sound": "confirm", onclick: () => reply(true) }, t("Sign")),
+          h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));
+    }
+
+    /**
+     * 1.5: a team's mid-season offer for next season: the card (story, perks, terms footnote), then
+     * sign early, talk terms or turn it down while it's open; or what became of it.
+     */
+    function teamOfferBlock(m) {
+      const offer = data.career.earlyOffers?.find((o) => o.id === m.offerId);
+      if (!offer) return null;
+      const car = cat.cars.find((c) => c.folder === offer.carFolder);
+      const current = teamName() || t("your team");
+      const card = h("div", { class: "card quiet offer" + (offer.walkedAway ? " gone" : "") + (offer.kind === "Promotion" ? " promotion" : "") },
+        h("div", { class: "row" },
+          h("span", { class: "offer-kind" }, kindName(offer.kind)),
+          offer.seasons > 1 ? h("span", { class: "offer-kind" }, tn(offer.seasons, "{n} season", "{n} seasons")) : null,
+          chip(offer.carClass),
+          h("div", { class: "spacer" }),
+          talksBadge(offer),
+          h("span", { class: "faint" }, tierName(offer.tier))),
+        h("div", { class: "row", style: { margin: "8px 0 4px" } },
+          h("h3", {}, offer.teamName),
+          offer.imsaTeam ? h("span", { class: "chip pack" }, offer.imsaTeam === offer.teamName ? t("+ IMSA") : t("+ IMSA with {team}", { team: offer.imsaTeam })) : null),
+        h("div", { class: "muted" }, offerFacts(offer, car).filter((f) => f !== tierName(offer.tier)).join(" · ")),
+        offerWarnings(offer),
+        offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
+          h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
+        offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
+        askedNote(offer),
+        termsNote(offer));
+
+      const status = offer.walkedAway ? null : {
+        Signed: [h("b", {}, t("Signed early")), h("div", {}, t("Announced. You finish this season with {team}; the new deal starts next season.", { team: current }))],
+        Declined: [h("b", {}, t("Turned down")), h("div", {}, t("No harm done."))],
+        Lapsed: [h("b", {}, t("Lapsed")), h("div", {}, t("{team} moved on and signed someone else.", { team: offer.teamName }))],
+      }[offer.early];
+      if (offer.walkedAway || status) {
+        return h("div", { class: "approach" }, card,
+          status ? h("div", { class: "notice" + (offer.early === "Signed" ? " good" : "") }, status) : null);
+      }
+
+      const reply = async (sign) => {
+        if (sign && !await confirmDialog(t("Sign with {team} for next season?", { team: offer.teamName }),
+          t("It's announced now and can't be undone. You finish this season with {current}; any other offer still open is turned down. Signing early costs no reputation.", { current }),
+          { confirm: t("Sign early") })) return;
+        const updated = await attempt(call("answerTeamOffer", { id, offerId: offer.id, sign }));
+        if (!updated) return;
+        data = updated;
+        if (sign) toast(t("Signed with {team} for next season.", { team: offer.teamName }));
+        openMessage = m.id;
+        show("inbox");
+      };
+      return h("div", { class: "approach" }, card,
+        h("div", { class: "row", style: { gap: "10px" } },
+          h("button", { class: "btn", "data-sound": "confirm", onclick: () => reply(true) }, t("Sign early")),
+          canCounter(offer) ? h("button", { class: "btn ghost", onclick: () => negotiate(offer) }, t("Talk terms")) : null,
           h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));
     }
 

@@ -25,7 +25,7 @@ public enum Perk
     /// <summary>One guaranteed test day a season in the team's next-class car.</summary>
     DevelopmentDriver,
 
-    /// <summary>Leave mid-contract if a higher-class team makes an offer.</summary>
+    /// <summary>Under a contract that runs past this season, other teams can still call: mid-season offers, and the class's teams at season end.</summary>
     ReleaseClause,
 }
 
@@ -137,9 +137,12 @@ public static class Negotiation
     public static CounterOutcome Counter(Career career, string offerId, decimal gain, decimal loss, IReadOnlyCollection<Perk> perks,
         ContentCatalog catalog, LmuInstall? install, Random? random = null)
     {
-        var review = career.CurrentSeason.Review ?? throw new PlayerError("Offers are talked over at the end of a season.");
-        var offer = career.Offers.FirstOrDefault(o => o.Id == offerId) ?? throw new PlayerError("That offer isn't on the table any more.");
+        // Off-season offers are talked over after the review; 1.5's mid-season ones while they're open, on current form.
+        var review = career.CurrentSeason.Review;
+        var offer = (review is null ? career.EarlyOffers.Where(MidSeason.IsOpen) : career.Offers).FirstOrDefault(o => o.Id == offerId)
+            ?? throw new PlayerError("That offer isn't on the table any more.");
         if (!CanCounter(offer)) throw new PlayerError("{team} isn't talking terms any more.", ("team", offer.TeamName));
+        var position = review is null ? MidSeason.Position(career.CurrentSeason) : review.ChampionshipPosition;
 
         gain = Math.Round(gain, 1);
         loss = Math.Round(loss, 1);
@@ -159,12 +162,13 @@ public static class Negotiation
         offer.Counters++;
         offer.Asked = new AskedTerms(gain, loss, asked.ToList());
         random ??= new Random(Progression.Seed(career) ^ Hash(offer.Id) ^ offer.Counters * 104729);
-        var leverage = Leverage(offer.TargetPosition, review.ChampionshipPosition);
+        var leverage = Leverage(offer.TargetPosition, position);
         if (random.NextDouble() < WalkChance(leverage))
         {
             offer.WalkedAway = true;
             offer.Reply = Phrase.Of(WalkedReply);
-            if (!career.Offers.Any(Signable)) AddFallbackSeat(career, catalog, install);
+            // Mid-season the player still has this season's seat; the fallback is for the off-season.
+            if (review is not null && !career.Offers.Any(Signable)) AddFallbackSeat(career, catalog, install);
             return CounterOutcome.WalkedAway;
         }
 

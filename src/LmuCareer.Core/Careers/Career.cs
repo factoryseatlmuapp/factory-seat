@@ -367,7 +367,17 @@ public sealed class TeamOffer
 
     /// <summary>The player's last counter, kept beside the team's answer so the card shows what moved; null before any counter.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public AskedTerms? Asked { get; set; }
+
+    /// <summary>1.5: an offer made mid-season, and what became of it; null for an off-season offer.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public EarlyOfferStatus? Early { get; set; }
+
+    /// <summary>For a mid-season offer: the season's own round (1st, 2nd...) whose counting ends it, and that round's event.</summary>
+    public int AnswerBy { get; set; }
+    public string AnswerByEvent { get; set; } = "";
 }
+
+/// <summary>What became of a mid-season offer.</summary>
+public enum EarlyOfferStatus { Open, Signed, Declined, Lapsed }
 
 /// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>
 public enum TeamStatus { Struggling, Stable, Growing, FrontRunnerBudget }
@@ -586,6 +596,9 @@ public sealed class Career
 
     /// <summary>Teams that noticed a big result this season; their offers come at the season's end.</summary>
     public List<TeamInterest> Interest { get; set; } = [];
+
+    /// <summary>1.5: offers made during the current season, open or answered; at most <see cref="MidSeason.MaxOffers"/>.</summary>
+    public List<TeamOffer> EarlyOffers { get; set; } = [];
 
     /// <summary>The player's standing with each make and team they've raced for; empty on careers from before 1.3.</summary>
     public List<Loyalty> Loyalty { get; set; } = [];
