@@ -49,14 +49,22 @@ public static class RaceFormats
 
     public static int SnapLength(int minutes) => RaceLengths.MinBy(l => Math.Abs(l - minutes));
 
-    public static RaceFormat For(double realHours, int? minutes = null, double tankMinutes = DefaultTankMinutes)
+    /// <param name="fuel">
+    /// 1.5: the Fuel Usage (and Tyre Wear) the player picked for more or fewer stops, from
+    /// <see cref="PitOptions"/>; null for the usual plan.
+    /// </param>
+    public static RaceFormat For(double realHours, int? minutes = null, double tankMinutes = DefaultTankMinutes, int? fuel = null)
     {
         var length = SnapLength(minutes ?? DefaultMinutes(realHours));
         var timeScale = (int)Math.Clamp(Math.Round(realHours * 60 / length), 1, MaxTimeScale);
         var fullPlan = realHours >= 12 && length >= 120;
 
         int multiplier;
-        if (fullPlan && timeScale == 1)
+        if (fuel is { } chosen)
+        {
+            multiplier = Multipliers.Contains(chosen) ? chosen : throw new ArgumentOutOfRangeException(nameof(fuel), "Fuel Usage is Real, x2 or x3.");
+        }
+        else if (fullPlan && timeScale == 1)
         {
             // Raced at (about) its real length: real fuel use gives the real race's stops.
             multiplier = 1;
@@ -74,9 +82,24 @@ public static class RaceFormats
         }
 
         var tank = tankMinutes / multiplier;
-        var stints = fullPlan ? (int)Math.Ceiling(length / tank) : TankReachesFlag(tank, length) ? 1 : 2;
+        // A tank reaching halfway gives the usual one stop; a heavier Fuel Usage (or a long race
+        // at Real) needs a stop each time the tank runs out.
+        var stints = fullPlan ? (int)Math.Ceiling(length / tank)
+            : TankReachesFlag(tank, length) ? 1 : Math.Max(2, (int)Math.Ceiling(length / tank));
         return new RaceFormat(length, timeScale, multiplier, multiplier, fullPlan, stints, tank);
     }
+
+    /// <summary>
+    /// 1.5 ("more stops"): the pit plans a race can be run on at this length, fewest stops first.
+    /// One per number of stops, each at the heaviest Fuel Usage that gives it (the usual plan's
+    /// rule), so the list reads as real choices: no stop, 1 stop, 2 stops, 3 stops.
+    /// </summary>
+    public static IReadOnlyList<RaceFormat> PitOptions(double realHours, int? minutes = null, double tankMinutes = DefaultTankMinutes) =>
+        Multipliers.Select(m => For(realHours, minutes, tankMinutes, m))
+            .GroupBy(f => f.Stints)
+            .Select(g => g.MaxBy(f => f.FuelMultiplier)!)
+            .OrderBy(f => f.Stints)
+            .ToList();
 
     /// <summary>
     /// True when a full tank clearly lasts the race even at x3, LMU's heaviest Fuel Usage: short

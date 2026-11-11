@@ -74,14 +74,35 @@ public static class RoundFlow
     /// Fuel Usage, Tyre Wear and stints follow, as in the season builder. Null minutes puts back
     /// its usual length.
     /// </summary>
-    public static Round SetLength(Season season, int? minutes)
+    /// <param name="fuel">
+    /// 1.5 ("more stops"): the Fuel Usage of one of <see cref="PitOptions"/>, for more or fewer
+    /// stops than usual; null for the usual plan. Tyre Wear follows it.
+    /// </param>
+    public static Round SetLength(Season season, int? minutes, int? fuel = null)
     {
         var round = season.NextRound ?? throw new InvalidOperationException("The season has no rounds left.");
         if (round.State != RoundState.Upcoming)
             throw new PlayerError("The race weekend has started. Cancel the weekend first to change the race length.");
         if (minutes is < 5 or > 1440) throw new PlayerError("A race runs between 5 minutes and 24 hours.");
-        Content.CalendarBuilder.ApplyLength(round, minutes, season.CarFor(round).CarClass);
+        var carClass = season.CarFor(round).CarClass;
+        if (fuel is { } f && Content.CalendarBuilder.PitOptions(round, minutes, carClass).All(o => o.FuelMultiplier != f))
+            throw new PlayerError("That pit plan isn't one this race length offers.");
+        Content.CalendarBuilder.ApplyLength(round, minutes, carClass, fuel);
         return round;
+    }
+
+    /// <summary>1.5: the pit plans the season's next round can be raced on at a length (null = its usual one), fewest stops first.</summary>
+    public static IReadOnlyList<Content.RaceFormat> PitOptions(Season season, int? minutes)
+    {
+        var round = season.NextRound ?? throw new InvalidOperationException("The season has no rounds left.");
+        return Content.CalendarBuilder.PitOptions(round, minutes, season.CarFor(round).CarClass);
+    }
+
+    /// <summary>The season's next round's usual plan at a length (null = its usual one).</summary>
+    public static Content.RaceFormat UsualPlan(Season season, int? minutes)
+    {
+        var round = season.NextRound ?? throw new InvalidOperationException("The season has no rounds left.");
+        return Content.CalendarBuilder.UsualPlan(round, minutes, season.CarFor(round).CarClass);
     }
 
     public static void Skip(Round round)

@@ -66,16 +66,27 @@ public static class CalendarBuilder
 
     /// <summary>Sets the race length and recalculates Time Scale, Fuel Usage, Tyre Wear and stints to fit.</summary>
     /// <param name="carClass">The class the round is raced in: how long its tank lasts here sets the Fuel Usage.</param>
-    public static void ApplyLength(Round round, int? minutes, string carClass = "")
+    /// <param name="fuel">1.5: the Fuel Usage the player picked for more or fewer stops; null for the usual plan.</param>
+    public static void ApplyLength(Round round, int? minutes, string carClass = "", int? fuel = null)
     {
-        var tank = carClass.Length > 0 ? TankTimes.For(carClass, round.TrackFolder, round.LayoutFile) : RaceFormats.DefaultTankMinutes;
-        var format = RaceFormats.For(round.RealDurationHours, minutes, tank);
+        var format = RaceFormats.For(round.RealDurationHours, minutes, TankFor(round, carClass), fuel);
         round.RaceMinutes = format.RaceMinutes;
         round.TimeScale = format.TimeScale;
         round.FuelMultiplier = format.FuelMultiplier;
         round.TireMultiplier = format.TireMultiplier;
         round.Stints = format.Stints;
     }
+
+    /// <summary>1.5: the pit plans the round can be raced on at a length (null = its usual one), fewest stops first.</summary>
+    public static IReadOnlyList<RaceFormat> PitOptions(Round round, int? minutes, string carClass = "") =>
+        RaceFormats.PitOptions(round.RealDurationHours, minutes, TankFor(round, carClass));
+
+    /// <summary>The round's usual plan at a length (null = its usual one).</summary>
+    public static RaceFormat UsualPlan(Round round, int? minutes, string carClass = "") =>
+        RaceFormats.For(round.RealDurationHours, minutes, TankFor(round, carClass));
+
+    private static double TankFor(Round round, string carClass) =>
+        carClass.Length > 0 ? TankTimes.For(carClass, round.TrackFolder, round.LayoutFile) : RaceFormats.DefaultTankMinutes;
 
     /// <summary>
     /// For a season planned before 1.4: a round still to race whose full tank lasts it at its

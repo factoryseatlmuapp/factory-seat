@@ -206,8 +206,9 @@ public sealed class ApiHost
         "retireCareer" => RetireCareer(args),
         "hallOfFame" => new { entries = _hall.Entries(), headStarts = HeadStarts.Unlocked(_hall.Entries()) },
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
-        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason,
-            args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
+        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason, OptInt(args, "minutes"), OptInt(args, "fuel"))),
+        // 1.5: the pit plans the next round offers at a length, for the Race length window.
+        "pitPlans" => PitPlans(Load(args), OptInt(args, "minutes")),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "seeAchievements" => See(args),
@@ -824,6 +825,23 @@ public sealed class ApiHost
     {
         var round = RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
         if (career.IsNewGamePlus && _install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+    }
+
+    private static int? OptInt(JsonElement args, string name) =>
+        args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+
+    /// <summary>The next round's pit plans at a length, fewest stops first, the usual one marked (picking it sends no fuel).</summary>
+    private static object PitPlans(Career career, int? minutes)
+    {
+        var usual = RoundFlow.UsualPlan(career.CurrentSeason, minutes).Stints;
+        return RoundFlow.PitOptions(career.CurrentSeason, minutes).Select(f => new
+        {
+            fuel = f.FuelMultiplier,
+            f.Stints,
+            stops = f.Stints - 1,
+            stintMinutes = (int)Math.Round(f.RaceMinutes / (double)f.Stints),
+            usual = f.Stints == usual,
+        });
     }
 
     /// <summary>A retired career keeps its records but races no more.</summary>

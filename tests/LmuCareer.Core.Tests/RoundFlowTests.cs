@@ -489,4 +489,25 @@ public class RoundFlowTests
         RoundFlow.Arm(season, ArmedAt);
         Assert.Throws<PlayerError>(() => RoundFlow.SetLength(season, 60));
     }
+
+    [Fact]
+    public void The_next_round_can_plan_more_stops_than_usual()
+    {
+        var catalog = Content.ContentCatalog.Default;
+        var season = new Season
+        {
+            Number = 1,
+            Car = Car,
+            Rounds = Content.CalendarBuilder.Number([Content.CalendarBuilder.RoundFor(catalog, catalog.Event("spa-6")!, "GT3", DriverRating.Silver)]),
+        };
+
+        var heaviest = RoundFlow.PitOptions(season, 60)[^1];
+        var round = RoundFlow.SetLength(season, 60, heaviest.FuelMultiplier);
+        Assert.Equal((3, 3, heaviest.Stints), ((int)round.FuelMultiplier, (int)round.TireMultiplier, round.Stints));
+        Assert.True(round.Stints > RoundFlow.UsualPlan(season, 60).Stints);
+
+        // Back to the usual plan, and a Fuel Usage the length doesn't offer is refused.
+        Assert.Equal(RoundFlow.UsualPlan(season, 60).Stints, RoundFlow.SetLength(season, 60).Stints);
+        Assert.Throws<PlayerError>(() => RoundFlow.SetLength(season, 60, 7));
+    }
 }

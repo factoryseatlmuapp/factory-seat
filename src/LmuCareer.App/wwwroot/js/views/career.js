@@ -367,7 +367,11 @@ export async function careerView(view, id, tab) {
         h("div", {},
           h("div", { class: "section-title" }, t("Race weekend")),
           weekendPanel(round, isArmed),
-          h("div", { class: "section-title", style: { marginTop: "24px" } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
+          h("div", { class: "row", style: { alignItems: "baseline", marginTop: "24px", marginBottom: "12px" } },
+            h("div", { class: "section-title", style: { margin: 0 } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
+            h("div", { class: "spacer" }),
+            isArmed || round.test ? null
+              : h("button", { class: "btn ghost small", onclick: () => changeLength(round) }, t("More or fewer stops"))),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
           floor ? null : pacePanel(),
           sponsorPanel(),
@@ -978,18 +982,46 @@ export async function careerView(view, id, tab) {
     const length = h("select", { class: "input", style: { width: "180px" } },
       h("option", { value: "" }, t("Usual length")),
       RACE_LENGTHS.map((m) => h("option", { value: m, selected: m === round.raceMinutes }, formatMinutes(m))));
+    const minutes = () => (length.value ? +length.value : null);
+
+    // 1.5 ("more stops"): the pit plans this length offers; the usual one sends no fuel.
+    const stops = h("select", { class: "input", style: { width: "100%" } });
+    const stopsField = h("div", { style: { marginTop: "16px" } },
+      h("div", { class: "section-title", style: { margin: "0 0 6px" } }, t("Pit stops")), stops,
+      h("div", { class: "faint", style: { marginTop: "6px", fontSize: "12px" } },
+        t("More stops raise Fuel Usage and Tyre Wear together. The race is checked against what you pick.")));
+    let plans = [];
+    const loadPlans = async () => {
+      plans = (await attempt(call("pitPlans", { id, minutes: minutes() }))) || [];
+      const sameLength = (minutes() ?? null) === null ? null : minutes() === round.raceMinutes;
+      const current = sameLength !== false && plans.find((p) => p.fuel === round.fuelMultiplier && p.stints === round.stints);
+      const picked = current || plans.find((p) => p.usual);
+      clear(stops).append(...plans.map((p, i) => {
+        const fuel = p.fuel > 1 ? "x" + p.fuel : lmu("Real");
+        const count = p.stops === 0 ? t("No stop") : p.stops === 1 ? t("1 stop") : t("{n} stops", { n: p.stops });
+        const text = t("{stops} · Fuel Usage and Tyre Wear {fuel} · stints of about {time}", { stops: count, fuel, time: formatMinutes(p.stintMinutes) });
+        return h("option", { value: i, selected: p === picked }, p.usual ? t("{plan} (usual)", { plan: text }) : text);
+      }));
+      stopsField.style.display = plans.length > 1 ? "" : "none";
+    };
+    length.addEventListener("change", loadPlans);
+
     const apply = async () => {
-      if (await attempt(call("setRoundLength", { id, minutes: length.value ? +length.value : null }))) { closeModal(); show("briefing"); }
+      const plan = plans[+stops.value];
+      const fuel = plan && !plan.usual ? plan.fuel : null;
+      if (await attempt(call("setRoundLength", { id, minutes: minutes(), fuel }))) { closeModal(); show("briefing"); }
     };
     showModal([
-      h("h2", {}, t("Race length")),
+      h("h2", {}, t("Race length and pit stops")),
       h("p", { class: "muted" }, t("Race {event} for longer or shorter than planned. Time Scale, Fuel Usage, Tyre Wear and the pit plan change to fit; the points it's worth don't.", { event: round.eventName })),
       length,
+      stopsField,
       h("div", { class: "modal-actions" },
         h("div", { class: "spacer" }),
         h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Back")),
         h("button", { class: "btn", "data-sound": "confirm", onclick: apply }, t("Save"))),
     ]);
+    loadPlans();
   }
 
   async function disarm() {
