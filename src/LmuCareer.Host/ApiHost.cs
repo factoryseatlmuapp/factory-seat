@@ -673,6 +673,8 @@ public sealed class ApiHost
         sponsorOffers = (career.CurrentSeason.SponsorOffers ?? []).Select(d => new { deal = d, text = Sponsorship.Describe(d) }),
         canSignSponsors = !career.ChampionshipOnly && Sponsorship.CanSign(career.CurrentSeason),
         maxSponsors = Sponsorship.MaxDealsFor(career.CurrentSeason),
+        // 1.5: Preferred garage space's premium look, in the make's colour; null without the perk.
+        garage = Garage.For(career, _catalog),
         pace = PaceCheck.Summarize(career.CurrentSeason),
         roundPace = career.CurrentSeason.Rounds.Select(PaceCheck.For).OfType<RoundPace>(),
         liveryRounds = Sponsorship.LiveryRounds(career.CurrentSeason) is var (custom, counted) ? new { custom, counted } : null,

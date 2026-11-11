@@ -16,6 +16,19 @@ public class PerkTests
     }
 
     [Fact]
+    public void Garage_space_dresses_the_app_in_the_colour_of_the_badge()
+    {
+        Assert.Null(Garage.For(Holding(CareerWith(30, "GT3")), Catalog));
+
+        var look = Garage.For(Holding(CareerWith(30, "GT3"), Perk.GarageSpace), Catalog)!;
+        Assert.Equal(("Sample Racing", "Lexus", "#C0C6CC", "#CC0000"), (look.Team, look.Make, look.Primary, look.Secondary));
+
+        // By the badge, not the loyalty group: the GM Corvette is Corvette yellow, not Cadillac gold.
+        Assert.Equal("Corvette", Garage.MakeOf(Catalog.Car("Corvette_Z06GT3R_2023")!.Name)?.Make);
+        Assert.All(Catalog.Cars, car => Assert.NotNull(Garage.MakeOf(car.Name)));
+    }
+
+    [Fact]
     public void Team_backing_forgives_the_first_dnf_only()
     {
         Round[] Rounds() => [Counted(1, 9, status: "DNF"), Counted(2, 9, status: "DNF"), .. Enumerable.Range(3, 4).Select(n => Counted(n, 5))];

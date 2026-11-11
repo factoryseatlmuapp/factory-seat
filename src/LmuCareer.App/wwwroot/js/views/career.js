@@ -12,6 +12,7 @@ import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
 import { achievementList, achievementCount, achievementTile, popUnlocks } from "../achievements.js";
 import { openRecapCard } from "../recapCard.js";
+import { setGarage } from "../garage.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -85,6 +86,7 @@ export async function careerView(view, id, tab) {
   // A finished season is reviewed (and the offers made) the first time the career opens after it.
   const finished = (s) => s.rounds.length > 0 && !s.rounds.some((r) => r.state === "Upcoming" || r.state === "Armed");
   if (finished(data.career.currentSeason) && !data.career.currentSeason.review) data = await call("endSeason", { id });
+  setGarage(data.garage);
 
   const show = (next) => go(`#/career/${id}/${next}`);
   const season = () => data.career.currentSeason;
