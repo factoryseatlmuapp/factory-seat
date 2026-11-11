@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.5.0 "White Flag"
+
+A career already under way switches to the new rules at its next season; a season that's running keeps the old ones.
+
+- **Talk terms.** Off-season offers can be negotiated: what a season's reputation gains and losses are multiplied by, and up to 3 perks. Two counters, then the team's "Final offer". A team takes an ask, meets it part way, or refuses one past its limits (that costs no counter). Push too hard and it may walk away: 15% a counter, less when your form beats what it expects. A walked-away seat is gone, but a seat is always left: if every team walks, a back-marker takes you. After a season that fell short with only back-marker offers, take one or retire ("Retired, no seat", no Hall of Fame).
+- **Seven perks:** Team backing (the season's first DNF costs no reputation), Preferred sponsors (one more offer and a third slot), Guest drive priority (one more guest seat, whatever your reputation), Development driver (a pre-season test a class up), Expert engineer (a debrief with every sector against the best AI, the ideal lap, and the lap your pace started to fade), Release clause, and Preferred garage space: while you hold it, the career's screens take on a premium look in the make's colours.
+- **Mid-season offers.** After round 2, a team a tier or a class up can offer next season's seat when you're at or better than its target (always after a double-points win). At most 2 a season, never after the last round. Each arrives in the inbox with an answer-by round: sign early, talk terms, or turn it down. Signing early is announced and costs no reputation; you finish the season with your team. Unanswered, an offer lapses.
+- **Test days that sway an offer.** A mid-season offer from a class up always brings a test day in its car before the deadline (from your own class, half the time). A good run moves the offer up a step; a poor or skipped one leaves it as it was.
+- **Release clause:** under a contract that runs past this season, only this perk lets other teams call, mid-season and at the season's end.
+- **Team prestige:** a team opens its offer at its standing, ×1.3 gains and losses at a front-runner, ×1.1 midfield, ×1.0 back-marker.
+- **Reputation rules:** no cap on a season's gains; losses stop at 12 × the team's prestige (16, 13 or 12). Race items scale with race length up to 45 minutes. A back-marker finishing P7 or better earns a giant-killer bonus (+3, P5 +5, P3 +8). A Triple Crown race (Daytona, Sebring 12 Hours or 1000 Miles, Le Mans) won at 6 hours or more is worth +10.
+- **More or fewer pit stops:** the race length window, now "Race length and pit stops" (also opened from "More or fewer stops" on the pit plan), lists one plan per number of stops: a 60-minute run of a 6-hour race offers 1 stop at Real (usual), 2 at x2 or 3 at x3. The race is checked against your pick. Thanks to carbdaymau.
+- **The pace check suggests an AI Strength number:** "You're on AI Strength 87. Try 88." It reads the strength LMU saved for each race you ran, and stops at 105, LMU's top setting. Thanks to Phantoniso- for the idea.
+- **Local sponsors** for South America, Switzerland, India and Hungary: 70 brands picked by players, each with its home city. Thanks to carbdaymau, AnthoxPointu and NaDs.
+- A plan whose tank doesn't reach halfway now counts a stop each time it runs out (a 2-hour run of a 6-hour race at Real is 2 stops), instead of "pit around halfway".
+- Test days and guest drives at an ELMS venue get the ELMS car, so LMU puts it on the layout. Thanks to DePylos for the report. (#30)
+- **For companion apps:** writing the career id to `start-weekend.request` next to `briefing.json` starts the race weekend, as the button does. `briefing.json` adds `pace.aiStrength`, `pace.suggested`, `pace.measuredAt` and `history[].aiStrength`. See `docs/briefing-json.md`.
+
 ## 1.4.0 "Full Push"
 
 - **Achievements:** 20 in all, 15 for any career and 5 that only New Game+ can earn. A pop-up as each is earned, and the Career tab lists them all with progress; secret ones stay hidden until earned. A career from before 1.4 is credited with what it had already done. (#7)
