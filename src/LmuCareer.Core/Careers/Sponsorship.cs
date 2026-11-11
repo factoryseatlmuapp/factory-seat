@@ -153,6 +153,9 @@ public static class Sponsorship
         return deal;
     }
 
+    // Declared before Regions: static fields initialise in order.
+    private static readonly string[] SouthAmerica = ["AR", "BO", "BR", "CL", "CO", "EC", "GY", "PE", "PY", "SR", "UY", "VE"];
+
     // Where local brands come from when the driver's own country has too few (design doc, Oct 13).
     private static readonly Dictionary<string, string[]> Regions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -161,6 +164,10 @@ public static class Sponsorship
         ["AT"] = ["DE"],
         ["CH"] = ["DE"],
         ["PT"] = ["BR"],
+        // South America (1.5, Mauro's picks): a country with fewer than three brands draws on the continent's.
+        ["AR"] = SouthAmerica, ["BO"] = SouthAmerica, ["BR"] = SouthAmerica, ["CL"] = SouthAmerica,
+        ["CO"] = SouthAmerica, ["EC"] = SouthAmerica, ["GY"] = SouthAmerica, ["PE"] = SouthAmerica,
+        ["PY"] = SouthAmerica, ["SR"] = SouthAmerica, ["UY"] = SouthAmerica, ["VE"] = SouthAmerica,
     };
 
     private static readonly Dictionary<string, string[]> LanguageCountries = new(StringComparer.OrdinalIgnoreCase)
@@ -170,6 +177,7 @@ public static class Sponsorship
         ["es"] = ["ES"],
         ["pt"] = ["BR"],
         ["ko"] = ["KR"],
+        ["hu"] = ["HU"],
         ["en"] = ["US", "GB", "IE"],
     };
 
