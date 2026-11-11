@@ -129,6 +129,17 @@ One more field on `round`, `null` in a normal career:
 }
 ```
 
+## Added in 1.5 (still version 1)
+
+An AI Strength number to go with the advice, on `round.pace`, and the strength each earlier race
+here was run at, on `round.history`:
+
+```json
+"history": [ { "...": "as above", "aiStrength": 96 } ],
+"pace": { "advice": "BitEasy", "step": 1, "source": "Track", "gap": -1.2, "visits": 1,
+          "aiStrength": 99, "suggested": 99, "measuredAt": 96 }
+```
+
 ## Starting the race weekend from a companion (1.5)
 
 A companion can press **Start race weekend** for the player, so they don't have to Alt-Tab out of
@@ -198,7 +209,8 @@ the first race decides it); `targetPosition` is the team's target in the class s
   An overlay short on room can show just the first one or two.
 - `history` (1.2): earlier counted races at this layout in this class, newest first: `season`,
   `round`, `event`, `finish` (class position, `null` when not classified), `status` and `bestLap` in
-  seconds. Empty on a first visit.
+  seconds. Empty on a first visit. `aiStrength` (1.5) is the AI Strength LMU proved the race was run
+  at (the weekend's save, else `Settings.JSON`); `null` when nothing proved it, and for races before 1.5.
 - `practice` (1.2): practice run since the race weekend started, read for pace; `null` until there's
   been some. Lap times are in seconds: `bestLap` is the player's, `aiBestLap` the fastest AI in class
   (`aiBestDriver`), `gap` the difference (negative when the player was quicker). `targetLap` is the
@@ -210,6 +222,11 @@ the first race decides it); `targetPosition` is the team's target in the class s
   from in `source`: `Practice` (this weekend), `Track` (earlier races here, the latest counting most;
   `visits` says how many) or `Season` (recent rounds elsewhere, kept to a small change on a first
   visit). `gap` is seconds a lap against the fastest AI. `null` before any race has counted.
+  Since 1.5: `aiStrength` is LMU's AI Strength as last seen (LMU writes `Settings.JSON` when it
+  closes, so it's the level it had last time; else the last race's proven strength), `suggested` the
+  AI Strength Factory Seat suggests racing at (70 to 120), and `measuredAt` the strength `gap` was
+  measured at (the latest visit's, for `Track`). Each is `null` when unknown. About 0.4% of a lap per
+  point, so on a 100 s lap 1 s quicker is about +2.5 points; a first visit moves at most 2.
 
 - `series` (1.3): the championship raced beside the season's own that the round counts for (`imsa`),
   or `null` for the season's own. A season can run both; each keeps its own standings, and `stakes`

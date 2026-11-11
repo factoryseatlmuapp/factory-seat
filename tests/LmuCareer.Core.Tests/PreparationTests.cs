@@ -152,6 +152,74 @@ public class PreparationTests
         Assert.Equal(PaceAdvice.BitHard, Preparation.Pace(slow, Next(slow))!.Advice);
     }
 
+    // ---------- Suggested AI Strength (1.5) ----------
+
+    [Fact]
+    public void A_gap_turns_into_points_at_about_four_tenths_of_a_percent_a_point()
+    {
+        // 2 s on a 101 s lap: 2 / 0.404 = 4.95 points.
+        Assert.Equal(5, PaceCheck.PointsFor(-2.0, 101.0));
+        Assert.Equal(-5, PaceCheck.PointsFor(2.0, 101.0));
+        Assert.Equal(0, PaceCheck.PointsFor(-0.1, 101.0));
+    }
+
+    [Fact]
+    public void Practice_suggests_a_number_from_the_level_now()
+    {
+        var career = Season(1, Counted(1, 2));
+        Next(career).Practice = new PracticeRead(1, 12, 99.0, 101.0, "AI 1", null);
+
+        var pace = Preparation.Pace(career, Next(career), strengthNow: 90)!;
+        Assert.Equal((90, 95), (pace.Strength, pace.Suggested));
+
+        // The weekend's own strength (Settings.JSON when it started) is what practice was run at.
+        Next(career).AiAtStart = new Content.AiSettingsSeen(92, 2, "settings");
+        Assert.Equal(97, Preparation.Pace(career, Next(career), strengthNow: 90)!.Suggested);
+
+        // The slider stops at 120.
+        Next(career).AiAtStart = null;
+        Assert.Equal(PaceCheck.MaxStrength, Preparation.Pace(career, Next(career), strengthNow: 118)!.Suggested);
+    }
+
+    [Fact]
+    public void Last_visit_here_counts_from_the_strength_it_was_raced_at()
+    {
+        // Last time here: AI Strength 96 and 2 s quicker on a 101.5 s lap, about 5 points.
+        var round = WithGap(At(Counted(1, 2), "Circuit de la Sarthe"), -2.0);
+        round.AiStrength = 96;
+        var career = Season(1, round);
+
+        var pace = Preparation.Pace(career, Next(career), strengthNow: 99)!;
+        Assert.Equal(PaceSource.Track, pace.Source);
+        Assert.Equal((99, 96, 101), (pace.Strength, pace.MeasuredAt, pace.Suggested));
+
+        // Nothing read from LMU now: the last race's proven strength is the level.
+        Assert.Equal((96, 101), (Preparation.Pace(career, Next(career))!.Strength, Preparation.Pace(career, Next(career))!.Suggested));
+    }
+
+    [Fact]
+    public void Matched_pace_keeps_the_level_and_unknown_strength_gives_no_number()
+    {
+        var matched = Season(1, WithGap(At(Counted(1, 2), "Circuit de la Sarthe"), -0.2));
+        Assert.Equal(93, Preparation.Pace(matched, Next(matched), strengthNow: 93)!.Suggested);
+
+        var unknown = Preparation.Pace(matched, Next(matched))!;
+        Assert.Null(unknown.Strength);
+        Assert.Null(unknown.Suggested);
+    }
+
+    [Fact]
+    public void A_first_visit_moves_the_number_only_a_little()
+    {
+        // Three seconds quicker elsewhere would be 7 points; a first visit here moves at most 2.
+        var elsewhere = Season(1, WithGap(At(Counted(1, 2), "Sebring International Raceway"), -3.0));
+        Assert.Equal(92, Preparation.Pace(elsewhere, Next(elsewhere), strengthNow: 90)!.Suggested);
+
+        // A bit easy always moves at least a point.
+        var close = Season(1, WithGap(At(Counted(1, 2), "Sebring International Raceway"), -0.45));
+        Assert.Equal(91, Preparation.Pace(close, Next(close), strengthNow: 90)!.Suggested);
+    }
+
     // ---------- Practice ----------
 
     private static Round Armed() => new()

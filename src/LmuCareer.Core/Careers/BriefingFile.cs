@@ -38,14 +38,15 @@ public sealed record BriefingFile(
         DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     };
 
-    public static BriefingFile For(Career career, ContentCatalog catalog, string? app, DateTimeOffset now)
+    /// <param name="strengthNow">LMU's AI Strength as of its last exit (Settings.JSON), when it could be read.</param>
+    public static BriefingFile For(Career career, ContentCatalog catalog, string? app, DateTimeOffset now, int? strengthNow = null)
     {
         var season = career.CurrentSeason;
         return new BriefingFile(FormatName, CurrentVersion, app, now, true,
             new BriefingCareer(career.Id, career.Name, season.Number, season.Car.CarClass, Math.Round(career.Reputation, 1),
                 season.Contract?.TeamName is { Length: > 0 } team ? team : season.Car.TeamName,
                 season.Contract?.TargetPosition ?? Progression.DefaultTarget),
-            season.NextRound is { } round ? RoundOf(round, career, catalog) : null,
+            season.NextRound is { } round ? RoundOf(round, career, catalog, strengthNow) : null,
             season.Sponsors.Select(deal =>
             {
                 var progress = Sponsorship.Progress(season, deal);
@@ -58,10 +59,10 @@ public sealed record BriefingFile(
             }).ToList());
     }
 
-    private static BriefingRound RoundOf(Round round, Career career, ContentCatalog catalog)
+    private static BriefingRound RoundOf(Round round, Career career, ContentCatalog catalog, int? strengthNow)
     {
         var season = career.CurrentSeason;
-        var prep = Preparation.For(career, round);
+        var prep = Preparation.For(career, round, strengthNow);
         var track = catalog.Track(round.TrackFolder);
         var car = season.CarFor(round);
         var numbers = round.Guest ? round.GuestNumbers : (season.SeriesOf(round)?.Contract ?? season.Contract)?.Numbers ?? [];
@@ -89,13 +90,16 @@ public sealed record BriefingFile(
             new BriefingPitPlan(round.Stints, stintMinutes, Math.Max(0, round.Stints - 1)))
         {
             Stakes = prep.Stakes is { } stakes ? StakesOf(stakes) : null,
-            History = prep.History.Select(v => new BriefingVisit(v.Season, v.Round, v.EventName, v.Finish, v.Status, v.BestLap)).ToList(),
+            History = prep.History.Select(v => new BriefingVisit(v.Season, v.Round, v.EventName, v.Finish, v.Status, v.BestLap) { AiStrength = v.AiStrength }).ToList(),
             Practice = prep.Practice is { } p
                 ? new BriefingPractice(p.Sessions, p.Laps, p.PlayerBest, p.AiBest, p.AiBestDriver.Length > 0 ? p.AiBestDriver : null, p.Gap, p.TargetLap,
                     prep.Pace is { Source: PaceSource.Practice } fromPractice ? fromPractice.Advice : null,
                     prep.Pace is { Source: PaceSource.Practice } practiceStep ? PaceCheck.StepFor(practiceStep.Advice) : null)
                 : null,
-            Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, PaceCheck.StepFor(pace.Advice), pace.Source, pace.Gap, pace.Visits) : null,
+            Pace = prep.Pace is { } pace
+                ? new BriefingPace(pace.Advice, PaceCheck.StepFor(pace.Advice), pace.Source, pace.Gap, pace.Visits)
+                    { AiStrength = pace.Strength, Suggested = pace.Suggested, MeasuredAt = pace.MeasuredAt }
+                : null,
             Series = round.SeriesId.Length > 0 ? round.SeriesId : null,
             Test = round.Test is { } test ? new BriefingTest(test.TeamName, test.MinLaps, test.PassShare) : null,
             Floor = career.IsNewGamePlus && round.Floor is { } floor
@@ -265,7 +269,11 @@ public sealed record BriefingRival(string Name, int Position, decimal Gap, int? 
 /// <param name="Cost">Reputation lost if this race doesn't deliver.</param>
 public sealed record BriefingBet(string Event, string Needs, int Cost);
 
-public sealed record BriefingVisit(int Season, int Round, string Event, int? Finish, Results.FinishStatus Status, double? BestLap);
+public sealed record BriefingVisit(int Season, int Round, string Event, int? Finish, Results.FinishStatus Status, double? BestLap)
+{
+    /// <summary>Since 1.5: the AI Strength LMU proved the race was run at; null when unknown (and for races before 1.5).</summary>
+    public int? AiStrength { get; init; }
+}
 
 /// <param name="Gap">Best lap against the fastest AI in class, in seconds; negative when the player was quicker.</param>
 /// <param name="TargetLap">The engineer's target for the race when the player was slower than the AI; null otherwise.</param>
@@ -276,4 +284,14 @@ public sealed record BriefingPractice(int Sessions, int Laps, double? BestLap, d
 /// <param name="Source">Practice (this weekend), Track (earlier races here, the latest counting most) or Season (recent rounds, kept small on a first visit).</param>
 /// <param name="Step">The advice as points on LMU's AI Strength slider: +3, +1, 0, -1 or -3.</param>
 /// <param name="Visits">Earlier races here it's based on (Track only).</param>
-public sealed record BriefingPace(PaceAdvice Advice, int Step, PaceSource Source, double Gap, int Visits);
+public sealed record BriefingPace(PaceAdvice Advice, int Step, PaceSource Source, double Gap, int Visits)
+{
+    /// <summary>Since 1.5: LMU's AI Strength as last seen (Settings.JSON is written when LMU closes); null when unknown.</summary>
+    public int? AiStrength { get; init; }
+
+    /// <summary>Since 1.5: the AI Strength Factory Seat suggests racing at (70–120); null when no strength is known.</summary>
+    public int? Suggested { get; init; }
+
+    /// <summary>Since 1.5: the AI Strength the gap was measured at, when known.</summary>
+    public int? MeasuredAt { get; init; }
+}

@@ -707,11 +707,11 @@ public sealed class ApiHost
     /// Keeps briefing.json next to the saves up to date with the career on screen, for companion
     /// apps. A file that can't be written (locked by a reader) waits for the next change.
     /// </summary>
-    private static void WriteBriefing(Career career)
+    private void WriteBriefing(Career career)
     {
         try
         {
-            BriefingFile.For(career, ContentCatalog.Default, Updates.CurrentLabel, DateTimeOffset.Now)
+            BriefingFile.For(career, ContentCatalog.Default, Updates.CurrentLabel, DateTimeOffset.Now, AiStrengthNow())
                 .Write(CareerStore.DefaultRoot);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -783,7 +783,7 @@ public sealed class ApiHost
         ladder = LadderView(career),
         unread = Inbox.Unread(career),
         // The next race's stakes, history here, practice and AI Strength advice.
-        preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next) : null,
+        preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next, AiStrengthNow()) : null,
         // The season review worked out now, until the real one is written.
         projectedReputation = !career.ChampionshipOnly && career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
             ? Progression.Review(career.CurrentSeason, career.Reputation) is var review ? review.ReputationAfter - review.ReputationBefore : (decimal?)null
@@ -820,12 +820,18 @@ public sealed class ApiHost
     }
 
     /// <summary>Signs an offer and starts the next season on the calendar from the season builder.</summary>
-    /// <summary>Starts the race weekend; New Game+ notes LMU's AI settings as they are now, to check against later.</summary>
+    /// <summary>
+    /// Starts the race weekend, noting LMU's AI settings as they are now: New Game+ checks against
+    /// them, and every career's pace check reads the race's AI Strength from them.
+    /// </summary>
     private void Arm(Career career)
     {
         var round = RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
-        if (career.IsNewGamePlus && _install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+        if (_install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
     }
+
+    /// <summary>LMU's AI Strength as of its last exit (Settings.JSON); null when it can't be read.</summary>
+    private int? AiStrengthNow() => _install is null ? null : AiProof.Settings(_install.SettingsFile)?.Strength;
 
     private static int? OptInt(JsonElement args, string name) =>
         args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;

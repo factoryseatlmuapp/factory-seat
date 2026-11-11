@@ -635,15 +635,30 @@ export async function careerView(view, id, tab) {
       ? h("div", {}, quicker
         ? t("In practice your best lap was {s} s quicker than the fastest AI in class.", { s: s(here.gap) })
         : t("In practice your best lap was {s} s slower than the fastest AI in class.", { s: s(here.gap) }))
+      : here.visits === 1 && here.measuredAt != null
+      ? h("div", {}, quicker
+        ? t("Last time here you ran AI Strength {level} and were {s} s a lap quicker than the fastest AI.", { level: here.measuredAt, s: s(here.gap) })
+        : t("Last time here you ran AI Strength {level} and were {s} s a lap slower than the fastest AI.", { level: here.measuredAt, s: s(here.gap) }))
       : h("div", {}, quicker
         ? tn(here.visits, "Last time here you were {s} s a lap quicker than the fastest AI.", "Your {n} races here: {s} s a lap quicker than the fastest AI, the latest counting most.", { s: s(here.gap) })
         : tn(here.visits, "Last time here you were {s} s a lap slower than the fastest AI.", "Your {n} races here: {s} s a lap slower than the fastest AI, the latest counting most.", { s: s(here.gap) }));
+    // 1.5: a number to set, from the level LMU last wrote (Settings.JSON is saved when LMU closes).
+    const level = here?.strength;
+    const target = here?.suggested;
+    const todo = target == null
+      ? advice[1]
+      : level == null
+      ? t("Set AI Strength to {n} in LMU's Race Weekend settings.", { n: target })
+      : target === level
+      ? t("You're on AI Strength {level}. Leave it there.", { level })
+      : t("You're on AI Strength {level}. Try {n}.", { level, n: target });
     return [
       h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Pace check")),
       h("div", { class: `notice ${advice[2]}` },
         h("b", {}, advice[0]),
         basis,
-        h("div", { class: "muted", style: { marginTop: "4px" } }, advice[1])),
+        h("div", { class: "muted", style: { marginTop: "4px" } }, todo),
+        level != null ? h("div", { class: "muted small" }, t("LMU saves AI Strength when it closes, so this is the level it had last time.")) : null),
     ];
   }
 

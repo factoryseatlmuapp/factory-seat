@@ -98,8 +98,14 @@ public sealed class Round
     /// <summary>New Game+: the AI Strength, weather and damage this round must be raced at. Null otherwise.</summary>
     public RoundFloor? Floor { get; set; }
 
-    /// <summary>New Game+: LMU's AI settings as Settings.JSON had them when the weekend started.</summary>
+    /// <summary>LMU's AI settings as Settings.JSON had them when the weekend started (every career since 1.5; New Game+ only before).</summary>
     public Content.AiSettingsSeen? AiAtStart { get; set; }
+
+    /// <summary>
+    /// Since 1.5: the AI Strength LMU proves the race was run at (the weekend's save, else
+    /// Settings.JSON), for the pace check's suggested number. Null when nothing proved it.
+    /// </summary>
+    public int? AiStrength { get; set; }
 }
 
 /// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>

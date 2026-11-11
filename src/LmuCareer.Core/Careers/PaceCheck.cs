@@ -71,6 +71,26 @@ public static class PaceCheck
         _ => 0,
     };
 
+    /// <summary>
+    /// How much a point of AI Strength moves the AI's lap, as a share of the lap. Measured Nov 1,
+    /// 2026: Laguna Seca, GT3, 18 AI, two races each at 90 and 105; the fastest AI's best lap went
+    /// 87.84 → 82.52 s (the median AI's the same), 6.1% for 15 points. One track and class so far:
+    /// beta seasons tune it.
+    /// </summary>
+    public const double LapSharePerPoint = 0.004;
+
+    /// <summary>LMU's AI Strength slider range, in percent.</summary>
+    public const int MinStrength = 70, MaxStrength = 120;
+
+    /// <summary>
+    /// The AI Strength points that would close a gap (seconds a lap, negative when the player was
+    /// quicker) on a lap of <paramref name="aiLap"/> seconds: positive means stronger AI.
+    /// </summary>
+    public static int PointsFor(double gap, double aiLap) =>
+        aiLap <= 0 ? 0 : (int)Math.Round(-gap / (aiLap * LapSharePerPoint), MidpointRounding.AwayFromZero);
+
+    public static int ClampStrength(int strength) => Math.Clamp(strength, MinStrength, MaxStrength);
+
     /// <summary>What a gap to the fastest AI (seconds a lap, negative when quicker) says about AI Strength.</summary>
     public static PaceAdvice AdviceFor(double gap) => gap switch
     {
