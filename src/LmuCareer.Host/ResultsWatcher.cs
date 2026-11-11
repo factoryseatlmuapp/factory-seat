@@ -24,14 +24,14 @@ public sealed class ResultsWatcher : IDisposable
 
     public event Action? Settled;
 
-    /// <summary>Starts watching a folder, replacing any earlier one. Null stops watching.</summary>
-    public void Watch(string? folder)
+    /// <summary>Starts watching a folder for files matching <paramref name="filter"/>, replacing any earlier one. Null stops watching.</summary>
+    public void Watch(string? folder, string filter = "*.xml")
     {
         _watcher?.Dispose();
         _watcher = null;
         if (folder is null || !Directory.Exists(folder)) return;
 
-        _watcher = new FileSystemWatcher(folder, "*.xml")
+        _watcher = new FileSystemWatcher(folder, filter)
         {
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
             EnableRaisingEvents = true,

@@ -164,7 +164,11 @@ export async function careerView(view, id, tab) {
   const stopPractice = onEvent("practiceRead", (message) => {
     if (message.careerId === id && location.hash.includes(id) && tab === "briefing") show("briefing");
   });
-  stopListening = () => { stopRound(); stopPractice(); };
+  // A companion app started the race weekend for the player (start-weekend.request).
+  const stopStarted = onEvent("weekendStarted", (message) => {
+    if (message.careerId === id && location.hash.includes(id)) weekendStarted();
+  });
+  stopListening = () => { stopRound(); stopPractice(); stopStarted(); };
 
   // Results written while the app was closed or another screen was open turn up on arrival.
   if (armed()) {
@@ -930,13 +934,15 @@ export async function careerView(view, id, tab) {
 
   // Each change re-opens the tab, which reloads the career.
   async function arm() {
-    if (await attempt(call("armRound", { id }))) {
-      toast(t("Race weekend started. Set it up in LMU and go racing."));
-      show("briefing");
-      // Raced first, started the weekend after: offer that race straight away.
-      const evaluation = await attempt(call("checkRound", { id }));
-      if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
-    }
+    if (await attempt(call("armRound", { id }))) await weekendStarted();
+  }
+
+  async function weekendStarted() {
+    toast(t("Race weekend started. Set it up in LMU and go racing."));
+    show("briefing");
+    // Raced first, started the weekend after: offer that race straight away.
+    const evaluation = await attempt(call("checkRound", { id }));
+    if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
   }
 
   /** A finished race for this round from just before the weekend started: count it, or race again. */

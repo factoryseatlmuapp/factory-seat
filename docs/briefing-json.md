@@ -129,6 +129,30 @@ One more field on `round`, `null` in a normal career:
 }
 ```
 
+## Starting the race weekend from a companion (1.5)
+
+A companion can press **Start race weekend** for the player, so they don't have to Alt-Tab out of
+LMU. Write the career's `career.id` from `briefing.json`, and nothing else, to a file named
+`start-weekend.request` in the same folder:
+
+```
+%AppData%\LmuCareer\start-weekend.request
+```
+
+Write it to a temporary name and rename it into place, the way `briefing.json` is written. Factory
+Seat reads it within a few seconds, deletes it, and starts the weekend only when:
+
+- the id is the career open on screen (`open` is `true` and `career.id` matches), and
+- its next round is waiting to start (`round.state` is `Upcoming`).
+
+Otherwise it deletes the file and does nothing. A file left over from before Factory Seat started
+is deleted unread, so an old request never starts a weekend later. There's no reply file: watch
+`briefing.json`, where `round.state` turns `Armed` and `round.armedAt` gets the time. That's also
+the signal to show the player that the weekend is recording.
+
+Factory Seat never talks to LMU itself; setting the race up in LMU stays with the player (or with
+your companion, if it does that).
+
 ## Fields
 
 Values are LMU's own, not the words on Factory Seat's screens, so they can be compared with what

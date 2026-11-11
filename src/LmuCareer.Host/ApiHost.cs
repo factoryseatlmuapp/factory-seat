@@ -29,6 +29,8 @@ public sealed class ApiHost
     private readonly HallOfFame _hall = new(CareerStore.DefaultRoot);
     private readonly ContentCatalog _catalog = ContentCatalog.Default;
     private readonly ResultsWatcher _watcher;
+    // 1.5: a companion app asking, by file, to start the race weekend (see OnStartRequested).
+    private readonly ResultsWatcher _requests;
     private LmuInstall? _install;
 
     // The career whose screen is open: only it listens for new results.
@@ -41,6 +43,65 @@ public sealed class ApiHost
         _watcher = new ResultsWatcher(window.Invoke);
         _watcher.Settled += OnResultsSettled;
         if (_settings.LmuRoot is { } root && LmuInstall.LooksLikeInstall(root)) UseInstall(root);
+
+        // A request left from an earlier run is stale: it must never start a weekend later.
+        try { File.Delete(StartRequestPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        _requests = new ResultsWatcher(window.Invoke);
+        _requests.Settled += OnStartRequested;
+        try
+        {
+            Directory.CreateDirectory(CareerStore.DefaultRoot);
+            _requests.Watch(CareerStore.DefaultRoot, StartRequestFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Log($"Start requests not watched: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The file a companion app (an in-game overlay, say) writes next to briefing.json to press
+    /// "Start race weekend" for the player: its text is the career id from briefing.json. It's a
+    /// file, not a server, so the app stays off the network.
+    /// </summary>
+    public const string StartRequestFile = "start-weekend.request";
+    private static string StartRequestPath => Path.Combine(CareerStore.DefaultRoot, StartRequestFile);
+
+    /// <summary>
+    /// A companion asked to start the race weekend. Honoured only for the career open on screen
+    /// (the one briefing.json describes while "open"), and only when its next round is waiting to
+    /// start; the file is removed either way, so a request is used once.
+    /// </summary>
+    private void OnStartRequested()
+    {
+        string text;
+        try
+        {
+            if (!File.Exists(StartRequestPath)) return;
+            text = File.ReadAllText(StartRequestPath).Trim();
+            File.Delete(StartRequestPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return; // Still being written: the next change brings it back here.
+        }
+
+        if (!Guid.TryParse(text, out var id) || id != _watchedCareer) return;
+        try
+        {
+            var career = _store.Load(id).Career;
+            if (career.RetiredAt is not null || career.CurrentSeason.ArmedRound is not null || career.CurrentSeason.NextRound is null) return;
+            Arm(career);
+            career.LastPlayedAt = DateTimeOffset.Now;
+            _store.Save(career);
+            WriteBriefing(career);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or JsonException or InvalidDataException)
+        {
+            Log($"Start request not honoured: {ex.Message}");
+            return;
+        }
+        _window.PostEvent(JsonSerializer.Serialize(new { @event = "weekendStarted", careerId = id }, Json));
     }
 
     private void UseInstall(string root)
