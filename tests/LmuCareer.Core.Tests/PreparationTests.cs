@@ -176,9 +176,9 @@ public class PreparationTests
         Next(career).AiAtStart = new Content.AiSettingsSeen(92, 2, "settings");
         Assert.Equal(97, Preparation.Pace(career, Next(career), strengthNow: 90)!.Suggested);
 
-        // The slider stops at 120.
+        // The slider stops at 105.
         Next(career).AiAtStart = null;
-        Assert.Equal(PaceCheck.MaxStrength, Preparation.Pace(career, Next(career), strengthNow: 118)!.Suggested);
+        Assert.Equal(105, Preparation.Pace(career, Next(career), strengthNow: 103)!.Suggested);
     }
 
     [Fact]

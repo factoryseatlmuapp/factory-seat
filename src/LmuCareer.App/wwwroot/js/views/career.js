@@ -649,6 +649,8 @@ export async function careerView(view, id, tab) {
       ? advice[1]
       : level == null
       ? t("Set AI Strength to {n} in LMU's Race Weekend settings.", { n: target })
+      : target === level && level >= 105 && /Easy$/.test(here.advice)
+      ? t("You're on AI Strength {level}, LMU's top setting. The AI can't go any quicker.", { level })
       : target === level
       ? t("You're on AI Strength {level}. Leave it there.", { level })
       : t("You're on AI Strength {level}. Try {n}.", { level, n: target });

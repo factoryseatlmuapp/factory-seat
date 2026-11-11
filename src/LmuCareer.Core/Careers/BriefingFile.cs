@@ -289,7 +289,7 @@ public sealed record BriefingPace(PaceAdvice Advice, int Step, PaceSource Source
     /// <summary>Since 1.5: LMU's AI Strength as last seen (Settings.JSON is written when LMU closes); null when unknown.</summary>
     public int? AiStrength { get; init; }
 
-    /// <summary>Since 1.5: the AI Strength Factory Seat suggests racing at (70–120); null when no strength is known.</summary>
+    /// <summary>Since 1.5: the AI Strength Factory Seat suggests racing at (70–105); null when no strength is known.</summary>
     public int? Suggested { get; init; }
 
     /// <summary>Since 1.5: the AI Strength the gap was measured at, when known.</summary>

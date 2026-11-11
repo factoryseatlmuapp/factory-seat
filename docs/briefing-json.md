@@ -224,7 +224,7 @@ the first race decides it); `targetPosition` is the team's target in the class s
   visit). `gap` is seconds a lap against the fastest AI. `null` before any race has counted.
   Since 1.5: `aiStrength` is LMU's AI Strength as last seen (LMU writes `Settings.JSON` when it
   closes, so it's the level it had last time; else the last race's proven strength), `suggested` the
-  AI Strength Factory Seat suggests racing at (70 to 120), and `measuredAt` the strength `gap` was
+  AI Strength Factory Seat suggests racing at (70 to 105, LMU's top), and `measuredAt` the strength `gap` was
   measured at (the latest visit's, for `Track`). Each is `null` when unknown. About 0.4% of a lap per
   point, so on a 100 s lap 1 s quicker is about +2.5 points; a first visit moves at most 2.
 

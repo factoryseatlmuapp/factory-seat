@@ -79,8 +79,8 @@ public static class PaceCheck
     /// </summary>
     public const double LapSharePerPoint = 0.004;
 
-    /// <summary>LMU's AI Strength slider range, in percent.</summary>
-    public const int MinStrength = 70, MaxStrength = 120;
+    /// <summary>LMU's AI Strength slider range, in percent (it tops out at 105).</summary>
+    public const int MinStrength = 70, MaxStrength = 105;
 
     /// <summary>
     /// The AI Strength points that would close a gap (seconds a lap, negative when the player was
