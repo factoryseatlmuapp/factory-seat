@@ -1362,7 +1362,7 @@ export async function careerView(view, id, tab) {
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
         canCounter(offer) ? h("button", { class: "btn ghost small", onclick: (e) => { e.stopPropagation(); negotiate(offer); } }, t("Talk terms")) : null,
-        gone ? null : h("span", { class: "btn small" }, t("Sign"))),
+        gone ? null : h("span", { class: "btn small" }, offer.early === "Signed" ? t("Build the next season") : t("Sign"))),
       termsNote(offer));
   }
 
