@@ -258,7 +258,13 @@ public static class Progression
         var poles = mine.Count(x => x.Me.ClassPole);
         Add(Phrase.Count(poles, "{n} pole", "{n} poles"), PerRace(x => x.Me.ClassPole, 0.5m));
         var dnfs = mine.Count(x => x.Me.Entry.Status == FinishStatus.Dnf);
-        Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), PerRace(x => x.Me.Entry.Status == FinishStatus.Dnf, -2));
+        // Team backing (a contract perk): the season's first DNF costs nothing; the team stands by the driver.
+        var backed = Negotiation.Holds(season, Perk.TeamBacking)
+            ? mine.Where(x => x.Me.Entry.Status == FinishStatus.Dnf).Select(x => x.Round).FirstOrDefault()
+            : null;
+        Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), PerRace(x => x.Me.Entry.Status == FinishStatus.Dnf && x.Round != backed, -2));
+        if (backed is not null)
+            items.Add(ReputationItem.For(Phrase.Of("Team backing: your DNF at the {event} cost nothing", ("event", backed.EventName)), 0));
         var dqs = mine.Count(x => x.Me.Entry.Status == FinishStatus.Dq);
         Add(Phrase.Count(dqs, "{n} disqualification", "{n} disqualifications"), PerRace(x => x.Me.Entry.Status == FinishStatus.Dq, -4));
         var penalties = raced.Sum(r => r.Result!.PlayerPenalties);

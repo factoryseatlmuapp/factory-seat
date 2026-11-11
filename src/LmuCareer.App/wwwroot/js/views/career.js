@@ -460,13 +460,14 @@ export async function careerView(view, id, tab) {
         const crossover = !ladderFor(data.career).includes(o.carClass);
         return h("div", { class: "card quiet offer promotion" + (o.accepted ? " selected" : "") },
           h("div", { class: "row" },
-            h("span", { class: "offer-kind" }, crossover ? t("Crossover test") : t("Test day")),
+            h("span", { class: "offer-kind" }, o.development ? t("Development driver") : crossover ? t("Crossover test") : t("Test day")),
             chip(o.carClass),
             h("div", { class: "spacer" }),
             h("span", { class: "faint" }, tierName(o.tier))),
           h("h3", { style: { margin: "8px 0 4px" } }, o.teamName),
           h("div", { class: "muted" }, [car?.name, where].filter(Boolean).join(" · ")),
-          crossover ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
+          o.development ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
+            t("Written into your contract: a day in the car a class up.")) : crossover ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
             t("A team from the other road. Impress them and a seat there opens up.")) : null,
           h("div", { class: "row", style: { marginTop: "10px" } },
             h("div", { class: "spacer" }),
@@ -779,10 +780,10 @@ export async function careerView(view, id, tab) {
       h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Sponsors")),
       h("div", { class: "stack" },
         data.sponsors.map(dealCard),
-        open.length && data.sponsors.length < 2
+        open.length && data.sponsors.length < data.maxSponsors
           ? h("div", { class: "notice info" },
             h("b", {}, tn(open.length, "{n} sponsor offer", "{n} sponsor offers")),
-            h("div", {}, t("Personal deals, paid in reputation at the end of the season. Sign up to two before your first race counts.")),
+            h("div", {}, t("Personal deals, paid in reputation at the end of the season. Sign up to {n} before your first race counts.", { n: data.maxSponsors })),
             h("div", { style: { marginTop: "8px" } }, h("button", { class: "btn ghost small", onclick: openSponsors }, t("See offers"))))
           : null),
     ];
@@ -834,7 +835,7 @@ export async function careerView(view, id, tab) {
 
   function openSponsors() {
     const signedIds = data.sponsors.map((d) => d.deal.sponsorId);
-    const full = signedIds.length >= 2;
+    const full = signedIds.length >= data.maxSponsors;
     showModal([
       h("h2", {}, t("Sponsor offers")),
       h("p", { class: "muted" }, t("Each deal is one objective for this season. Meet it and the sponsor pays out in reputation at the season review; miss it and nothing is lost. Running their livery is optional.")),
@@ -845,7 +846,7 @@ export async function careerView(view, id, tab) {
           if (!updated) return;
           data = updated;
           toast(t("Signed with {name}.", { name: sponsorName(o.deal) }));
-          if (data.sponsors.length >= 2) { closeModal(); show("briefing"); } else openSponsors();
+          if (data.sponsors.length >= data.maxSponsors) { closeModal(); show("briefing"); } else openSponsors();
         };
         return h("div", { class: "card quiet offer" + (isSigned ? " selected" : "") },
           h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(o.deal.sponsorId)), h("div", { class: "spacer" }),
@@ -1584,7 +1585,7 @@ export async function careerView(view, id, tab) {
         Lapsed: [h("b", {}, t("Lapsed")), h("div", {}, t("Your next race counted before you answered."))],
       }[a.status];
       if (status) return h("div", { class: "notice" + (a.status === "Signed" ? " good" : "") }, status);
-      const full = data.sponsors.length >= 2;
+      const full = data.sponsors.length >= data.maxSponsors;
       const reply = async (sign) => {
         const updated = await attempt(call("answerApproach", { id, messageId: m.id, sign }));
         if (!updated) return;
@@ -1597,7 +1598,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(a.deal.sponsorId)), h("div", { class: "spacer" }),
             h("span", { class: "faint" }, t("+{n} rep", { n: number(+a.deal.reward) }))),
           h("h3", { style: { margin: "8px 0 4px" } }, sponsorName(a.deal))),
-        full ? h("div", { class: "faint" }, t("You already carry two personal sponsors this season.")) : null,
+        full ? h("div", { class: "faint" }, t("You already carry {n} personal sponsors this season.", { n: data.maxSponsors })) : null,
         h("div", { class: "row", style: { gap: "10px" } },
           h("button", { class: "btn", disabled: full, "data-sound": "confirm", onclick: () => reply(true) }, t("Sign")),
           h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));

@@ -149,6 +149,9 @@ public sealed class TestOffer
     /// <summary>The catalog event whose track and layout the test runs on.</summary>
     public string VenueEventId { get; set; } = "";
 
+    /// <summary>1.5: the test the Development driver perk guarantees, in the player's own team's car a class up.</summary>
+    public bool Development { get; set; }
+
     public bool Accepted { get; set; }
 }
 

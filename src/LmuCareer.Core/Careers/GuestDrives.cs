@@ -38,6 +38,9 @@ public static class GuestDrives
             >= MinReputation => 1,
             _ => 0,
         };
+        // Guest drive priority (a contract perk): the team puts the player forward for one more seat,
+        // whatever the reputation.
+        if (Negotiation.Holds(season, Perk.GuestDrivePriority)) count++;
 
         // Events the player can drive that aren't already championship rounds.
         var events = catalog.Events

@@ -51,6 +51,9 @@ public static class Negotiation
     /// <summary>A team never lets the gain modifier sit more than this above the loss one.</summary>
     public const decimal MaxGap = 0.3m;
 
+    /// <summary>Whether the season's contract carries this perk.</summary>
+    public static bool Holds(Season season, Perk perk) => season.Contract?.Perks.Contains(perk) == true;
+
     /// <summary>What a perk costs the team in a counter, as modifier.</summary>
     public static decimal Cost(Perk perk) => perk is Perk.TeamBacking or Perk.ReleaseClause ? 0.2m : 0.1m;
 

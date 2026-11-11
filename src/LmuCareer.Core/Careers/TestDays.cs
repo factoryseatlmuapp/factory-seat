@@ -46,7 +46,9 @@ public static class TestDays
         var season = career.CurrentSeason;
         var reputation = career.Reputation;
         var count = reputation >= TwoOffersAt ? 2 : reputation >= MinReputation ? 1 : 0;
-        if (count == 0) return [];
+        // Development driver (a contract perk): one test a season in the team's next-class car, whatever the reputation.
+        var development = Negotiation.Holds(season, Perk.DevelopmentDriver);
+        if (count == 0 && !development) return [];
 
         bool Available(string carClass) => catalog.Cars.Any(c => c.Class == carClass && Progression.CanOffer(c, career, install));
         var current = season.Car.CarClass;
@@ -63,11 +65,13 @@ public static class TestDays
             .Distinct()
             .Take(count)
             .ToList();
+        if (development && up is not null && up != current && Available(up) && !classes.Contains(up)) classes.Insert(0, up);
 
         var offers = new List<TestOffer>();
         foreach (var carClass in classes)
         {
-            var seat = Seat(career, catalog, install, carClass, random);
+            var dev = development && carClass == up;
+            var seat = (dev ? TeamsNextCar(career, catalog, install, carClass) : null) ?? Seat(career, catalog, install, carClass, random);
             var venue = Venue(career, catalog, install, carClass, random);
             if (seat is not { } s || venue is null) continue;
             offers.Add(new TestOffer
@@ -79,9 +83,32 @@ public static class TestDays
                 Tier = s.Team.Tier,
                 Numbers = s.Team.Numbers,
                 VenueEventId = venue.Id,
+                Development = dev,
             });
         }
         return offers;
+    }
+
+    /// <summary>
+    /// The player's own team's car a class up, for a development driver: the same team there, else
+    /// the same outfit, else a team running the same make. Null when none races that class.
+    /// </summary>
+    private static (TeamInfo Team, CarInfo Car)? TeamsNextCar(Career career, ContentCatalog catalog, LmuInstall? install, string carClass)
+    {
+        var season = career.CurrentSeason;
+        var name = season.Contract?.TeamName is { Length: > 0 } contracted ? contracted : season.Car.TeamName;
+        var own = catalog.Teams.FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && t.Class == season.Car.CarClass);
+        var brand = catalog.CarByType(season.Car.CarType)?.Brand;
+        var pool = catalog.Teams
+            .Where(t => t.Class == carClass)
+            .Select(t => (Team: t, Car: (t.Cars.Count > 0 ? t.Cars.Select(catalog.Car).OfType<CarInfo>() : catalog.Cars.Where(c => c.Class == t.Class))
+                .FirstOrDefault(c => Progression.CanOffer(c, career, install))))
+            .Where(x => x.Car is not null)
+            .ToList();
+        var pick = pool.FirstOrDefault(x => x.Team.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (pick.Team is null && own is not null) pick = pool.FirstOrDefault(x => x.Team.OutfitId == own.OutfitId);
+        if (pick.Team is null && brand is { Length: > 0 }) pick = pool.Where(x => x.Car!.Brand == brand).OrderBy(x => x.Team.Tier).FirstOrDefault();
+        return pick.Team is null ? null : (pick.Team, pick.Car!);
     }
 
     /// <summary>How far below a class's bar a team there will still try a driver out.</summary>
