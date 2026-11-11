@@ -154,7 +154,9 @@ Write it to a temporary name and rename it into place, the way `briefing.json` i
 Seat reads it within a few seconds, deletes it, and starts the weekend only when:
 
 - the id is the career open on screen (`open` is `true` and `career.id` matches), and
-- its next round is waiting to start (`round.state` is `Upcoming`).
+- its next round is waiting to start (`round.state` is `Upcoming`; a test day counts, as its
+  weekend is started the same way), and
+- the file was written in the last minute.
 
 Otherwise it deletes the file and does nothing. A file left over from before Factory Seat started
 is deleted unread, so an old request never starts a weekend later. There's no reply file: watch

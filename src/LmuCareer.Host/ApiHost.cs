@@ -67,6 +67,9 @@ public sealed class ApiHost
     public const string StartRequestFile = "start-weekend.request";
     private static string StartRequestPath => Path.Combine(CareerStore.DefaultRoot, StartRequestFile);
 
+    /// <summary>A request older than this is stale (written, say, while the app was busy or closing) and is dropped.</summary>
+    private static readonly TimeSpan StartRequestMaxAge = TimeSpan.FromMinutes(1);
+
     /// <summary>
     /// A companion asked to start the race weekend. Honoured only for the career open on screen
     /// (the one briefing.json describes while "open"), and only when its next round is waiting to
@@ -75,9 +78,11 @@ public sealed class ApiHost
     private void OnStartRequested()
     {
         string text;
+        bool stale;
         try
         {
             if (!File.Exists(StartRequestPath)) return;
+            stale = DateTime.UtcNow - File.GetLastWriteTimeUtc(StartRequestPath) > StartRequestMaxAge;
             text = File.ReadAllText(StartRequestPath).Trim();
             File.Delete(StartRequestPath);
         }
@@ -86,7 +91,7 @@ public sealed class ApiHost
             return; // Still being written: the next change brings it back here.
         }
 
-        if (!Guid.TryParse(text, out var id) || id != _watchedCareer) return;
+        if (stale || !Guid.TryParse(text, out var id) || id != _watchedCareer) return;
         try
         {
             var career = _store.Load(id).Career;
