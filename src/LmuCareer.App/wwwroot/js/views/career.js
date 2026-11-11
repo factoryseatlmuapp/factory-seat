@@ -1329,7 +1329,7 @@ export async function careerView(view, id, tab) {
         h("button", { class: "btn ghost small", disabled: ask[key] >= 1.5, onclick: () => { ask[key] = fixed(ask[key] + 0.1); render(); } }, "+")));
 
     function render() {
-      put(body,
+      put(clear(body),
         h("p", { class: "muted" }, formRead(offer)),
         h("div", { class: "rows" },
           stepper(t("Gains"), "gain", t("Every reputation gain this season is multiplied by this.")),
