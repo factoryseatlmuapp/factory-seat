@@ -225,4 +225,93 @@ public class MidSeasonTests
         MidSeason.Sign(career, offer.Id, Now);
         Assert.Equal(EarlyOfferStatus.Signed, offer.Early);
     }
+
+    // ---------- Teams sway you (test days) ----------
+
+    /// <summary>An offer that came with a test day, and that test's round.</summary>
+    private static (Career Career, TeamOffer Offer, Round Test) Invited()
+    {
+        var career = Running(2, 6, _ => 1);
+        MidSeason.AfterRace(career, Last(career), Catalog, null, Now, Always);
+        var offer = career.EarlyOffers[0];
+        var test = career.CurrentSeason.Rounds.Single(r => r.Test?.OfferId == offer.Id);
+        return (career, offer, test);
+    }
+
+    private static void RunTest(Round round, bool good)
+    {
+        round.State = RoundState.Armed;
+        round.ArmedAt = Now;
+        round.Practice = new PracticeRead(1, 10, good ? 99.9 : 105, 100, "AI 1", null);
+    }
+
+    [Fact]
+    public void An_offer_can_come_with_a_test_day_before_its_deadline()
+    {
+        var (career, offer, test) = Invited();
+        var rounds = career.CurrentSeason.Rounds;
+        var deadline = career.CurrentSeason.ChampionshipRounds.ElementAt(offer.AnswerBy - 1);
+
+        Assert.True(rounds.IndexOf(test) < rounds.IndexOf(deadline));
+        Assert.Equal(offer.TeamName, test.Test!.TeamName);
+        Assert.Equal(0, test.PointsWeight);
+        Assert.Contains(career.Inbox.Single(m => m.OfferId == offer.Id).Body, l => l.ToString().Contains("test day"));
+    }
+
+    [Fact]
+    public void A_good_test_moves_the_offer_up_one_step_and_the_talks_keep_it()
+    {
+        var (career, offer, test) = Invited();
+        var (gain, budget) = (offer.GainModifier!.Value, offer.Budget!.Value);
+        RunTest(test, good: true);
+
+        Assert.True(TestDays.Complete(career, Now).Passed);
+
+        Assert.True(offer.Swayed);
+        Assert.Equal(gain + MidSeason.SwayStep, offer.GainModifier);
+        Assert.Equal(budget + MidSeason.SwayStep, offer.Budget);
+        Assert.Empty(career.Interest);   // the offer moved; no end-of-season interest on top
+        Assert.Equal(CounterOutcome.Accepted, Negotiation.Counter(career, offer.Id, offer.GainModifier!.Value, offer.LossModifier!.Value,
+            offer.Perks, Catalog, null, new Roll(0.999)));
+    }
+
+    [Fact]
+    public void A_poor_test_leaves_the_offer_as_it_was()
+    {
+        var (career, offer, test) = Invited();
+        var gain = offer.GainModifier;
+        RunTest(test, good: false);
+
+        Assert.False(TestDays.Complete(career, Now).Passed);
+
+        Assert.False(offer.Swayed);
+        Assert.Equal(gain, offer.GainModifier);
+        Assert.Equal(EarlyOfferStatus.Open, offer.Early);
+    }
+
+    [Fact]
+    public void At_the_gains_ceiling_a_sway_lowers_losses_then_adds_a_perk()
+    {
+        var offer = new TeamOffer { Tier = 2, GainModifier = 1.3m, LossModifier = 1.1m, Perks = [], Budget = 0.3m };
+        MidSeason.Sway(offer);
+        Assert.Equal(1.3m, offer.GainModifier);
+        Assert.Equal(1.0m, offer.LossModifier);
+
+        var full = new TeamOffer { Tier = 2, GainModifier = 1.3m, LossModifier = 1.0m, Perks = [], Budget = 0.3m };
+        MidSeason.Sway(full);
+        Assert.Single(full.Perks);
+        Assert.Equal(0.4m, full.Budget);
+    }
+
+    [Fact]
+    public void Turning_an_offer_down_or_signing_takes_its_test_day_off_the_calendar()
+    {
+        var (declined, offer, _) = Invited();
+        MidSeason.Decline(declined, offer.Id);
+        Assert.DoesNotContain(declined.CurrentSeason.Rounds, r => r.Test is not null);
+
+        var (signed, other, _) = Invited();
+        MidSeason.Sign(signed, other.Id, Now);
+        Assert.DoesNotContain(signed.CurrentSeason.Rounds, r => r.Test is not null);
+    }
 }

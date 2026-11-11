@@ -506,8 +506,11 @@ export async function careerView(view, id, tab) {
       h("div", { class: "notice info", style: { marginBottom: "24px" } },
         h("b", {}, t("They want to see what you can do")), " ", chip(test.carClass),
         test.reasonText || test.reason ? h("div", {}, t("{reason} caught their eye.", { reason: capitalize(saved(test.reasonText, test.reason)) })) : null,
-        h("div", {}, t("Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll call when the season's over. Fall short and nothing's lost.",
-          { n: test.minLaps, share })),
+        test.offerId
+          ? h("div", {}, t("They've offered you a seat for next season. Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll improve the offer a step. Fall short and the offer stands as it is.",
+            { n: test.minLaps, share }))
+          : h("div", {}, t("Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll call when the season's over. Fall short and nothing's lost.",
+            { n: test.minLaps, share })),
         h("div", { class: "muted" }, t("It isn't a race: it counts for no championship, and nothing else in your season moves."))),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
@@ -1627,6 +1630,13 @@ export async function careerView(view, id, tab) {
      * 1.5: a team's mid-season offer for next season: the card (story, perks, terms footnote), then
      * sign early, talk terms or turn it down while it's open; or what became of it.
      */
+    /** A test day still to run that could move this offer up a step. */
+    function swayTestNote(offer) {
+      if (offer.early !== "Open" || offer.walkedAway) return null;
+      const test = season().rounds.find((r) => r.test?.offerId === offer.id && (r.state === "Upcoming" || r.state === "Armed"));
+      return test ? h("div", { class: "faint" }, t("Test day at {track} before the deadline: impress them and the offer goes up a step.", { track: test.trackCourse })) : null;
+    }
+
     function teamOfferBlock(m) {
       const offer = data.career.earlyOffers?.find((o) => o.id === m.offerId);
       if (!offer) return null;
@@ -1648,6 +1658,7 @@ export async function careerView(view, id, tab) {
         offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
           h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
         offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
+        offer.swayed ? h("div", { class: "offer-reply" }, t("Improved after your test day.")) : swayTestNote(offer),
         askedNote(offer),
         termsNote(offer));
 

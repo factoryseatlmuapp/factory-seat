@@ -121,6 +121,8 @@ public static class MidSeason
             Negotiation.Open(offer, Negotiation.Leverage(offer.TargetPosition, position), random);
             Teams.AddImsa(career, [offer], catalog, install, random);
             career.EarlyOffers.Add(offer);
+            // Teams try to sway you: a team a class up always wants a look in its car first, a team in the class half the time.
+            var test = promotion || random.NextDouble() < SwayChance ? TestDays.InviteToSway(career, offer, round, catalog, install) : null;
 
             var name = ("team", (object?)team.Name);
             var message = new InboxMessage
@@ -137,6 +139,11 @@ public static class MidSeason
                     Phrase.Of("After the {event}, {team} is offering you a seat for next season. What caught their eye: {reason}.",
                         ("event", round.EventName), name).With("reason", reason),
                     Phrase.Of("They want an answer before the {event} counts.", ("event", deadline.EventName)),
+                    .. test is null ? Array.Empty<Phrase>() :
+                    [
+                        Phrase.Of("They'd like you in their car first: a test day at {track} is in your calendar before the deadline. Impress them and the offer goes up a step; skip it or fall short and it stands as it is.",
+                            ("track", test.TrackCourse)),
+                    ],
                     currentTeam is { Length: > 0 }
                         ? Phrase.Of("Sign early and it's announced now: you finish this season with {current}, and the new deal starts next season. Turning it down costs nothing.",
                             ("current", currentTeam))
@@ -148,6 +155,52 @@ public static class MidSeason
             return message;
         }
         return null;
+    }
+
+    /// <summary>On an offer from a team in the player's own class, the chance it comes with a test day to sway them.</summary>
+    public const double SwayChance = 0.5;
+
+    /// <summary>The step a good sway test moves an offer by.</summary>
+    public const decimal SwayStep = 0.1m;
+
+    /// <summary>
+    /// A good test day before the deadline: the offer moves up one step. Gains first (×1.1 → ×1.2),
+    /// then losses down once gains are at the team's ceiling, then one more perk; the team's room in
+    /// the talks grows by the same, so a later counter doesn't take it back.
+    /// </summary>
+    /// <returns>The team principal's line on what moved.</returns>
+    public static Phrase Sway(TeamOffer offer)
+    {
+        var gain = offer.GainModifier ?? Progression.Prestige(offer.Tier);
+        var loss = offer.LossModifier ?? gain;
+        decimal step;
+        Phrase line;
+        if (gain + SwayStep <= Negotiation.GainCeiling(offer.Tier) && gain + SwayStep - loss <= Negotiation.MaxGap)
+        {
+            offer.GainModifier = gain += SwayStep;
+            offer.LossModifier = loss;
+            step = SwayStep;
+            line = Phrase.Of("We've improved our offer: your reputation gains are now multiplied by {x}.", ("x", Negotiation.Times(gain)));
+        }
+        else if (loss - SwayStep >= Negotiation.LossFloor(offer.Tier) && gain - (loss - SwayStep) <= Negotiation.MaxGap)
+        {
+            offer.GainModifier = gain;
+            offer.LossModifier = loss -= SwayStep;
+            step = SwayStep;
+            line = Phrase.Of("We've improved our offer: your reputation losses are now multiplied by only {x}.", ("x", Negotiation.Times(loss)));
+        }
+        else if (offer.Perks.Count < Negotiation.MaxPerks
+            && Enum.GetValues<Perk>().Where(p => !offer.Perks.Contains(p)).OrderBy(Negotiation.Cost).Cast<Perk?>().FirstOrDefault() is { } perk)
+        {
+            offer.Perks = [.. offer.Perks.Append(perk).OrderBy(p => p)];
+            step = Negotiation.Cost(perk);
+            line = Phrase.Of("We've improved our offer: there's one more perk in the deal.");
+        }
+        else return Phrase.Of("There's nothing more we can put in the deal, but we're keener than ever.");
+
+        offer.Swayed = true;
+        if (offer.Budget is { } budget) offer.Budget = budget + step;
+        return line;
     }
 
     private static TeamOffer Open(Career career, string offerId)
@@ -169,6 +222,8 @@ public static class MidSeason
         offer.Budget = null;
         foreach (var other in career.EarlyOffers.Where(o => o != offer && o.Early == EarlyOfferStatus.Open)) other.Early = EarlyOfferStatus.Declined;
         foreach (var m in career.Inbox.Where(m => m.OfferId == offerId)) m.Read = true;
+        // The deal's done: test days to sway the player are off.
+        foreach (var o in career.EarlyOffers) TestDays.DropSwayTest(career, o.Id);
 
         var season = career.CurrentSeason;
         var last = season.Rounds.LastOrDefault(r => r.State == RoundState.Completed);
@@ -198,6 +253,7 @@ public static class MidSeason
         var offer = Open(career, offerId);
         offer.Early = EarlyOfferStatus.Declined;
         foreach (var m in career.Inbox.Where(m => m.OfferId == offerId)) m.Read = true;
+        TestDays.DropSwayTest(career, offerId);
     }
 
     public const string LapsedLine = "{team} moved on and signed someone else."; // phrase
@@ -210,7 +266,11 @@ public static class MidSeason
         var ordinal = Ordinal(season, round);
         var lapsed = career.EarlyOffers.Where(o => o.Early == EarlyOfferStatus.Open && o.AnswerBy <= ordinal).ToList();
         if (lapsed.Count == 0) return;
-        foreach (var offer in lapsed) offer.Early = EarlyOfferStatus.Lapsed;
+        foreach (var offer in lapsed)
+        {
+            offer.Early = EarlyOfferStatus.Lapsed;
+            TestDays.DropSwayTest(career, offer.Id);
+        }
         // Only offers still worth a word: a team that walked away already said goodbye.
         var told = lapsed.Where(o => !o.WalkedAway).ToList();
         if (told.Count == 0) return;

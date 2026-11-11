@@ -128,6 +128,9 @@ public sealed class TestDay
 
     /// <summary>New Game+: how the practice measured up to the test's floor. Below it, the test earns no offer.</summary>
     public FloorCheck? Floor { get; set; }
+
+    /// <summary>1.5: the mid-season offer this test day is meant to sway; empty for any other test.</summary>
+    public string OfferId { get; set; } = "";
 }
 
 public sealed record TestResult(int Laps, double PlayerBest, double AiBest, bool Passed)
@@ -374,6 +377,9 @@ public sealed class TeamOffer
     /// <summary>For a mid-season offer: the season's own round (1st, 2nd...) whose counting ends it, and that round's event.</summary>
     public int AnswerBy { get; set; }
     public string AnswerByEvent { get; set; } = "";
+
+    /// <summary>1.5: a good test day before the deadline moved this offer up a step.</summary>
+    public bool Swayed { get; set; }
 }
 
 /// <summary>What became of a mid-season offer.</summary>

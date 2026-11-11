@@ -162,6 +162,32 @@ public static class TestDays
         return round;
     }
 
+    /// <summary>
+    /// 1.5: a team with a mid-season offer out wants the player in its car before the deadline: a
+    /// test day goes in the calendar right after the round that brought the offer. A good run moves
+    /// the offer up a step (<see cref="MidSeason.Sway"/>). Null when there's nowhere the player can test.
+    /// </summary>
+    public static Round? InviteToSway(Career career, TeamOffer offer, Round after, ContentCatalog catalog, LmuInstall? install)
+    {
+        var season = career.CurrentSeason;
+        var car = catalog.Car(offer.CarFolder);
+        var venue = Venue(career, catalog, install, offer.CarClass, new Random(Progression.Seed(career) ^ after.Number * 7919));
+        if (car is null || venue is null) return null;
+
+        var round = NewRound(catalog, venue, car, offer.TeamName, offer.CarClass, offer.Tier, offer.Numbers, career.Rating, offer.ReasonText);
+        round.Test!.OfferId = offer.Id;
+        Insert(season, round, season.Rounds.IndexOf(after) + 1);
+        return round;
+    }
+
+    /// <summary>An offer closed (signed, turned down, walked away, lapsed): its sway test leaves the calendar unless it's armed or done.</summary>
+    public static void DropSwayTest(Career career, string offerId)
+    {
+        var season = career.CurrentSeason;
+        var index = season.Rounds.FindIndex(r => r.Test?.OfferId == offerId && r.State == RoundState.Upcoming);
+        if (index >= 0) Remove(season, index);
+    }
+
     /// <summary>Whether the armed test day has the laps, and an AI lap in class, for the team to judge.</summary>
     public static bool IsReady(Round round) =>
         round.Test is { } test && round.Practice is { PlayerBest: not null, AiBest: not null } practice && practice.Laps >= test.MinLaps;
@@ -182,7 +208,16 @@ public static class TestDays
 
         // New Game+: a test below the floor proves nothing, however quick.
         var belowFloor = test.Floor is { Reduced: true };
-        if (result.Passed && !belowFloor)
+        // 1.5: a test to sway a mid-season offer moves that offer, not end-of-season interest.
+        var swayed = test.OfferId.Length > 0 ? career.EarlyOffers.FirstOrDefault(o => o.Id == test.OfferId && MidSeason.IsOpen(o)) : null;
+        Phrase? swayLine = null;
+        if (test.OfferId.Length > 0)
+        {
+            if (swayed is null) swayLine = Phrase.Of("Our offer's off the table now, but thanks for coming.");
+            else if (result.Passed && !belowFloor) swayLine = MidSeason.Sway(swayed);
+            else swayLine = Phrase.Of("Our offer stands as it was. The deadline hasn't moved.");
+        }
+        else if (result.Passed && !belowFloor)
         {
             var interest = career.Interest.FirstOrDefault(i => i.TeamName == test.TeamName && i.CarClass == test.CarClass);
             if (interest is null)
@@ -219,9 +254,12 @@ public static class TestDays
                     : Phrase.Of("{gap} seconds off the fastest lap in class.", gap),
                 belowFloor
                     ? Phrase.Of("But the session wasn't run at the New Game+ floor, so we can't judge you on it. Maybe next time.")
+                    : swayLine is not null
+                    ? (result.Passed ? Phrase.Of("We liked what we saw.") : Phrase.Of("Not quite what we were after this time."))
                     : result.Passed
                     ? Phrase.Of("We liked what we saw. Expect a call from us when the season's over.")
                     : Phrase.Of("Not quite what we were after this time. Keep at it."),
+                .. swayLine is null ? Array.Empty<Phrase>() : [swayLine],
             ],
         });
         career.LastPlayedAt = now;

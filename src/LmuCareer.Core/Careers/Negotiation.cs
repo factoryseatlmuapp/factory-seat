@@ -169,6 +169,8 @@ public static class Negotiation
             offer.Reply = Phrase.Of(WalkedReply);
             // Mid-season the player still has this season's seat; the fallback is for the off-season.
             if (review is not null && !career.Offers.Any(Signable)) AddFallbackSeat(career, catalog, install);
+            // A team that walked away mid-season won't test the player either.
+            if (review is null) TestDays.DropSwayTest(career, offer.Id);
             return CounterOutcome.WalkedAway;
         }
 
@@ -240,7 +242,7 @@ public static class Negotiation
         return offer;
     }
 
-    private static string Times(decimal x) => x.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture);
+    internal static string Times(decimal x) => x.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture);
 
     /// <summary>A hash that stays the same between runs (string.GetHashCode doesn't).</summary>
     internal static int Hash(string text)
