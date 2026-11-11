@@ -469,6 +469,9 @@ select.input { padding: 6px 8px; }
 .status-chip.FrontRunnerBudget { color: var(--text); border-color: var(--text); }
 .status-chip.Struggling { color: var(--bad); border-color: var(--bad); }
 .offer-notes { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; }
+/* 1.5: the deal's reputation terms, a footnote under the story. */
+.offer-terms { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border-soft); font-size: 11.5px; letter-spacing: .02em; }
+.car-strip .offer-terms { margin: 0 0 0 auto; padding: 0; border: 0; white-space: nowrap; }
 .warn-text { color: var(--warn); }
 
 /* ---------- Achievements ---------- */

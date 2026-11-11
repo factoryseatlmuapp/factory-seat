@@ -4,7 +4,7 @@ import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, close
 import { sound } from "../sound.js";
 import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
-import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
+import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed, termsNote,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
@@ -1278,7 +1278,8 @@ export async function careerView(view, id, tab) {
       h("div", { class: "row", style: { marginTop: "10px" } },
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
-        h("span", { class: "btn small" }, t("Sign"))));
+        h("span", { class: "btn small" }, t("Sign"))),
+      termsNote(offer));
   }
 
   /** What signing does to loyalty: the bridge it burns, the standing it costs, the make that already knows you. */

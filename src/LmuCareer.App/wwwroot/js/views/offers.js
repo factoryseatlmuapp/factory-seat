@@ -1,4 +1,5 @@
 import { t, mark, midSentence, orList, number } from "../i18n.js";
+import { h } from "../dom.js";
 
 // Words for offers, contracts and reputation, shared by the career hub and the signing screen.
 
@@ -32,6 +33,21 @@ export function offerFacts(offer, car) {
     t("Target: {target}", { target: midSentence(target(offer.targetPosition)) }),
     offer.kind === "ReSign" && offer.carNumber ? `#${offer.carNumber}` : livery(offer.teamName, offer.numbers) ?? t("Any livery"),
   ].filter(Boolean);
+}
+
+/**
+ * 1.5: the deal's reputation terms, as the offer card's footnote. Green is good for the player
+ * (gains multiplied up), red is bad (losses multiplied up); ×1.0 stays plain. Null on offers from before 1.5.
+ */
+export function termsNote(terms) {
+  if (terms?.gainModifier == null || terms?.lossModifier == null) return null;
+  const tone = (value, good) => (value === 1 ? "faint" : (value > 1) === good ? "good-text" : "bad-text");
+  const times = (value) => `×${number(value, 1)}`;
+  return h("div", { class: "offer-terms", title: t("Your season's reputation gains and losses are multiplied by these at its review.") },
+    h("span", { class: "faint" }, t("Reputation")), " ",
+    h("span", { class: tone(terms.gainModifier, true) }, t("gains {x}", { x: times(terms.gainModifier) })),
+    h("span", { class: "faint" }, " · "),
+    h("span", { class: tone(terms.lossModifier, false) }, t("losses {x}", { x: times(terms.lossModifier) })));
 }
 
 /** Where a reputation stands, in words. */

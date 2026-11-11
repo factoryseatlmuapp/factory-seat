@@ -448,6 +448,8 @@ public static class Progression
             TargetPosition = target,
             Numbers = team.Numbers,
             CarNumber = number,
+            GainModifier = Prestige(team.Tier),
+            LossModifier = Prestige(team.Tier),
         };
 
         bool IsCurrentTeam(TeamInfo team) =>
@@ -501,6 +503,8 @@ public static class Progression
                 : Math.Max(1, Math.Min(TargetFor(tier), (review.ChampionshipPosition ?? TargetFor(tier)) + 2));
             var offer = Offer(OfferKind.ReSign, team with { Tier = tier }, currentCar, target, season.Car.CarNumber);
             offer.UnderContract = underContract;
+            // A contract still running keeps its terms, negotiated ones included.
+            if (underContract) (offer.GainModifier, offer.LossModifier) = Modifiers(season.Contract);
             offer.Seasons = underContract ? season.Contract!.SeasonsLeft - 1 : review.TargetMet && random.Next(5) < 2 ? 2 : 1;
             offers.Add(offer);
         }
@@ -666,6 +670,8 @@ public static class Progression
                 Numbers = offer.Numbers,
                 ReputationDoor = offer.ReputationDoor,
                 SeasonsLeft = Math.Max(1, offer.Seasons),
+                GainModifier = offer.GainModifier,
+                LossModifier = offer.LossModifier,
             },
             Rounds = CalendarBuilder.Number(rounds),
             ReputationRules = CurrentReputationRules,

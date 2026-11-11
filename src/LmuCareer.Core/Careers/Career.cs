@@ -327,6 +327,13 @@ public sealed class TeamOffer
     /// the same make, or empty when the deal is for the one championship.
     /// </summary>
     public string ImsaTeam { get; set; } = "";
+
+    /// <summary>
+    /// 1.5: what the season's reputation gains and losses are multiplied by under this deal. The team
+    /// opens at its prestige (<see cref="Progression.Prestige"/>). Null on offers made before 1.5.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
 }
 
 /// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>

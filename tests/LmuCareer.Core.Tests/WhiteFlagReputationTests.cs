@@ -126,6 +126,41 @@ public class WhiteFlagReputationTests
     }
 
     [Fact]
+    public void Offers_open_at_the_team_prestige_and_signing_carries_the_terms()
+    {
+        var career = CareerWith(0, "GT3", Season(8, _ => 1));
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        Assert.All(career.Offers, o =>
+        {
+            Assert.Equal(Progression.Prestige(o.Tier), o.GainModifier);
+            Assert.Equal(Progression.Prestige(o.Tier), o.LossModifier);
+        });
+
+        var offer = career.Offers[0];
+        offer.GainModifier = 1.4m;
+        offer.LossModifier = 1.2m;
+        var next = Progression.StartNextSeason(career, offer.Id, [new Round { EventName = "Round 1", RaceMinutes = 60 }], Catalog);
+
+        Assert.Equal((1.4m, 1.2m), Progression.Modifiers(next.Contract));
+    }
+
+    [Fact]
+    public void A_running_contract_keeps_its_terms()
+    {
+        var career = OnNewRules(0, 2, Season(6, _ => 1));
+        career.CurrentSeason.Contract!.SeasonsLeft = 2;
+        career.CurrentSeason.Contract.GainModifier = 1.3m;
+        career.CurrentSeason.Contract.LossModifier = 1.2m;
+
+        Progression.EndSeason(career, Catalog, install: null, seed: 1);
+
+        var stay = career.Offers.Single(o => o.Kind == OfferKind.ReSign);
+        Assert.True(stay.UnderContract);
+        Assert.Equal((1.3m, 1.2m), (stay.GainModifier, stay.LossModifier));
+    }
+
+    [Fact]
     public void The_next_season_starts_on_the_new_rules()
     {
         var career = CareerWith(0, "GT3", Season(6, _ => 1));
