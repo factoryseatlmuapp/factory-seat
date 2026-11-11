@@ -164,6 +164,10 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
         "acceptTest" => Change(args, c => TestDays.Accept(c, Str(args, "offerId"), _catalog)),
+        "counterOffer" => Change(args, c => Negotiation.Counter(StillRacing(c), Str(args, "offerId"),
+            args.GetProperty("gain").GetDecimal(), args.GetProperty("loss").GetDecimal(),
+            Strings(args, "perks").Select(Enum.Parse<Perk>).ToList(), _catalog, _install)),
+        "retireNoSeat" => RetireNoSeat(args),
         "choosePath" => Change(args, c => Progression.ChoosePath(c, Str(args, "path") == "prototype" ? CareerPath.Prototype : CareerPath.Gt, _catalog, _install)),
         "withdrawTest" => Change(args, c => TestDays.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
@@ -654,6 +658,7 @@ public sealed class ApiHost
         career,
         // Every achievement and progress on the ones still to earn; what's earned is in the career (unseen ones pop up).
         canRetire = Retirement.CanRetire(career),
+        atLastResort = Retirement.AtLastResort(career),
         achievements = new
         {
             all = Achievements.All,
@@ -762,6 +767,20 @@ public sealed class ApiHost
         _hall.Add(entry);
         _store.Save(career);
         return new { entry, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
+    }
+
+    /// <summary>
+    /// 1.5: walking away from the last-resort seats. A career that meets the Hall of Fame rule
+    /// retires into it as usual; one that doesn't is "Retired, no seat".
+    /// </summary>
+    private object RetireNoSeat(JsonElement args)
+    {
+        var career = Load(args);
+        if (!Retirement.AtLastResort(career)) throw new PlayerError("You can only walk away like this when no better seat is left.");
+        if (Retirement.CanRetire(career)) return RetireCareer(args);
+        Retirement.RetireNoSeat(career, DateTimeOffset.Now);
+        _store.Save(career);
+        return new { entry = (object?)null, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
     }
 
     private object StartNextSeason(JsonElement args)

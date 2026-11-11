@@ -448,8 +448,6 @@ public static class Progression
             TargetPosition = target,
             Numbers = team.Numbers,
             CarNumber = number,
-            GainModifier = Prestige(team.Tier),
-            LossModifier = Prestige(team.Tier),
         };
 
         bool IsCurrentTeam(TeamInfo team) =>
@@ -503,8 +501,12 @@ public static class Progression
                 : Math.Max(1, Math.Min(TargetFor(tier), (review.ChampionshipPosition ?? TargetFor(tier)) + 2));
             var offer = Offer(OfferKind.ReSign, team with { Tier = tier }, currentCar, target, season.Car.CarNumber);
             offer.UnderContract = underContract;
-            // A contract still running keeps its terms, negotiated ones included.
-            if (underContract) (offer.GainModifier, offer.LossModifier) = Modifiers(season.Contract);
+            // A contract still running keeps its terms, negotiated ones and perks included.
+            if (underContract)
+            {
+                (offer.GainModifier, offer.LossModifier) = Modifiers(season.Contract);
+                offer.Perks = [.. season.Contract!.Perks];
+            }
             offer.Seasons = underContract ? season.Contract!.SeasonsLeft - 1 : review.TargetMet && random.Next(5) < 2 ? 2 : 1;
             offers.Add(offer);
         }
@@ -603,7 +605,26 @@ public static class Progression
             Math.Max(moves > 0 && sameClass == 0 ? 1 : 0, moves - career.Interest.Count - doors));
         if (promoted) AddFrom(OfferKind.Promotion, next!, BestTier(reputation, next!), 2);
 
-        return offers.Take(5).ToList();
+        var made = offers.Take(5).ToList();
+        OpenTalks(career, made, review);
+        return made;
+    }
+
+    /// <summary>
+    /// 1.5: each fresh offer opens at the team's prestige with its perks, ready to haggle over. A
+    /// contract still running keeps its terms. After a season that fell short with only back-marker
+    /// seats on the table, it's take one or retire: no haggling.
+    /// </summary>
+    private static void OpenTalks(Career career, List<TeamOffer> offers, SeasonReview review)
+    {
+        foreach (var offer in offers.Where(o => !o.UnderContract))
+            Negotiation.Open(offer, Negotiation.Leverage(offer.TargetPosition, review.ChampionshipPosition),
+                new Random(Seed(career) ^ Negotiation.Hash(offer.Id)));
+        foreach (var offer in offers.Where(o => o.UnderContract && o.GainModifier is null))
+            offer.GainModifier = offer.LossModifier = Prestige(offer.Tier);
+
+        if (!review.TargetMet && offers.Count > 0 && offers.All(o => o.Tier >= 3))
+            foreach (var offer in offers.Where(o => !o.UnderContract)) Negotiation.MakeLastResort(offer);
     }
 
     /// <summary>Whether the player is loyal to the make or outfit behind a seat: on their radar or better, bridge not burned.</summary>
@@ -647,6 +668,7 @@ public static class Progression
         var finished = career.CurrentSeason;
         if (finished.Review is null) throw new InvalidOperationException("The season hasn't been reviewed yet.");
         var offer = career.Offers.FirstOrDefault(o => o.Id == offerId) ?? throw new PlayerError("That offer isn't on the table any more.");
+        if (offer.WalkedAway) throw new PlayerError("{team} walked away: that seat is gone.", ("team", offer.TeamName));
         var car = catalog.Car(offer.CarFolder) ?? throw new KeyNotFoundException($"No car \"{offer.CarFolder}\".");
         if (rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
 
@@ -672,6 +694,7 @@ public static class Progression
                 SeasonsLeft = Math.Max(1, offer.Seasons),
                 GainModifier = offer.GainModifier,
                 LossModifier = offer.LossModifier,
+                Perks = [.. offer.Perks],
             },
             Rounds = CalendarBuilder.Number(rounds),
             ReputationRules = CurrentReputationRules,

@@ -50,6 +50,24 @@ export function termsNote(terms) {
     h("span", { class: tone(terms.lossModifier, false) }, t("losses {x}", { x: times(terms.lossModifier) })));
 }
 
+// 1.5 perks: a story name and what it does, told as story on the offer card.
+export const PERKS = {
+  GarageSpace: [mark("Preferred garage space"), mark("The best tools and the best people on your car. The app takes on a premium look while you hold it.")],
+  ExpertEngineer: [mark("Expert engineer"), mark("Richer debriefs, and pre-race targets from the best car in class.")],
+  PreferredSponsors: [mark("Preferred sponsors"), mark("One extra personal sponsor offer each season, and room for 3 deals instead of 2.")],
+  TeamBacking: [mark("Team backing"), mark("The team stands behind you: the season's first DNF costs no reputation.")],
+  GuestDrivePriority: [mark("Guest drive priority"), mark("A guaranteed guest-drive offer at Daytona, Sebring or Petit Le Mans when you're eligible.")],
+  DevelopmentDriver: [mark("Development driver"), mark("A guaranteed test day each season in the team's next-class car.")],
+  ReleaseClause: [mark("Release clause"), mark("Leave mid-contract if a team a class up makes you an offer.")],
+};
+
+export const perkName = (perk) => (PERKS[perk] ? t(PERKS[perk][0]) : perk);
+export const perkStory = (perk) => (PERKS[perk] ? t(PERKS[perk][1]) : "");
+
+/** Whether the player can still counter an offer. Matches Negotiation.CanCounter. */
+export const canCounter = (offer) => offer.budget != null && !offer.underContract && !offer.lastResort
+  && !offer.walkedAway && !offer.agreed && !offer.finalOffer && offer.counters < 2;
+
 /** Where a reputation stands, in words. */
 export function standing(reputation) {
   if (reputation >= 75) return t("Legend");

@@ -207,6 +207,9 @@ public sealed class Contract
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
 
+    /// <summary>1.5: the perks signed with the deal.</summary>
+    public List<Perk> Perks { get; set; } = [];
+
     /// <summary>New Game+: when the team let the player go mid-season; the rest of its rounds were skipped.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? LetGoAt { get; set; }
 }
@@ -334,6 +337,30 @@ public sealed class TeamOffer
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
+
+    /// <summary>1.5: what the team adds to the deal, told as story on the card. At most <see cref="Negotiation.MaxPerks"/>.</summary>
+    public List<Perk> Perks { get; set; } = [];
+
+    /// <summary>1.5: how much the team will give (modifiers past its opening plus perks); null = no haggling (offers from before 1.5).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? Budget { get; set; }
+
+    /// <summary>Counters the player has made, at most <see cref="Negotiation.MaxCounters"/>.</summary>
+    public int Counters { get; set; }
+
+    /// <summary>The team took the player's ask: sign on these terms.</summary>
+    public bool Agreed { get; set; }
+
+    /// <summary>The team's last reply was its final offer: sign it or don't.</summary>
+    public bool FinalOffer { get; set; }
+
+    /// <summary>The team walked away during the talks: it can't be signed.</summary>
+    public bool WalkedAway { get; set; }
+
+    /// <summary>Only back-marker seats left after a season that fell short: no haggling; take one or retire.</summary>
+    public bool LastResort { get; set; }
+
+    /// <summary>The team's last word in the talks; null before any counter.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Phrase? Reply { get; set; }
 }
 
 /// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>
@@ -577,6 +604,9 @@ public sealed class Career
 
     /// <summary>When the career retired into the Hall of Fame: it races no more.</summary>
     public DateTimeOffset? RetiredAt { get; set; }
+
+    /// <summary>1.5: retired from the last-resort offers without a Hall of Fame place ("Retired, no seat").</summary>
+    public bool RetiredNoSeat { get; set; }
 
     /// <summary>New Game+ and still on the floor (not turned normal by flagged rounds).</summary>
     [JsonIgnore]

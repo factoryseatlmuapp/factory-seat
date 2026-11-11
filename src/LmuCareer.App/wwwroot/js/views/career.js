@@ -5,6 +5,7 @@ import { sound } from "../sound.js";
 import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed, termsNote,
+  PERKS, perkName, perkStory, canCounter,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
@@ -1201,6 +1202,7 @@ export async function careerView(view, id, tab) {
         h("div", {},
           pathChoice(),
           h("div", { class: "section-title" }, t("Offers for season {n}", { n: season().number + 1 })),
+          lastResortNotice(),
           data.career.offers.length
             ? h("div", { class: "stack" }, data.career.offers.map(offerCard))
             : h("div", { class: "empty" }, t("No offers.")))));
@@ -1260,14 +1262,28 @@ export async function careerView(view, id, tab) {
       t("Season card"));
   }
 
+  /** Where the talks stand, for the card's corner: walked away, agreed, final offer, last resort. */
+  function talksBadge(offer) {
+    if (offer.walkedAway) return h("span", { class: "talks-badge bad" }, t("Walked away"));
+    if (offer.agreed) return h("span", { class: "talks-badge good" }, t("Agreed"));
+    if (offer.finalOffer) return h("span", { class: "talks-badge warn" }, t("Final offer"));
+    if (offer.lastResort) return h("span", { class: "talks-badge" }, t("Take it or leave it"));
+    return null;
+  }
+
   function offerCard(offer) {
     const car = cat.cars.find((c) => c.folder === offer.carFolder);
-    return h("div", { class: "card clickable offer" + (offer.kind === "Promotion" ? " promotion" : ""), onclick: () => go(`#/next/${id}/${offer.id}`) },
+    const gone = offer.walkedAway;
+    return h("div", {
+      class: "card offer" + (gone ? " gone" : " clickable") + (offer.kind === "Promotion" ? " promotion" : ""),
+      onclick: gone ? null : () => go(`#/next/${id}/${offer.id}`),
+    },
       h("div", { class: "row" },
         h("span", { class: "offer-kind" }, offer.underContract ? t("Contract") : kindName(offer.kind)),
         offer.seasons > 1 ? h("span", { class: "offer-kind" }, tn(offer.seasons, "{n} season", "{n} seasons")) : null,
         chip(offer.carClass),
         h("div", { class: "spacer" }),
+        talksBadge(offer),
         h("span", { class: "faint" }, tierName(offer.tier))),
       h("div", { class: "row", style: { margin: "8px 0 4px" } },
         h("h3", {}, offer.teamName),
@@ -1275,11 +1291,103 @@ export async function careerView(view, id, tab) {
         offer.imsaTeam ? h("span", { class: "chip pack" }, offer.imsaTeam === offer.teamName ? t("+ IMSA") : t("+ IMSA with {team}", { team: offer.imsaTeam })) : null),
       h("div", { class: "muted" }, offerFacts(offer, car).filter((f) => f !== tierName(offer.tier)).join(" · ")),
       offerWarnings(offer),
+      offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
+        h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
+      offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
       h("div", { class: "row", style: { marginTop: "10px" } },
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
-        h("span", { class: "btn small" }, t("Sign"))),
+        canCounter(offer) ? h("button", { class: "btn ghost small", onclick: (e) => { e.stopPropagation(); negotiate(offer); } }, t("Talk terms")) : null,
+        gone ? null : h("span", { class: "btn small" }, t("Sign"))),
       termsNote(offer));
+  }
+
+  /** Your form against what a team expects: what the talks run on. */
+  function formRead(offer) {
+    const position = season().review?.championshipPosition;
+    const leverage = offer.targetPosition - (position ?? offer.targetPosition + 6);
+    if (leverage >= 3) return t("You beat what they'd expect by a distance: they won't want to lose you.");
+    if (leverage >= 0) return t("Your season matched what they expect: a fair hand to play.");
+    return t("Your season fell short of what they expect: push too hard and they may walk away.");
+  }
+
+  /**
+   * 1.5: haggling over an offer. Gains and losses (×0.8 to ×1.5, steps of 0.1) and up to 3 perks;
+   * 2 counters, the team's last reply is final. Asking past what the team can ever do is refused
+   * with no counter used. Talking never costs reputation.
+   */
+  function negotiate(offer) {
+    const ask = { gain: offer.gainModifier, loss: offer.lossModifier, perks: new Set(offer.perks ?? []) };
+    const left = 2 - offer.counters;
+    const body = h("div", {});
+    const fixed = (v) => Math.round(v * 10) / 10;
+    const stepper = (label, key, hint) => h("div", { class: "setting" },
+      h("div", { class: "label" }, label, h("div", { class: "faint", style: { fontSize: "12px" } }, hint)),
+      h("div", { class: "value row", style: { gap: "6px" } },
+        h("button", { class: "btn ghost small", disabled: ask[key] <= 0.8, onclick: () => { ask[key] = fixed(ask[key] - 0.1); render(); } }, "−"),
+        h("b", { style: { minWidth: "44px", textAlign: "center" } }, `×${number(ask[key], 1)}`),
+        h("button", { class: "btn ghost small", disabled: ask[key] >= 1.5, onclick: () => { ask[key] = fixed(ask[key] + 0.1); render(); } }, "+")));
+
+    function render() {
+      put(body,
+        h("p", { class: "muted" }, formRead(offer)),
+        h("div", { class: "rows" },
+          stepper(t("Gains"), "gain", t("Every reputation gain this season is multiplied by this.")),
+          stepper(t("Losses"), "loss", t("Every reputation loss this season is multiplied by this."))),
+        h("div", { class: "section-title", style: { marginTop: "14px" } }, t("Perks (up to {n})", { n: 3 })),
+        h("div", { class: "offer-perks" }, Object.keys(PERKS).map((p) => {
+          const on = ask.perks.has(p);
+          return h("label", { class: "perk-pick" + (on ? " on" : "") },
+            h("input", {
+              type: "checkbox", checked: on, disabled: !on && ask.perks.size >= 3,
+              onchange: () => { if (on) ask.perks.delete(p); else ask.perks.add(p); render(); },
+            }),
+            h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p)));
+        })),
+        termsNote({ gainModifier: ask.gain, lossModifier: ask.loss }),
+        h("div", { class: "faint", style: { fontSize: "12px", marginTop: "10px" } },
+          tn(left, "{n} counter left. Each one risks the team walking away. Talking never costs reputation.",
+            "{n} counters left. Each one risks the team walking away. Talking never costs reputation.")));
+    }
+
+    const send = async () => {
+      const result = await attempt(call("counterOffer", { id, offerId: offer.id, gain: ask.gain, loss: ask.loss, perks: [...ask.perks] }));
+      if (!result) return;
+      closeModal();
+      data = result;
+      show("briefing");
+      const updated = data.career.offers.find((o) => o.id === offer.id);
+      if (updated?.reply) toast(t("{team}: {reply}", { team: offer.teamName, reply: saved(updated.reply, "") }));
+    };
+
+    render();
+    showModal([
+      h("h2", {}, t("Talk terms with {team}", { team: offer.teamName })),
+      body,
+      h("div", { class: "modal-actions" },
+        h("button", { class: "btn ghost", onclick: closeModal }, t("Cancel")),
+        h("button", { class: "btn", onclick: send }, t("Send counter"))),
+    ], { wide: true });
+  }
+
+  /** 1.5: only back-marker seats left after a season that fell short: take one, or retire. */
+  function lastResortNotice() {
+    if (!data.atLastResort) return null;
+    const retire = async () => {
+      const text = data.canRetire
+        ? t("The career stops racing for good and goes into the Hall of Fame. This can't be undone.")
+        : t("The career stops racing for good. It hasn't met the Hall of Fame rule (a season of {n} or more races), so it retires with no Hall of Fame place: \"Retired, no seat\". This can't be undone.", { n: 5 });
+      if (!await confirmDialog(t("Retire {name}?", { name: data.career.name }), text, { confirm: t("Retire") })) return;
+      const result = await attempt(call("retireNoSeat", { id }));
+      if (!result) return;
+      toast(result.entry ? t("{name} is in the Hall of Fame. New Game+ is open on the New career screen.", { name: data.career.name })
+        : t("{name} has retired.", { name: data.career.name }));
+      go("#/careers");
+    };
+    return h("div", { class: "notice bad", style: { marginBottom: "12px" } },
+      h("b", {}, t("No better seat is left")),
+      h("div", {}, t("Only back-marker teams will take you after this season. No haggling: take one of these seats, or retire.")),
+      h("button", { class: "btn ghost small", style: { marginTop: "8px" }, onclick: retire }, t("Retire instead")));
   }
 
   /** What signing does to loyalty: the bridge it burns, the standing it costs, the make that already knows you. */
@@ -1601,7 +1709,9 @@ export async function careerView(view, id, tab) {
           h("h1", { class: "hero-title" }, t("Career over")),
           h("div", { class: "hero-sub" }, t("Retired {date}", { date: dateTime(data.career.retiredAt) })))),
       h("div", { class: "card quiet", style: { maxWidth: "720px" } },
-        h("div", { class: "muted" }, t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
+        h("div", { class: "muted" }, data.career.retiredNoSeat
+          ? t("Retired, no seat. No team would give this career a better seat, and it walked away before reaching the Hall of Fame. Its seasons and standings stay here to look back on.")
+          : t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
         h("div", { class: "row", style: { marginTop: "14px" } },
           h("button", { class: "btn", onclick: () => go("#/new") }, t("Start a New Game+ career")),
           h("button", { class: "btn ghost", onclick: showHallEntry }, t("Hall of Fame")))));
@@ -1624,7 +1734,9 @@ export async function careerView(view, id, tab) {
   function retireCard() {
     if (data.career.retiredAt) {
       return [h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retired")),
-        h("div", { class: "card quiet muted" }, t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
+        h("div", { class: "card quiet muted" }, data.career.retiredNoSeat
+          ? t("Retired, no seat, on {date}. Its records stay here.", { date: dateTime(data.career.retiredAt) })
+          : t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
     }
     if (!data.canRetire) return null;
     const retire = async () => {

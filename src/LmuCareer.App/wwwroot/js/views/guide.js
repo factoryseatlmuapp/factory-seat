@@ -28,6 +28,24 @@ const SECTIONS = [
     ],
   },
   {
+    title: mark("Reputation and team prestige"),
+    lines: [
+      mark("No limit on what a great season earns. What a bad one costs is capped by the team: 16 at a front-runner, 13 in the midfield, 12 at the back."),
+      mark("Your deal multiplies the season's gains and losses. Teams open at their prestige: front-runners ×1.3, midfield ×1.1, the back of the grid ×1.0."),
+      mark("Giant-killer: finish P7, P5 or P3 with a back-marker for +3, +5 or +8."),
+      mark("Races count in full from 45 minutes; shorter races count their share (20 minutes is 44%)."),
+      mark("Triple Crown: win Daytona, Sebring or Le Mans in a race of 6 hours or more for +10."),
+    ],
+  },
+  {
+    title: mark("Talking terms"),
+    lines: [
+      mark("Most offers can be haggled: gains, losses and up to 3 perks. You get two counters; the team's second reply is its final offer."),
+      mark("Each counter risks the team walking away, more when your season fell short of what it expects. Talking never costs reputation, and other teams don't hear about it."),
+      mark("After a season that fell short, with only back-marker seats left, there's no haggling: take a seat or retire."),
+    ],
+  },
+  {
     title: mark("Three doors to Hypercar"),
     lines: [
       mark("Factory driver for a make (or team) with a Hypercar: its team calls from reputation 50."),
