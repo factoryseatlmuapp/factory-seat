@@ -477,6 +477,7 @@ public sealed class ApiHost
                     TargetPosition = Progression.DefaultTarget,
                 },
                 Rounds = CalendarBuilder.Number(rounds),
+                ReputationRules = Progression.CurrentReputationRules,
             },
         };
         if (career.CurrentSeason.Rounds.Count == 0) throw new PlayerError("The season needs at least one round.");

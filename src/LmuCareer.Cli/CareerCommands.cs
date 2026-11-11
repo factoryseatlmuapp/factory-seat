@@ -103,6 +103,7 @@ internal static class CareerCommands
                 Car = CarFor(catalog, One(options, "car") ?? throw Fail("--car is required."), carClass,
                     One(options, "number") ?? throw Fail("--number is required."), One(options, "team") ?? ""),
                 Rounds = rounds,
+                ReputationRules = Progression.CurrentReputationRules,
             },
         };
 

@@ -200,6 +200,13 @@ public sealed class Contract
     /// <summary>A Hypercar seat won on reputation alone, not through a ladder or a make.</summary>
     public bool ReputationDoor { get; set; }
 
+    /// <summary>
+    /// What the season's reputation gains and losses are multiplied by. Null = the team's prestige
+    /// opening (<see cref="Progression.Prestige"/>); a negotiated deal sets its own.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
+
     /// <summary>New Game+: when the team let the player go mid-season; the rest of its rounds were skipped.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? LetGoAt { get; set; }
 }
@@ -431,6 +438,13 @@ public sealed class Season
     /// brands, approaches mid-season); 0 for one that started before them.
     /// </summary>
     public int SponsorRules { get; set; }
+
+    /// <summary>
+    /// <see cref="Progression.CurrentReputationRules"/> for a season reviewed on 1.5's reputation rules
+    /// (no gain cap, team prestige, race-length scaling, giant-killer, Triple Crown); 0 for one that
+    /// started before them. A running season never changes rules: careers pick them up at the next season.
+    /// </summary>
+    public int ReputationRules { get; set; }
 
     /// <summary>Interview answers given this season, settled at its review.</summary>
     public List<InterviewAnswer> Interviews { get; set; } = [];
