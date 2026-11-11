@@ -361,6 +361,9 @@ public sealed class TeamOffer
 
     /// <summary>The team's last word in the talks; null before any counter.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Phrase? Reply { get; set; }
+
+    /// <summary>The player's last counter, kept beside the team's answer so the card shows what moved; null before any counter.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public AskedTerms? Asked { get; set; }
 }
 
 /// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>

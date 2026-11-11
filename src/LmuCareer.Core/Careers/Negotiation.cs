@@ -29,6 +29,9 @@ public enum Perk
     ReleaseClause,
 }
 
+/// <summary>The terms the player asked for in a counter.</summary>
+public sealed record AskedTerms(decimal Gain, decimal Loss, List<Perk> Perks);
+
 /// <summary>What became of a counter.</summary>
 public enum CounterOutcome { Accepted, Countered, Final, WalkedAway }
 
@@ -151,6 +154,7 @@ public static class Negotiation
             throw new PlayerError("A deal carries at most {n} perks.", ("n", MaxPerks));
 
         offer.Counters++;
+        offer.Asked = new AskedTerms(gain, loss, asked.ToList());
         random ??= new Random(Progression.Seed(career) ^ Hash(offer.Id) ^ offer.Counters * 104729);
         var leverage = Leverage(offer.TargetPosition, review.ChampionshipPosition);
         if (random.NextDouble() < WalkChance(leverage))

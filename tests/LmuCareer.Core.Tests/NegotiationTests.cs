@@ -97,6 +97,9 @@ public class NegotiationTests
         var first = Negotiation.Counter(career, offer.Id, 1.2m, 0.9m, greedy, Catalog, null, NeverWalk);
 
         Assert.Equal(CounterOutcome.Countered, first);
+        Assert.Equal((1.2m, 0.9m), (offer.Asked!.Gain, offer.Asked.Loss));
+        Assert.Equal(greedy.OrderBy(p => p), offer.Asked.Perks);
+        Assert.NotEqual((offer.Asked.Gain, offer.Asked.Loss, offer.Asked.Perks.Count), (offer.GainModifier!.Value, offer.LossModifier!.Value, offer.Perks.Count));
         Assert.True(Negotiation.Value(offer.Tier, offer.GainModifier!.Value, offer.LossModifier!.Value, offer.Perks) <= offer.Budget);
         Assert.True(Negotiation.CanCounter(offer));
 

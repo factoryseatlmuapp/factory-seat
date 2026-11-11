@@ -5,7 +5,7 @@ import { sound } from "../sound.js";
 import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed, termsNote,
-  PERKS, perkName, perkStory, canCounter,
+  PERKS, perkName, perkStory, canCounter, askedNote,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
@@ -1294,6 +1294,7 @@ export async function careerView(view, id, tab) {
       offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
         h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
       offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
+      askedNote(offer),
       h("div", { class: "row", style: { marginTop: "10px" } },
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
@@ -1357,7 +1358,15 @@ export async function careerView(view, id, tab) {
       data = result;
       show("briefing");
       const updated = data.career.offers.find((o) => o.id === offer.id);
-      if (updated?.reply) toast(t("{team}: {reply}", { team: offer.teamName, reply: saved(updated.reply, "") }));
+      if (!updated?.reply) return;
+      const said = t("{team}: {reply}", { team: offer.teamName, reply: saved(updated.reply, "") });
+      const countered = !updated.agreed && !updated.walkedAway;
+      toast(countered
+        ? `${said} ${t("Their offer: gains {gain} · losses {loss}{perks}.", {
+          gain: `×${number(updated.gainModifier, 1)}`, loss: `×${number(updated.lossModifier, 1)}`,
+          perks: updated.perks.length ? `, ${updated.perks.map(perkName).join(", ")}` : "",
+        })}`
+        : said);
     };
 
     render();

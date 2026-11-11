@@ -64,6 +64,24 @@ export const PERKS = {
 export const perkName = (perk) => (PERKS[perk] ? t(PERKS[perk][0]) : perk);
 export const perkStory = (perk) => (PERKS[perk] ? t(PERKS[perk][1]) : "");
 
+/**
+ * After a counter the team didn't take whole: what the player asked for, with what the team
+ * wouldn't give struck through, so its counter (the terms on the card) reads as an answer.
+ */
+export function askedNote(offer) {
+  const asked = offer.asked;
+  if (!asked || offer.agreed || offer.walkedAway) return null;
+  const times = (value) => `×${number(value, 1)}`;
+  const part = (text, given) => h("span", { class: given ? "" : "struck" }, text);
+  const parts = [
+    part(t("gains {x}", { x: times(asked.gain) }), asked.gain === offer.gainModifier),
+    part(t("losses {x}", { x: times(asked.loss) }), asked.loss === offer.lossModifier),
+    ...asked.perks.map((p) => part(perkName(p), offer.perks.includes(p))),
+  ];
+  return h("div", { class: "offer-asked faint" }, t("You asked:"), " ",
+    parts.flatMap((p, i) => (i ? [" · ", p] : [p])));
+}
+
 /** Whether the player can still counter an offer. Matches Negotiation.CanCounter. */
 export const canCounter = (offer) => offer.budget != null && !offer.underContract && !offer.lastResort
   && !offer.walkedAway && !offer.agreed && !offer.finalOffer && offer.counters < 2;
