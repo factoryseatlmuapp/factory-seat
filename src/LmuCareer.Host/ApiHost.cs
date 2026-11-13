@@ -474,7 +474,7 @@ public sealed class ApiHost
         tracks = _catalog.Tracks.Select(t => new
         {
             t.Folder, t.Name, t.Location, t.Country, t.LengthKm, t.Pack,
-            layouts = t.Layouts.Select(l => new { file = l.Key, name = l.Value, installed = _install?.HasLayout(t.Folder, l.Key) ?? true }),
+            layouts = t.Layouts.Select(l => new { file = l.Key, name = l.Value, lmuName = t.LmuName(l.Key), installed = _install?.HasLayout(t.Folder, l.Key) ?? true }),
         }),
         cars = _catalog.Cars.Select(c => new
         {

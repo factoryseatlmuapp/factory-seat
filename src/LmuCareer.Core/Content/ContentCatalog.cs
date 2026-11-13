@@ -12,7 +12,17 @@ public sealed record TrackInfo(
     double LengthKm,
     string Pack,
     // Layout file name (without .mas) to a display name for the layout.
-    IReadOnlyDictionary<string, string> Layouts);
+    IReadOnlyDictionary<string, string> Layouts)
+{
+    /// <summary>
+    /// Layout file to the name LMU shows for it, from its results files: "TrackEvent (TrackCourse)",
+    /// or one of them when they're the same. The app's layout names are its own ("ELMS"), so the
+    /// briefing gives this alongside. Missing for layouts no results file has shown yet.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? LmuNames { get; init; }
+
+    public string? LmuName(string layoutFile) => LmuNames?.GetValueOrDefault(layoutFile);
+}
 
 public sealed record CarInfo(
     string Folder,

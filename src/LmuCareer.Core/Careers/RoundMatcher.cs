@@ -58,24 +58,31 @@ public static class RoundMatcher
                 _ => Phrase.Of("not a race or qualifying session"),
             });
         if (!session.IsSinglePlayer) return Ignored(Phrase.Of("multiplayer session"));
+        var differences = new List<Phrase>();
         if (!SameLayout(session, round))
         {
-            // The right circuit on another layout looks like the right race: say so in the briefing's words.
-            if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase)
-                && Content.ContentCatalog.Default.Track(round.TrackFolder) is { } track)
+            // The right circuit on another layout: the app's layout names aren't always LMU's (Paul Ricard's
+            // "ELMS" is "4 Hours of Castellet" in LMU), so it's a near miss the player can count, said in
+            // the briefing's words with LMU's name alongside.
+            if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase))
             {
-                return Ignored(Phrase.Of("you raced the {raced} layout of {track}; this round uses {needed}",
-                    ("raced", track.Layouts.GetValueOrDefault(session.LayoutFile) ?? session.LayoutFile),
-                    ("track", track.Name),
-                    ("needed", track.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile)));
+                var track = Content.ContentCatalog.Default.Track(round.TrackFolder);
+                var needed = track?.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile;
+                var lmuName = track?.LmuName(round.LayoutFile);
+                var raced = ("raced", (object?)(track?.Layouts.GetValueOrDefault(session.LayoutFile) ?? session.LayoutFile));
+                differences.Add(lmuName is null
+                    ? Phrase.Of("raced the {raced} layout, briefing says {briefing}", raced, ("briefing", needed))
+                    : Phrase.Of("raced the {raced} layout, briefing says {briefing}; in LMU that's {lmu}", raced, ("briefing", needed), ("lmu", lmuName)));
             }
-            return Ignored(round.LayoutFile.Length > 0
-                ? Phrase.Of("wrong track ({track}, {layout})", ("track", session.TrackCourse), ("layout", session.LayoutFile))
-                : Phrase.Of("wrong track ({track})", ("track", session.TrackCourse)));
+            else
+            {
+                return Ignored(round.LayoutFile.Length > 0
+                    ? Phrase.Of("wrong track ({track}, {layout})", ("track", session.TrackCourse), ("layout", session.LayoutFile))
+                    : Phrase.Of("wrong track ({track})", ("track", session.TrackCourse)));
+            }
         }
         if (session.Player is not { } player) return Ignored(Phrase.Of("no player car in the session"));
 
-        var differences = new List<Phrase>();
         if (car.CarType.Length == 0)
         {
             // A car no race has shown yet (the catalog doesn't know how LMU names it): any car in the

@@ -58,7 +58,7 @@ public class RoundFlowTests
     }
 
     [Fact]
-    public void The_right_circuit_on_another_layout_says_which_in_the_briefings_words()
+    public void The_right_circuit_on_another_layout_is_a_near_miss_in_the_briefings_words_and_LMUs()
     {
         var round = ArmedRound();
         round.TrackFolder = "ImolaWEC_2024";
@@ -68,8 +68,27 @@ public class RoundFlowTests
 
         var check = Check(session, round: round);
 
-        Assert.Equal(MatchVerdict.Ignored, check.Verdict);
-        Assert.Equal(["you raced the ELMS layout of Imola; this round uses Grand Prix"], check.Reasons.Select(r => r.ToString()));
+        Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
+        Assert.Equal(["raced the ELMS layout, briefing says Grand Prix; in LMU that's 6 Hours of Imola (Autodromo Enzo e Dino Ferrari)"],
+            check.Reasons.Select(r => r.ToString()));
+    }
+
+    [Fact]
+    public void Paul_Ricard_on_1A_V2_for_an_ELMS_round_is_a_near_miss_that_names_LMUs_layout()
+    {
+        // Reported 11/13 (Linux, 1.4.0): the briefing said "ELMS", LMU has no layout by that name, so the
+        // player picked 1A-V2 and the race was ignored outright.
+        var round = ArmedRound();
+        round.TrackFolder = "PaulRicard_2025";
+        round.LayoutFile = "layoutELMS";
+        var session = new ResultsXml { TrackData = "/home/me/.steam/steamapps/common/Le Mans Ultimate/Installed/Locations/PaulRicard_2025/1.11/layout1AV2.mas" }
+            .Car("Me", player: true, number: "69").Parse();
+
+        var check = Check(session, round: round);
+
+        Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
+        Assert.Equal(["raced the 1A-V2 layout, briefing says ELMS; in LMU that's 4 Hours of Castellet (Paul Ricard - ELMS)"],
+            check.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]
@@ -110,8 +129,9 @@ public class RoundFlowTests
         var grandPrix = Check(Spa("layoutSpa").Car("Me", player: true, number: "69").Parse(), round: round);
 
         Assert.Equal(MatchVerdict.Match, elms.Verdict);
-        Assert.Equal(MatchVerdict.Ignored, grandPrix.Verdict);
-        Assert.Equal(["you raced the Grand Prix layout of Circuit de Spa-Francorchamps; this round uses ELMS"], grandPrix.Reasons.Select(r => r.ToString()));
+        Assert.Equal(MatchVerdict.NearMiss, grandPrix.Verdict);
+        Assert.Equal(["raced the Grand Prix layout, briefing says ELMS; in LMU that's 4 Hours of Spa-Francorchamps (Circuit de Spa-Francorchamps)"],
+            grandPrix.Reasons.Select(r => r.ToString()));
     }
 
     [Fact]

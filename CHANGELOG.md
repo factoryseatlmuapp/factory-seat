@@ -16,6 +16,7 @@ A career already under way switches to the new rules at its next season; a seaso
 - **Local sponsors** for South America, Switzerland, India and Hungary: 70 brands picked by players, each with its home city. Thanks to carbdaymau, AnthoxPointu and NaDs.
 - A plan whose tank doesn't reach halfway now counts a stop each time it runs out (a 2-hour run of a 6-hour race at Real is 2 stops), instead of "pit around halfway".
 - Test days and guest drives at an ELMS venue get the ELMS car, so LMU puts it on the layout. Thanks to DePylos for the report. (#30)
+- The briefing's Layout row says what LMU calls the layout ("In LMU: 4 Hours of Castellet (Paul Ricard - ELMS)"), and a race on the right circuit but another layout is now a near miss you can count, not ignored. Thanks to TheAlmightyHippo for the report.
 - **For companion apps:** writing the career id to `start-weekend.request` next to `briefing.json` starts the race weekend, as the button does. `briefing.json` adds `pace.aiStrength`, `pace.suggested`, `pace.measuredAt` and `history[].aiStrength`. See `docs/briefing-json.md`.
 
 ## 1.4.0 "Full Push"
