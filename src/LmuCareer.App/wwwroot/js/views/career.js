@@ -109,8 +109,10 @@ export async function careerView(view, id, tab) {
   const driverPoints = (entry) => (entry.driverEligible ? points(entry) : 0);
   const playerEntry = (round) => round.result?.entries.find((e) => e.entry.isPlayer);
   const layoutName = (r) => tracks.get(r.trackFolder)?.layouts.find((l) => l.file === r.layoutFile)?.name ?? r.layoutFile;
-  /** What LMU's own menus and results call the round's layout ("4 Hours of Castellet (Paul Ricard - ELMS)"), if known. */
+  /** The round's layout as LMU's layout list names it ("Default", "Layout 1A-V2"), if known. */
   const layoutLmuName = (r) => tracks.get(r.trackFolder)?.layouts.find((l) => l.file === r.layoutFile)?.lmuName;
+  /** Under the LMU name, the app's own name for the layout, so it ties back to the calendar ("ELMS" = "Default"). */
+  const calendarName = (r) => layoutLmuName(r) && layoutLmuName(r) !== layoutName(r) ? t("Called {name} in the calendar", { name: layoutName(r) }) : null;
   const finish = (e) => (e.classRank ? t("P{n}", { n: e.classRank }) : { Dnf: t("DNF"), Dq: t("DQ") }[e.entry.status] ?? t("NC"));
 
   put(view, carStrip());
@@ -351,8 +353,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "lmu-path" }, lmu("Circuit")),
           h("div", { class: "rows", style: { marginBottom: "16px" } },
             setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true, tick: tick("circuit") }),
-            setting(lmu("Layout"), layoutName(round), { big: true, tick: tick("layout"),
-              hint: layoutLmuName(round) ? t("In LMU: {name}", { name: layoutLmuName(round) }) : null })),
+            setting(lmu("Layout"), layoutLmuName(round) ?? layoutName(round), { big: true, tick: tick("layout"), hint: calendarName(round) })),
           h("div", { class: "lmu-path" }, lmu("Car")),
           h("div", { class: "rows", style: { marginBottom: "16px" } }, round.guest ? guestCarRow(round, tick("car")) : carRow(car, tick("car"))),
           h("div", { class: "lmu-path" }, lmu("Event settings")),
@@ -529,8 +530,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "lmu-path" }, lmu("Circuit")),
           h("div", { class: "rows", style: { marginBottom: "16px" } },
             setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true }),
-            setting(lmu("Layout"), layoutName(round), { big: true,
-              hint: layoutLmuName(round) ? t("In LMU: {name}", { name: layoutLmuName(round) }) : null })),
+            setting(lmu("Layout"), layoutLmuName(round) ?? layoutName(round), { big: true, hint: calendarName(round) })),
           h("div", { class: "lmu-path" }, lmu("Car")),
           h("div", { class: "rows", style: { marginBottom: "16px" } }, guestCarRow(round, null)),
           h("div", { class: "lmu-path" }, lmu("Event settings")),

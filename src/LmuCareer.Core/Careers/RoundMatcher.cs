@@ -61,18 +61,15 @@ public static class RoundMatcher
         var differences = new List<Phrase>();
         if (!SameLayout(session, round))
         {
-            // The right circuit on another layout: the app's layout names aren't always LMU's (Paul Ricard's
-            // "ELMS" is "4 Hours of Castellet" in LMU), so it's a near miss the player can count, said in
-            // the briefing's words with LMU's name alongside.
+            // The right circuit on another layout: LMU's layout list doesn't use the app's names (Paul
+            // Ricard's ELMS layout is "Default" there), so it's a near miss the player can count, said
+            // in the list's own words.
             if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase))
             {
                 var track = Content.ContentCatalog.Default.Track(round.TrackFolder);
-                var needed = track?.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile;
-                var lmuName = track?.LmuName(round.LayoutFile);
-                var raced = ("raced", (object?)(track?.Layouts.GetValueOrDefault(session.LayoutFile) ?? session.LayoutFile));
-                differences.Add(lmuName is null
-                    ? Phrase.Of("raced the {raced} layout, briefing says {briefing}", raced, ("briefing", needed))
-                    : Phrase.Of("raced the {raced} layout, briefing says {briefing}; in LMU that's {lmu}", raced, ("briefing", needed), ("lmu", lmuName)));
+                string Name(string file) => track?.LmuName(file) ?? track?.Layouts.GetValueOrDefault(file) ?? file;
+                differences.Add(Phrase.Of("raced the \"{raced}\" layout, the briefing's is \"{briefing}\"",
+                    ("raced", Name(session.LayoutFile)), ("briefing", Name(round.LayoutFile))));
             }
             else
             {

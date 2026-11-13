@@ -69,7 +69,7 @@ public class RoundFlowTests
         var check = Check(session, round: round);
 
         Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
-        Assert.Equal(["raced the ELMS layout, briefing says Grand Prix; in LMU that's 6 Hours of Imola (Autodromo Enzo e Dino Ferrari)"],
+        Assert.Equal(["raced the \"Default (ELMS season)\" layout, the briefing's is \"Default (WEC season)\""],
             check.Reasons.Select(r => r.ToString()));
     }
 
@@ -87,7 +87,7 @@ public class RoundFlowTests
         var check = Check(session, round: round);
 
         Assert.Equal(MatchVerdict.NearMiss, check.Verdict);
-        Assert.Equal(["raced the 1A-V2 layout, briefing says ELMS; in LMU that's 4 Hours of Castellet (Paul Ricard - ELMS)"],
+        Assert.Equal(["raced the \"Layout 1A-V2\" layout, the briefing's is \"Default\""],
             check.Reasons.Select(r => r.ToString()));
     }
 
@@ -130,7 +130,7 @@ public class RoundFlowTests
 
         Assert.Equal(MatchVerdict.Match, elms.Verdict);
         Assert.Equal(MatchVerdict.NearMiss, grandPrix.Verdict);
-        Assert.Equal(["raced the Grand Prix layout, briefing says ELMS; in LMU that's 4 Hours of Spa-Francorchamps (Circuit de Spa-Francorchamps)"],
+        Assert.Equal(["raced the \"Default (WEC season)\" layout, the briefing's is \"Default (ELMS season)\""],
             grandPrix.Reasons.Select(r => r.ToString()));
     }
 

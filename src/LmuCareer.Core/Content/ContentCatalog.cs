@@ -15,9 +15,10 @@ public sealed record TrackInfo(
     IReadOnlyDictionary<string, string> Layouts)
 {
     /// <summary>
-    /// Layout file to the name LMU shows for it, from its results files: "TrackEvent (TrackCourse)",
-    /// or one of them when they're the same. The app's layout names are its own ("ELMS"), so the
-    /// briefing gives this alongside. Missing for layouts no results file has shown yet.
+    /// Layout file to the name in LMU's layout list (from its getTracksAll, matched on the scene):
+    /// "Default" for a track's main layout, "Default (ELMS season)" where the WEC and ELMS seasons
+    /// each have their own, otherwise LMU's own name ("Layout 1A-V2"). The app's names are its own
+    /// ("ELMS", "Grand Prix"), so the briefing's set-up list uses these.
     /// </summary>
     public IReadOnlyDictionary<string, string>? LmuNames { get; init; }
 
