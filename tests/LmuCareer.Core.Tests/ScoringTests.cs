@@ -51,6 +51,19 @@ public class ScoringTests
     }
 
     [Fact]
+    public void One_and_a_half_points_round_half_up_like_wec()
+    {
+        var xml = new ResultsXml();
+        for (var p = 1; p <= 10; p++) xml.Car($"Car {p}", classPos: p);
+
+        var scored = RaceScorer.Score(xml.Parse(), weight: 1.5m);
+
+        // WEC's 1.5x table: 38-27-23-18-15-12-9-6-3-2.
+        decimal[] expected = [38, 27, 23, 18, 15, 12, 9, 6, 3, 2];
+        for (var p = 1; p <= 10; p++) Assert.Equal(expected[p - 1], Of(scored, $"Car {p}").RacePoints);
+    }
+
+    [Fact]
     public void Disqualified_cars_score_nothing_and_move_everyone_up()
     {
         var race = new ResultsXml()

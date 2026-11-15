@@ -273,7 +273,7 @@ public static class Preparation
         var season = career.CurrentSeason;
         var target = season.ContractFor(round)?.TargetPosition ?? Progression.DefaultTarget;
         var weight = round.PointsWeight;
-        var points = ScoringRules.Wec.Points.Select(p => p * weight).ToList();
+        var points = ScoringRules.Wec.Points.Select(p => RaceScorer.Weighted(p, weight)).ToList();
         var lines = new List<Phrase>();
 
         var drivers = season.StandingsFor(round)?.Drivers.ToList() ?? [];

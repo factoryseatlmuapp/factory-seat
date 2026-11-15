@@ -82,7 +82,7 @@ public static class RaceScorer
             {
                 var classified = entry.Status == FinishStatus.Finished && entry.Laps >= minimumLaps;
                 int? classRank = classified ? ++rank : null;
-                var racePoints = classRank is int r && r <= rules.Points.Count ? rules.Points[r - 1] * weight : 0;
+                var racePoints = classRank is int r && r <= rules.Points.Count ? Weighted(rules.Points[r - 1], weight) : 0;
 
                 var pole = poleSitters.Contains(Standings.NameKey(entry.Name));
                 var polePoints = pole && entry.Status != FinishStatus.Dq ? rules.PoleBonus : 0;
@@ -96,6 +96,13 @@ public static class RaceScorer
 
         return new ScoredRace(roundName ?? race.TrackCourse, race, weight, scored);
     }
+
+    /// <summary>
+    /// Race points on a weighted round, rounded half up to a whole point as WEC does:
+    /// a 1.5x win (Qatar) pays 38, not 37.5.
+    /// </summary>
+    public static decimal Weighted(decimal points, decimal weight) =>
+        Math.Round(points * weight, MidpointRounding.AwayFromZero);
 
     /// <summary>Share of the car's laps under player control. Cars with no control log count as fully driven.</summary>
     public static double DriveShare(EntryResult entry)
