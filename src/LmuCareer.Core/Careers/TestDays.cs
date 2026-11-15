@@ -137,6 +137,9 @@ public static class TestDays
         var season = career.CurrentSeason;
         if (!Sponsorship.CanSign(season)) throw new PlayerError("The season has started; skip the round instead.");
         var offer = season.TestOffers?.FirstOrDefault(o => o.Id == offerId && o.Accepted) ?? throw new KeyNotFoundException("You haven't agreed to that test day.");
+        // A test that's been run stays in the calendar with its result; withdrawing would only free the offer to be taken again.
+        if (season.Rounds.Any(r => r.Test is { } done && done.TeamName == offer.TeamName && done.CarClass == offer.CarClass && r.State == RoundState.Completed))
+            throw new PlayerError("You've already run that test.");
         var index = season.Rounds.FindIndex(r => r.Test is { } t && t.TeamName == offer.TeamName && t.CarClass == offer.CarClass && r.State != RoundState.Completed);
         if (index >= 0)
         {

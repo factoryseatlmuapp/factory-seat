@@ -473,6 +473,8 @@ export async function careerView(view, id, tab) {
           if (updated) { data = updated; openTests(); }
         };
         const crossover = !ladderFor(data.career).includes(o.carClass);
+        // A test that's been run keeps its result: no withdrawing it.
+        const done = season().rounds.some((r) => r.test && r.test.teamName === o.teamName && r.test.carClass === o.carClass && r.state === "Completed");
         return h("div", { class: "card quiet offer promotion" + (o.accepted ? " selected" : "") },
           h("div", { class: "row" },
             h("span", { class: "offer-kind" }, o.development ? t("Development driver") : crossover ? t("Crossover test") : t("Test day")),
@@ -486,9 +488,11 @@ export async function careerView(view, id, tab) {
             t("A team from the other road. Impress them and a seat there opens up.")) : null,
           h("div", { class: "row", style: { marginTop: "10px" } },
             h("div", { class: "spacer" }),
-            o.accepted
-              ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
-              : h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))));
+            done
+              ? h("span", { class: "faint" }, t("Completed"))
+              : o.accepted
+                ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
+                : h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))));
       })),
       h("div", { class: "modal-actions" },
         h("button", { class: "btn ghost", onclick: () => { closeModal(); show("briefing"); }, "data-sound": "back" }, t("Done"))),
@@ -948,9 +952,11 @@ export async function careerView(view, id, tab) {
             t("A {class} team trying you out. Impress them and you're closer to a seat.", { class: CLASS_NAMES[o.carClass] })) : null,
           h("div", { class: "row", style: { marginTop: "10px" } },
             h("div", { class: "spacer" }),
-            o.accepted
-              ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
-              : [length, h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))]));
+            season().rounds.some((r) => r.guest && !r.test && r.eventId === o.eventId && r.state === "Completed")
+              ? h("span", { class: "faint" }, t("Completed"))
+              : o.accepted
+                ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
+                : [length, h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))]));
       })),
       h("div", { class: "modal-actions" },
         h("button", { class: "btn ghost", onclick: () => { closeModal(); show("briefing"); }, "data-sound": "back" }, t("Done"))),

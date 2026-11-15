@@ -106,6 +106,18 @@ public class TestDayTests
         Assert.Equal(2, career.CurrentSeason.Sponsors[0].RoundNumber);
     }
 
+    [Fact]
+    public void A_test_that_has_been_run_cannot_be_withdrawn()
+    {
+        var (career, round) = Accepted();
+        var offer = career.CurrentSeason.TestOffers!.First(o => o.Accepted);
+        round.State = RoundState.Completed;
+
+        Assert.Throws<PlayerError>(() => TestDays.Withdraw(career, offer.Id));
+        Assert.True(offer.Accepted);
+        Assert.Contains(round, career.CurrentSeason.Rounds);
+    }
+
     private static void Run(Career career, Round round, int laps, double mine, double ai)
     {
         round.State = RoundState.Armed;

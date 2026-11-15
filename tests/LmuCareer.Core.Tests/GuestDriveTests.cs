@@ -70,6 +70,45 @@ public class GuestDriveTests
     }
 
     [Fact]
+    public void A_season_that_opens_in_november_keeps_october_at_the_end()
+    {
+        var career = Upcoming(50);
+        var season = career.CurrentSeason;
+        // Bahrain (November) opens the season, the rest follow in the next year.
+        var bahrain = season.Rounds.Single(r => r.EventId == "bahrain-8");
+        season.Rounds.Remove(bahrain);
+        season.Rounds.Insert(0, bahrain);
+        CalendarBuilder.Number(season.Rounds);
+        GuestDrives.EnsureOffers(career, Catalog, install: null, seed: 1);
+        var offer = season.GuestOffers![0];
+        offer.EventId = "petit-le-mans";
+        offer.EventName = "Petit Le Mans";
+
+        var petit = GuestDrives.Accept(career, offer.Id, minutes: 30, Catalog);
+
+        Assert.Same(bahrain, season.Rounds[0]);
+        Assert.Same(petit, season.Rounds[^1]);
+    }
+
+    [Fact]
+    public void A_january_guest_race_goes_after_a_november_opener()
+    {
+        var career = Upcoming(50);
+        var season = career.CurrentSeason;
+        var bahrain = season.Rounds.Single(r => r.EventId == "bahrain-8");
+        season.Rounds.Remove(bahrain);
+        season.Rounds.Insert(0, bahrain);
+        CalendarBuilder.Number(season.Rounds);
+        GuestDrives.EnsureOffers(career, Catalog, install: null, seed: 1);
+        var daytona = season.GuestOffers!.Single(o => o.EventId == "daytona-24");
+
+        var round = GuestDrives.Accept(career, daytona.Id, minutes: 60, Catalog);
+
+        Assert.Same(bahrain, season.Rounds[0]);
+        Assert.Same(round, season.Rounds[1]);
+    }
+
+    [Fact]
     public void A_guest_race_is_matched_on_the_guest_car_and_leaves_the_season_car_alone()
     {
         var root = Directory.CreateTempSubdirectory("lmucareer-guest-");

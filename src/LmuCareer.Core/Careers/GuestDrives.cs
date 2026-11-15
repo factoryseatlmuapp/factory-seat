@@ -124,13 +124,25 @@ public static class GuestDrives
         };
         round.GuestNumbers = offer.Numbers;
 
-        // Rounds with no catalog month (custom events) keep their place behind the round before them.
+        // Rounds with no catalog month (custom events, test days) keep their place behind the round before them.
+        // A season can open late in the year (Bahrain in November, then Silverstone in April): once a round's
+        // month drops below the one before it, the calendar has rolled into the next year. A race earlier in
+        // the year than the opener then belongs to that next year too. A season inside one year (Qatar first)
+        // is left alone, so Daytona in January still goes ahead of it.
+        var months = season.Rounds.Select(r => catalog.Event(r.EventId)?.Month).OfType<int>().ToList();
+        var wraps = months.Zip(months.Skip(1)).Any(p => p.Second < p.First);
+        var target = wraps && months.Count > 0 && e.Month < months[0] ? e.Month + 12 : e.Month;
         var month = 0;
+        var year = 0;
         var at = season.Rounds.Count;
         for (var i = 0; i < season.Rounds.Count; i++)
         {
-            month = catalog.Event(season.Rounds[i].EventId)?.Month ?? month;
-            if (month > e.Month) { at = i; break; }
+            if (catalog.Event(season.Rounds[i].EventId)?.Month is int m)
+            {
+                if (m + year < month) year += 12;
+                month = m + year;
+            }
+            if (month > target) { at = i; break; }
         }
 
         season.Rounds.Insert(at, round);
