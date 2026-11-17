@@ -2,7 +2,7 @@
   "_meta": {
     "language": "pt-BR",
     "name": "Português (Brasil)",
-    "note": "First draft by the developer; needs a native speaker's review. LMU's menu labels checked against the game (10/9), except Realistic (Fuel Usage/Tyre Wear at x1)."
+    "note": "First draft by the developer; needs a native speaker's review. LMU's menu labels checked against the game (10/9), except Realistic (Fuel Usage/Tyre Wear at x1). 3 post-beta 1.5 strings (calendar name, raced layout, test already run): AI draft 11/16, pending the translator's review."
   },
   "Common": {
     "Not set": "Não definido",
@@ -341,6 +341,7 @@
     "Confident": "Confiante",
     "Blame the team": "Culpar a equipe",
     "Off-season": "Entressafra",
+    "Called {name} in the calendar": "Chamado de {name} no calendário",
     "P{n}": "P{n}",
     "DNF": "Aband.",
     "DQ": "DSQ",
@@ -1105,7 +1106,7 @@
     "warmup session": "warm-up",
     "not a race or qualifying session": "não é corrida nem qualificação",
     "multiplayer session": "sessão multijogador",
-    "you raced the {raced} layout of {track}; this round uses {needed}": "você correu o traçado {raced} de {track}; esta etapa usa {needed}",
+    "raced the \"{raced}\" layout, the briefing's is \"{briefing}\"": "correu o traçado “{raced}”, o do briefing é “{briefing}”",
     "wrong track ({track}, {layout})": "pista errada ({track}, {layout})",
     "wrong track ({track})": "pista errada ({track})",
     "no player car in the session": "nenhum carro do jogador na sessão",
@@ -1338,6 +1339,7 @@
     "Test days are agreed before the season's first round counts.": "Os dias de teste são combinados antes de a primeira etapa da temporada contar.",
     "You've already agreed to that one.": "Você já aceitou essa.",
     "The season has started; skip the round instead.": "A temporada já começou; pule a etapa em vez disso.",
+    "You've already run that test.": "Você já fez esse teste.",
     "Cancel the race weekend first.": "Cancele o fim de semana de corrida primeiro.",
     "The team wants at least {n} laps in their car first.": "A equipe quer pelo menos {n} voltas no carro dela primeiro.",
     "Our offer's off the table now, but thanks for coming.": "Nós desistimos da nossa oferta, mas obrigado pelo teste.",

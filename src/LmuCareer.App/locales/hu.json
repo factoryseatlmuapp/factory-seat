@@ -2,7 +2,7 @@
   "_meta": {
     "language": "hu",
     "name": "Magyar",
-    "note": "First draft by the developer; needs a native speaker's review. LMU has no Hungarian, so LMU's menu labels stay in English. 1.4 strings (achievements, trophy room, New Game+, etc.): native speaker's translation by NegAEntropie, 11/5."
+    "note": "First draft by the developer; needs a native speaker's review. LMU has no Hungarian, so LMU's menu labels stay in English. 1.4 strings (achievements, trophy room, New Game+, etc.): native speaker's translation by NegAEntropie, 11/5. 3 post-beta 1.5 strings (calendar name, raced layout, test already run): AI draft 11/16, pending the translator's review."
   },
   "Common": {
     "Not set": "Nincs megadva",
@@ -341,6 +341,7 @@
     "Confident": "Magabiztos",
     "Blame the team": "A csapatot hibáztatod",
     "Off-season": "Szezonszünet",
+    "Called {name} in the calendar": "A naptárban: {name}",
     "P{n}": "P{n}",
     "DNF": "DNF",
     "DQ": "DQ",
@@ -1105,6 +1106,7 @@
     "warmup session": "bemelegítés",
     "not a race or qualifying session": "nem verseny vagy időmérő",
     "multiplayer session": "többjátékos szekció",
+    "raced the \"{raced}\" layout, the briefing's is \"{briefing}\"": "a(z) „{raced}” vonalvezetésen versenyzett, az eligazításban „{briefing}” szerepel",
     "wrong track ({track}, {layout})": "rossz pálya ({track}, {layout})",
     "wrong track ({track})": "rossz pálya ({track})",
     "no player car in the session": "nincs játékosautó a szekcióban",
@@ -1337,6 +1339,7 @@
     "Test days are agreed before the season's first round counts.": "A tesztnapokról a szezon első fordulójának beszámítása előtt kell megállapodni.",
     "You've already agreed to that one.": "Ebbe már beleegyeztél.",
     "The season has started; skip the round instead.": "A szezon elindult; inkább hagyd ki a fordulót.",
+    "You've already run that test.": "Ezt a tesztet már lefutottad.",
     "Cancel the race weekend first.": "Előbb töröld a versenyhétvégét.",
     "The team wants at least {n} laps in their car first.": "A csapat előbb legalább {n} kört szeretne látni az autójukban.",
     "Our offer's off the table now, but thanks for coming.": "Már nem áll az ajánlat, de köszönjük a megjelenést.",
