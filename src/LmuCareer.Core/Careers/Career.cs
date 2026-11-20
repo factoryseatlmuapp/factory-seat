@@ -98,8 +98,14 @@ public sealed class Round
     /// <summary>New Game+: the AI Strength, weather and damage this round must be raced at. Null otherwise.</summary>
     public RoundFloor? Floor { get; set; }
 
-    /// <summary>New Game+: LMU's AI settings as Settings.JSON had them when the weekend started.</summary>
+    /// <summary>LMU's AI settings as Settings.JSON had them when the weekend started (every career since 1.5; New Game+ only before).</summary>
     public Content.AiSettingsSeen? AiAtStart { get; set; }
+
+    /// <summary>
+    /// Since 1.5: the AI Strength LMU proves the race was run at (the weekend's save, else
+    /// Settings.JSON), for the pace check's suggested number. Null when nothing proved it.
+    /// </summary>
+    public int? AiStrength { get; set; }
 }
 
 /// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>
@@ -128,6 +134,9 @@ public sealed class TestDay
 
     /// <summary>New Game+: how the practice measured up to the test's floor. Below it, the test earns no offer.</summary>
     public FloorCheck? Floor { get; set; }
+
+    /// <summary>1.5: the mid-season offer this test day is meant to sway; empty for any other test.</summary>
+    public string OfferId { get; set; } = "";
 }
 
 public sealed record TestResult(int Laps, double PlayerBest, double AiBest, bool Passed)
@@ -148,6 +157,9 @@ public sealed class TestOffer
 
     /// <summary>The catalog event whose track and layout the test runs on.</summary>
     public string VenueEventId { get; set; } = "";
+
+    /// <summary>1.5: the test the Development driver perk guarantees, in the player's own team's car a class up.</summary>
+    public bool Development { get; set; }
 
     public bool Accepted { get; set; }
 }
@@ -199,6 +211,16 @@ public sealed class Contract
 
     /// <summary>A Hypercar seat won on reputation alone, not through a ladder or a make.</summary>
     public bool ReputationDoor { get; set; }
+
+    /// <summary>
+    /// What the season's reputation gains and losses are multiplied by. Null = the team's prestige
+    /// opening (<see cref="Progression.Prestige"/>); a negotiated deal sets its own.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
+
+    /// <summary>1.5: the perks signed with the deal.</summary>
+    public List<Perk> Perks { get; set; } = [];
 
     /// <summary>New Game+: when the team let the player go mid-season; the rest of its rounds were skipped.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? LetGoAt { get; set; }
@@ -320,7 +342,54 @@ public sealed class TeamOffer
     /// the same make, or empty when the deal is for the one championship.
     /// </summary>
     public string ImsaTeam { get; set; } = "";
+
+    /// <summary>
+    /// 1.5: what the season's reputation gains and losses are multiplied by under this deal. The team
+    /// opens at its prestige (<see cref="Progression.Prestige"/>). Null on offers made before 1.5.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? GainModifier { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? LossModifier { get; set; }
+
+    /// <summary>1.5: what the team adds to the deal, told as story on the card. At most <see cref="Negotiation.MaxPerks"/>.</summary>
+    public List<Perk> Perks { get; set; } = [];
+
+    /// <summary>1.5: how much the team will give (modifiers past its opening plus perks); null = no haggling (offers from before 1.5).</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public decimal? Budget { get; set; }
+
+    /// <summary>Counters the player has made, at most <see cref="Negotiation.MaxCounters"/>.</summary>
+    public int Counters { get; set; }
+
+    /// <summary>The team took the player's ask: sign on these terms.</summary>
+    public bool Agreed { get; set; }
+
+    /// <summary>The team's last reply was its final offer: sign it or don't.</summary>
+    public bool FinalOffer { get; set; }
+
+    /// <summary>The team walked away during the talks: it can't be signed.</summary>
+    public bool WalkedAway { get; set; }
+
+    /// <summary>Only back-marker seats left after a season that fell short: no haggling; take one or retire.</summary>
+    public bool LastResort { get; set; }
+
+    /// <summary>The team's last word in the talks; null before any counter.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public Phrase? Reply { get; set; }
+
+    /// <summary>The player's last counter, kept beside the team's answer so the card shows what moved; null before any counter.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public AskedTerms? Asked { get; set; }
+
+    /// <summary>1.5: an offer made mid-season, and what became of it; null for an off-season offer.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public EarlyOfferStatus? Early { get; set; }
+
+    /// <summary>For a mid-season offer: the season's own round (1st, 2nd...) whose counting ends it, and that round's event.</summary>
+    public int AnswerBy { get; set; }
+    public string AnswerByEvent { get; set; } = "";
+
+    /// <summary>1.5: a good test day before the deadline moved this offer up a step.</summary>
+    public bool Swayed { get; set; }
 }
+
+/// <summary>What became of a mid-season offer.</summary>
+public enum EarlyOfferStatus { Open, Signed, Declined, Lapsed }
 
 /// <summary>How a team is doing, from its standing on the grid and its last season's results.</summary>
 public enum TeamStatus { Struggling, Stable, Growing, FrontRunnerBudget }
@@ -432,6 +501,13 @@ public sealed class Season
     /// </summary>
     public int SponsorRules { get; set; }
 
+    /// <summary>
+    /// <see cref="Progression.CurrentReputationRules"/> for a season reviewed on 1.5's reputation rules
+    /// (no gain cap, team prestige, race-length scaling, giant-killer, Triple Crown); 0 for one that
+    /// started before them. A running season never changes rules: careers pick them up at the next season.
+    /// </summary>
+    public int ReputationRules { get; set; }
+
     /// <summary>Interview answers given this season, settled at its review.</summary>
     public List<InterviewAnswer> Interviews { get; set; } = [];
 
@@ -533,6 +609,9 @@ public sealed class Career
     /// <summary>Teams that noticed a big result this season; their offers come at the season's end.</summary>
     public List<TeamInterest> Interest { get; set; } = [];
 
+    /// <summary>1.5: offers made during the current season, open or answered; at most <see cref="MidSeason.MaxOffers"/>.</summary>
+    public List<TeamOffer> EarlyOffers { get; set; } = [];
+
     /// <summary>The player's standing with each make and team they've raced for; empty on careers from before 1.3.</summary>
     public List<Loyalty> Loyalty { get; set; } = [];
 
@@ -556,6 +635,9 @@ public sealed class Career
 
     /// <summary>When the career retired into the Hall of Fame: it races no more.</summary>
     public DateTimeOffset? RetiredAt { get; set; }
+
+    /// <summary>1.5: retired from the last-resort offers without a Hall of Fame place ("Retired, no seat").</summary>
+    public bool RetiredNoSeat { get; set; }
 
     /// <summary>New Game+ and still on the floor (not turned normal by flagged rounds).</summary>
     [JsonIgnore]

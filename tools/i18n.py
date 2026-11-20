@@ -47,6 +47,7 @@ GROUPS = [
     ("seasonBuilder.js", "Season builder"),
     ("nextSeason.js", "Season builder"),
     ("career.js", "Career"),
+    ("garage.js", "Career"),
     ("achievements.js", "Achievements"),
     ("trophyRoom.js", "Achievements"),
     ("trophies.js", "Achievements"),
@@ -65,9 +66,12 @@ GROUPS = [
     ("Rivals.cs", "Press and interviews"),
     ("Loyalty.cs", "Season review"),
     ("Teams.cs", "Season review"),
+    ("Negotiation.cs", "Teams, offers and reputation"),
+    ("MidSeason.cs", "Teams, offers and reputation"),
     ("Imsa.cs", "Season review"),
     ("GuestDrives.cs", "Messages"),
     ("CareerStore.cs", "Messages"),
+    ("RoundFlow.cs", "Messages"),
     ("ApiHost.cs", "Messages"),
 ]
 LMU_GROUP = "LMU's menu labels: use the exact wording LMU shows in this language"
@@ -104,6 +108,12 @@ def collect():
     """Every string, grouped, without repeats (a string's first group wins; LMU labels always go to theirs)."""
     files = sorted((APP / "wwwroot" / "js").rglob("*.js")) + sorted(CORE.rglob("*.cs")) + sorted(APP.glob("*.cs")) + sorted(HOST.glob("*.cs"))
     order = {name: i for i, (name, _) in enumerate(GROUPS)}
+    # A new source file with text in it is skipped until it's in GROUPS: say so, or its strings never reach translators.
+    for f in files:
+        if f.name not in order:
+            pats = (JS_SINGLE, JS_COUNT) if f.suffix == ".js" else (CS_SINGLE, CS_CONST, CS_COUNT)
+            if any(p.search(f.read_text(encoding="utf-8")) for p in pats):
+                print(f"warning: {f.name} has text but isn't in GROUPS, so it's left out", file=sys.stderr)
     files = sorted((f for f in files if f.name in order), key=lambda f: order[f.name])
     groups = OrderedDict((name, OrderedDict()) for _, name in GROUPS)
     groups[LMU_GROUP] = OrderedDict()

@@ -12,7 +12,18 @@ public sealed record TrackInfo(
     double LengthKm,
     string Pack,
     // Layout file name (without .mas) to a display name for the layout.
-    IReadOnlyDictionary<string, string> Layouts);
+    IReadOnlyDictionary<string, string> Layouts)
+{
+    /// <summary>
+    /// Layout file to the name in LMU's layout list (from its getTracksAll, matched on the scene):
+    /// "Default" for a track's main layout, "Default (ELMS season)" where the WEC and ELMS seasons
+    /// each have their own, otherwise LMU's own name ("Layout 1A-V2"). The app's names are its own
+    /// ("ELMS", "Grand Prix"), so the briefing's set-up list uses these.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? LmuNames { get; init; }
+
+    public string? LmuName(string layoutFile) => LmuNames?.GetValueOrDefault(layoutFile);
+}
 
 public sealed record CarInfo(
     string Folder,
@@ -126,6 +137,21 @@ public sealed record ContentCatalog(
 
     public CarInfo? Car(string folder) =>
         Cars.FirstOrDefault(c => c.Folder.Equals(folder, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// The car to run at an event. LMU's Race Weekend only offers a car the layouts of the championship
+    /// it's listed under (the WEC Oreca can't pick Silverstone's ELMS layout, issue #30), so when the car
+    /// isn't listed under the event's championship this swaps in its twin of the same class and model that is.
+    /// </summary>
+    public CarInfo ForEvent(CarInfo car, EventInfo e)
+    {
+        var championship = e.Layout.Contains("ELMS", StringComparison.OrdinalIgnoreCase) || e.Series.StartsWith("european") ? "ELMS"
+            : e.Series.StartsWith("world") ? "WEC"
+            : null;
+        if (championship is null || car.Seasons is null || car.Seasons.ContainsKey(championship)) return car;
+        return Cars.FirstOrDefault(c => c.Class == car.Class && c.Seasons?.ContainsKey(championship) == true
+            && c.CarTypes.Intersect(car.CarTypes).Any()) ?? car;
+    }
 
     public BrandInfo? Brand(string id) => Brands.FirstOrDefault(b => b.Id == id);
 

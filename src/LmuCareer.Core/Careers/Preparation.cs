@@ -5,7 +5,8 @@ namespace LmuCareer.Core.Careers;
 
 /// <summary>An earlier race at this layout in this class.</summary>
 /// <param name="Gap">Best lap against the fastest AI in class, in seconds; negative when the player was quicker.</param>
-public sealed record TrackVisit(int Season, int Round, string EventName, int? Finish, FinishStatus Status, double? BestLap, double? Gap);
+/// <param name="AiStrength">Since 1.5: the AI Strength LMU proved the race was run at; null when unknown.</param>
+public sealed record TrackVisit(int Season, int Round, string EventName, int? Finish, FinishStatus Status, double? BestLap, double? Gap, int? AiStrength = null);
 
 /// <summary>
 /// A practice session run after the round's weekend was started, read for pace: the player's best
@@ -31,7 +32,20 @@ public enum PaceSource
 
 /// <summary>What to do about AI Strength for this race, and what it's based on.</summary>
 /// <param name="Gap">Seconds a lap against the fastest AI; negative when the player is quicker.</param>
-public sealed record TrackPace(PaceAdvice Advice, PaceSource Source, double Gap, int Visits);
+public sealed record TrackPace(PaceAdvice Advice, PaceSource Source, double Gap, int Visits)
+{
+    /// <summary>Since 1.5: LMU's AI Strength as last seen (Settings.JSON at LMU's last exit, else the last race's); null when unknown.</summary>
+    public int? Strength { get; init; }
+
+    /// <summary>Since 1.5: the AI Strength to race at; null when no strength is known to start from.</summary>
+    public int? Suggested { get; init; }
+
+    /// <summary>Since 1.5: the AI Strength the gap was measured at, when known (the latest visit's, for Track).</summary>
+    public int? MeasuredAt { get; init; }
+}
+
+/// <summary>One gap behind the advice: where it was measured, at what strength, and how much it counts.</summary>
+internal readonly record struct PaceSample(double Gap, double AiLap, int? Strength, double Weight);
 
 /// <summary>A driver near the player in the standings, and what this round needs to pass them or stay ahead.</summary>
 /// <param name="Gap">Points between them, always positive.</param>
@@ -61,11 +75,12 @@ public sealed record RacePreparation(RaceStakes? Stakes, IReadOnlyList<TrackVisi
 
 public static class Preparation
 {
-    public static RacePreparation For(Career career, Round round) => new(
+    /// <param name="strengthNow">LMU's AI Strength as of its last exit (Settings.JSON), when it could be read.</param>
+    public static RacePreparation For(Career career, Round round, int? strengthNow = null) => new(
         round.Guest ? null : Stakes(career, round),
         History(career, round),
         round.Practice,
-        Pace(career, round));
+        Pace(career, round, strengthNow));
 
     // ---------- History ----------
 
@@ -79,7 +94,7 @@ public static class Preparation
             .Select(x => (x.Season, x.Round, Me: x.Round.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer)))
             .Where(x => x.Me is not null && x.Me.Entry.CarClass.Equals(carClass, StringComparison.OrdinalIgnoreCase))
             .Select(x => new TrackVisit(x.Season.Number, x.Round.Number, x.Round.EventName, x.Me!.ClassRank, x.Me.Entry.Status,
-                x.Me.Entry.BestLapSeconds > 0 ? x.Me.Entry.BestLapSeconds : null, PaceCheck.For(x.Round)?.Gap))
+                x.Me.Entry.BestLapSeconds > 0 ? x.Me.Entry.BestLapSeconds : null, PaceCheck.For(x.Round)?.Gap, x.Round.AiStrength))
             .OrderByDescending(v => v.Season).ThenByDescending(v => v.Round)
             .ToList();
     }
@@ -134,11 +149,71 @@ public static class Preparation
     /// here, the latest counting double the one before it; failing both, the season's recent form,
     /// kept to small changes on a first visit.
     /// </summary>
-    public static TrackPace? Pace(Career career, Round round)
+    public static TrackPace? Pace(Career career, Round round, int? strengthNow = null)
     {
-        var pace = PaceFor(career, round);
-        return pace is not null && Pro(career, round) ? pace with { Advice = Harder(pace.Advice) } : pace;
+        if (PaceFor(career, round) is not var (pace, samples)) return null;
+        var pro = Pro(career, round);
+        if (pro) pace = pace with { Advice = Harder(pace.Advice) };
+
+        // The level now: what LMU last wrote, else the strength of the latest race it proved.
+        var now = strengthNow ?? LastStrength(career);
+        return pace with
+        {
+            Strength = now,
+            MeasuredAt = samples[0].Strength,
+            Suggested = Suggest(pace, samples, now, pro),
+        };
     }
+
+    /// <summary>Points the Pro field's extra pace is worth (one advice step, as <see cref="Harder"/>).</summary>
+    public const int ProPoints = 2;
+
+    /// <summary>A first visit (Season source) moves at most this far.</summary>
+    public const int FirstVisitMaxPoints = 2;
+
+    /// <summary>
+    /// The AI Strength to race at (design doc, Mauro 11/10): each gap turned into points at the
+    /// strength it was measured at (or the level now, when that wasn't proved), weighted as the
+    /// advice weighs them. A matched gap keeps its strength. Null when no strength is known.
+    /// </summary>
+    private static int? Suggest(TrackPace pace, IReadOnlyList<PaceSample> samples, int? now, bool pro)
+    {
+        if (now is null && samples.All(s => s.Strength is null)) return null;
+        var reference = now ?? samples.First(s => s.Strength is not null).Strength!.Value;
+        var matched = PaceCheck.AdviceFor(pace.Gap) == PaceAdvice.Matched;
+
+        double weighted = 0, total = 0, baseSum = 0;
+        foreach (var s in samples)
+        {
+            var at = s.Strength ?? reference;
+            weighted += (at + (matched ? 0 : PaceCheck.PointsFor(s.Gap, s.AiLap))) * s.Weight;
+            baseSum += at * s.Weight;
+            total += s.Weight;
+        }
+        var target = weighted / total;
+        if (pace.Source == PaceSource.Season)
+            target = reference + Math.Clamp((target - reference) / 2, -FirstVisitMaxPoints, FirstVisitMaxPoints);
+        if (pro) target += ProPoints;
+
+        var suggested = (int)Math.Round(target, MidpointRounding.AwayFromZero);
+        // Measured at today's level, the number must at least move the way the advice says.
+        if (Math.Abs(baseSum / total - reference) < 0.5)
+        {
+            var step = PaceCheck.StepFor(pace.Advice);
+            if (step > 0 && suggested <= reference) suggested = reference + 1;
+            if (step < 0 && suggested >= reference) suggested = reference - 1;
+            if (step == 0) suggested = reference;
+        }
+        return PaceCheck.ClampStrength(suggested);
+    }
+
+    /// <summary>The AI Strength of the latest race LMU proved one for, this season or before.</summary>
+    private static int? LastStrength(Career career) =>
+        career.PastSeasons.Append(career.CurrentSeason)
+            .SelectMany(s => s.Rounds)
+            .Where(r => r.State == RoundState.Completed && r.AiStrength is not null)
+            .Select(r => r.AiStrength)
+            .LastOrDefault();
 
     /// <summary>A GTE Classic round in a factory (Pro) seat: the field the player races is the sharp end.</summary>
     public static bool Pro(Career career, Round round) => career.GteClassic && !round.Guest && career.CurrentSeason.ContractFor(round)?.Tier == 1;
@@ -152,22 +227,25 @@ public static class Preparation
         _ => PaceAdvice.TooEasy,
     };
 
-    private static TrackPace? PaceFor(Career career, Round round)
+    /// <summary>The advice and the gaps behind it, the latest (or this weekend's) first.</summary>
+    private static (TrackPace Pace, IReadOnlyList<PaceSample> Samples)? PaceFor(Career career, Round round)
     {
-        if (round.Practice?.Gap is { } practice) return new TrackPace(PaceCheck.AdviceFor(practice), PaceSource.Practice, practice, 0);
+        if (round.Practice is { Gap: { } practice, AiBest: { } aiBest })
+            return (new TrackPace(PaceCheck.AdviceFor(practice), PaceSource.Practice, practice, 0),
+                [new PaceSample(practice, aiBest, round.AiAtStart?.Strength, 1)]);
 
         var visits = History(career, round).Where(v => v.Gap is not null).ToList();
         if (visits.Count > 0)
         {
-            double weighted = 0, total = 0, weight = 1;
+            var samples = new List<PaceSample>();
+            double weight = 1;
             foreach (var visit in visits)
             {
-                weighted += visit.Gap!.Value * weight;
-                total += weight;
+                samples.Add(new PaceSample(visit.Gap!.Value, (visit.BestLap ?? 0) - visit.Gap.Value, visit.AiStrength, weight));
                 weight /= 2;
             }
-            var gap = Math.Round(weighted / total, 2);
-            return new TrackPace(PaceCheck.AdviceFor(gap), PaceSource.Track, gap, visits.Count);
+            var gap = Math.Round(samples.Sum(s => s.Gap * s.Weight) / samples.Sum(s => s.Weight), 2);
+            return (new TrackPace(PaceCheck.AdviceFor(gap), PaceSource.Track, gap, visits.Count), samples);
         }
 
         var season = PaceCheck.Summarize(career.CurrentSeason);
@@ -178,7 +256,14 @@ public static class Preparation
             PaceAdvice.TooHard => PaceAdvice.BitHard,
             var advice => advice,
         };
-        return new TrackPace(softened, PaceSource.Season, recent, 0);
+        var recentRounds = career.CurrentSeason.ChampionshipRounds
+            .Select(r => (Round: r, Pace: PaceCheck.For(r)))
+            .Where(x => x.Pace is not null)
+            .TakeLast(PaceCheck.RecentRounds)
+            .Reverse()
+            .Select(x => new PaceSample(x.Pace!.Gap, x.Pace.AiBest, x.Round.AiStrength, 1))
+            .ToList();
+        return (new TrackPace(softened, PaceSource.Season, recent, 0), recentRounds);
     }
 
     // ---------- Stakes ----------
@@ -188,7 +273,7 @@ public static class Preparation
         var season = career.CurrentSeason;
         var target = season.ContractFor(round)?.TargetPosition ?? Progression.DefaultTarget;
         var weight = round.PointsWeight;
-        var points = ScoringRules.Wec.Points.Select(p => p * weight).ToList();
+        var points = ScoringRules.Wec.Points.Select(p => RaceScorer.Weighted(p, weight)).ToList();
         var lines = new List<Phrase>();
 
         var drivers = season.StandingsFor(round)?.Drivers.ToList() ?? [];

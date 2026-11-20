@@ -46,7 +46,9 @@ public static class TestDays
         var season = career.CurrentSeason;
         var reputation = career.Reputation;
         var count = reputation >= TwoOffersAt ? 2 : reputation >= MinReputation ? 1 : 0;
-        if (count == 0) return [];
+        // Development driver (a contract perk): one test a season in the team's next-class car, whatever the reputation.
+        var development = Negotiation.Holds(season, Perk.DevelopmentDriver);
+        if (count == 0 && !development) return [];
 
         bool Available(string carClass) => catalog.Cars.Any(c => c.Class == carClass && Progression.CanOffer(c, career, install));
         var current = season.Car.CarClass;
@@ -63,11 +65,13 @@ public static class TestDays
             .Distinct()
             .Take(count)
             .ToList();
+        if (development && up is not null && up != current && Available(up) && !classes.Contains(up)) classes.Insert(0, up);
 
         var offers = new List<TestOffer>();
         foreach (var carClass in classes)
         {
-            var seat = Seat(career, catalog, install, carClass, random);
+            var dev = development && carClass == up;
+            var seat = (dev ? TeamsNextCar(career, catalog, install, carClass) : null) ?? Seat(career, catalog, install, carClass, random);
             var venue = Venue(career, catalog, install, carClass, random);
             if (seat is not { } s || venue is null) continue;
             offers.Add(new TestOffer
@@ -75,13 +79,36 @@ public static class TestDays
                 Id = $"t{season.Number}-{offers.Count + 1}",
                 TeamName = s.Team.Name,
                 CarClass = carClass,
-                CarFolder = s.Car.Folder,
+                CarFolder = catalog.ForEvent(s.Car, venue).Folder,
                 Tier = s.Team.Tier,
                 Numbers = s.Team.Numbers,
                 VenueEventId = venue.Id,
+                Development = dev,
             });
         }
         return offers;
+    }
+
+    /// <summary>
+    /// The player's own team's car a class up, for a development driver: the same team there, else
+    /// the same outfit, else a team running the same make. Null when none races that class.
+    /// </summary>
+    private static (TeamInfo Team, CarInfo Car)? TeamsNextCar(Career career, ContentCatalog catalog, LmuInstall? install, string carClass)
+    {
+        var season = career.CurrentSeason;
+        var name = season.Contract?.TeamName is { Length: > 0 } contracted ? contracted : season.Car.TeamName;
+        var own = catalog.Teams.FirstOrDefault(t => t.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && t.Class == season.Car.CarClass);
+        var brand = catalog.CarByType(season.Car.CarType)?.Brand;
+        var pool = catalog.Teams
+            .Where(t => t.Class == carClass)
+            .Select(t => (Team: t, Car: (t.Cars.Count > 0 ? t.Cars.Select(catalog.Car).OfType<CarInfo>() : catalog.Cars.Where(c => c.Class == t.Class))
+                .FirstOrDefault(c => Progression.CanOffer(c, career, install))))
+            .Where(x => x.Car is not null)
+            .ToList();
+        var pick = pool.FirstOrDefault(x => x.Team.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (pick.Team is null && own is not null) pick = pool.FirstOrDefault(x => x.Team.OutfitId == own.OutfitId);
+        if (pick.Team is null && brand is { Length: > 0 }) pick = pool.Where(x => x.Car!.Brand == brand).OrderBy(x => x.Team.Tier).FirstOrDefault();
+        return pick.Team is null ? null : (pick.Team, pick.Car!);
     }
 
     /// <summary>How far below a class's bar a team there will still try a driver out.</summary>
@@ -110,6 +137,9 @@ public static class TestDays
         var season = career.CurrentSeason;
         if (!Sponsorship.CanSign(season)) throw new PlayerError("The season has started; skip the round instead.");
         var offer = season.TestOffers?.FirstOrDefault(o => o.Id == offerId && o.Accepted) ?? throw new KeyNotFoundException("You haven't agreed to that test day.");
+        // A test that's been run stays in the calendar with its result; withdrawing would only free the offer to be taken again.
+        if (season.Rounds.Any(r => r.Test is { } done && done.TeamName == offer.TeamName && done.CarClass == offer.CarClass && r.State == RoundState.Completed))
+            throw new PlayerError("You've already run that test.");
         var index = season.Rounds.FindIndex(r => r.Test is { } t && t.TeamName == offer.TeamName && t.CarClass == offer.CarClass && r.State != RoundState.Completed);
         if (index >= 0)
         {
@@ -135,6 +165,32 @@ public static class TestDays
         return round;
     }
 
+    /// <summary>
+    /// 1.5: a team with a mid-season offer out wants the player in its car before the deadline: a
+    /// test day goes in the calendar right after the round that brought the offer. A good run moves
+    /// the offer up a step (<see cref="MidSeason.Sway"/>). Null when there's nowhere the player can test.
+    /// </summary>
+    public static Round? InviteToSway(Career career, TeamOffer offer, Round after, ContentCatalog catalog, LmuInstall? install)
+    {
+        var season = career.CurrentSeason;
+        var car = catalog.Car(offer.CarFolder);
+        var venue = Venue(career, catalog, install, offer.CarClass, new Random(Progression.Seed(career) ^ after.Number * 7919));
+        if (car is null || venue is null) return null;
+
+        var round = NewRound(catalog, venue, car, offer.TeamName, offer.CarClass, offer.Tier, offer.Numbers, career.Rating, offer.ReasonText);
+        round.Test!.OfferId = offer.Id;
+        Insert(season, round, season.Rounds.IndexOf(after) + 1);
+        return round;
+    }
+
+    /// <summary>An offer closed (signed, turned down, walked away, lapsed): its sway test leaves the calendar unless it's armed or done.</summary>
+    public static void DropSwayTest(Career career, string offerId)
+    {
+        var season = career.CurrentSeason;
+        var index = season.Rounds.FindIndex(r => r.Test?.OfferId == offerId && r.State == RoundState.Upcoming);
+        if (index >= 0) Remove(season, index);
+    }
+
     /// <summary>Whether the armed test day has the laps, and an AI lap in class, for the team to judge.</summary>
     public static bool IsReady(Round round) =>
         round.Test is { } test && round.Practice is { PlayerBest: not null, AiBest: not null } practice && practice.Laps >= test.MinLaps;
@@ -155,7 +211,16 @@ public static class TestDays
 
         // New Game+: a test below the floor proves nothing, however quick.
         var belowFloor = test.Floor is { Reduced: true };
-        if (result.Passed && !belowFloor)
+        // 1.5: a test to sway a mid-season offer moves that offer, not end-of-season interest.
+        var swayed = test.OfferId.Length > 0 ? career.EarlyOffers.FirstOrDefault(o => o.Id == test.OfferId && MidSeason.IsOpen(o)) : null;
+        Phrase? swayLine = null;
+        if (test.OfferId.Length > 0)
+        {
+            if (swayed is null) swayLine = Phrase.Of("Our offer's off the table now, but thanks for coming.");
+            else if (result.Passed && !belowFloor) swayLine = MidSeason.Sway(swayed);
+            else swayLine = Phrase.Of("Our offer stands as it was. The deadline hasn't moved.");
+        }
+        else if (result.Passed && !belowFloor)
         {
             var interest = career.Interest.FirstOrDefault(i => i.TeamName == test.TeamName && i.CarClass == test.CarClass);
             if (interest is null)
@@ -192,9 +257,12 @@ public static class TestDays
                     : Phrase.Of("{gap} seconds off the fastest lap in class.", gap),
                 belowFloor
                     ? Phrase.Of("But the session wasn't run at the New Game+ floor, so we can't judge you on it. Maybe next time.")
+                    : swayLine is not null
+                    ? (result.Passed ? Phrase.Of("We liked what we saw.") : Phrase.Of("Not quite what we were after this time."))
                     : result.Passed
                     ? Phrase.Of("We liked what we saw. Expect a call from us when the season's over.")
                     : Phrase.Of("Not quite what we were after this time. Keep at it."),
+                .. swayLine is null ? Array.Empty<Phrase>() : [swayLine],
             ],
         });
         career.LastPlayedAt = now;
@@ -206,6 +274,7 @@ public static class TestDays
     private static Round NewRound(ContentCatalog catalog, EventInfo venue, CarInfo car, string teamName, string carClass, int tier,
         IReadOnlyList<string> numbers, DriverRating rating, Phrase? reason)
     {
+        car = catalog.ForEvent(car, venue);
         var round = CalendarBuilder.RoundFor(catalog, venue, carClass, rating);
         var track = catalog.Track(venue.Folder);
         round.EventId = "";

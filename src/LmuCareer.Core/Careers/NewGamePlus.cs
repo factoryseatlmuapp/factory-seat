@@ -232,6 +232,25 @@ public static class Retirement
         };
     }
 
+    /// <summary>1.5: the off-season is down to last-resort seats, so the player may take one or walk away from racing.</summary>
+    public static bool AtLastResort(Career career)
+    {
+        if (career.RetiredAt is not null || career.CurrentSeason.Review is null) return false;
+        var left = career.Offers.Where(Negotiation.Signable).ToList();
+        return left.Count > 0 && left.All(o => o.LastResort);
+    }
+
+    /// <summary>
+    /// 1.5: retires from the last-resort offers without the Hall of Fame rule met: no entry, just
+    /// "Retired, no seat" on the career card. (A career that meets the rule retires the usual way.)
+    /// </summary>
+    public static void RetireNoSeat(Career career, DateTimeOffset now)
+    {
+        if (!AtLastResort(career)) throw new PlayerError("You can only walk away like this when no better seat is left.");
+        career.RetiredAt = now;
+        career.RetiredNoSeat = true;
+    }
+
     // The 24-hour races first, then the 12 hours, then the rest.
     private static int Signature(string trackFolder) =>
         trackFolder.StartsWith("LeMans", StringComparison.OrdinalIgnoreCase) ? 3

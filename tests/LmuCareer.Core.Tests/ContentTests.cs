@@ -197,6 +197,36 @@ public class ContentTests
         Assert.False(CalendarBuilder.RefreshPitPlans(season));
     }
 
+    [Fact]
+    public void A_60_minute_run_of_a_6_hour_race_offers_one_to_three_stops()
+    {
+        // Mauro (Oct 31): 6 h rounds at 60 minutes, wanting x3 for strategy; the usual plan is Real with one stop.
+        var round = new Round { TrackFolder = "Spa_2023", LayoutFile = "", RealDurationHours = 6 };
+
+        var options = CalendarBuilder.PitOptions(round, 60, "GT3");
+        Assert.Equal([(1, 2), (2, 3), (3, 4)], options.Select(o => (o.FuelMultiplier, o.Stints)));
+        Assert.Equal(2, CalendarBuilder.UsualPlan(round, 60, "GT3").Stints);
+
+        CalendarBuilder.ApplyLength(round, 60, "GT3", fuel: 3);
+        Assert.Equal((60, 3, 3, 4), (round.RaceMinutes, round.FuelMultiplier, round.TireMultiplier, round.Stints));
+    }
+
+    [Fact]
+    public void A_short_race_offers_only_the_no_stop_plan()
+    {
+        var round = new Round { TrackFolder = "Spa_2023", LayoutFile = "", RealDurationHours = 6 };
+        var only = Assert.Single(CalendarBuilder.PitOptions(round, 15, "GT3"));
+        Assert.Equal((3, 1), (only.FuelMultiplier, only.Stints));
+    }
+
+    [Fact]
+    public void A_long_race_at_real_fuel_plans_a_stop_each_time_the_tank_runs_out()
+    {
+        // Before 1.5 a 2-hour run of a 6-hour race said "pit around halfway" though a tank lasts under an hour.
+        var format = RaceFormats.For(6, 120, tankMinutes: 50);
+        Assert.Equal((1, 3), (format.FuelMultiplier, format.Stints));
+    }
+
     [Theory]
     // Reddit, Nov 2: a 15/20-minute race planned a stop no one needed; the AI ran it on one tank at x3.
     [InlineData("GT3", "Spa_2023", 15, 1)]    // 51.5 min at Real: ~17 min at x3

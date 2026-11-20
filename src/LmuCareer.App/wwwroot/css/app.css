@@ -469,6 +469,22 @@ select.input { padding: 6px 8px; }
 .status-chip.FrontRunnerBudget { color: var(--text); border-color: var(--text); }
 .status-chip.Struggling { color: var(--bad); border-color: var(--bad); }
 .offer-notes { display: grid; gap: 2px; margin-top: 8px; font-size: 13px; }
+/* 1.5: the deal's reputation terms, a footnote under the story. */
+.offer-terms { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border-soft); font-size: 11.5px; letter-spacing: .02em; }
+.offer-perks { display: grid; gap: 4px; margin-top: 8px; font-size: 12.5px; }
+.offer-reply { margin-top: 8px; font-size: 12.5px; font-style: italic; color: var(--text-dim); }
+.offer-asked { margin-top: 4px; font-size: 12px; }
+.offer-asked .struck { text-decoration: line-through; color: var(--bad, #e06c6c); }
+.offer.gone { opacity: .55; }
+.talks-badge { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+  border: 1px solid var(--border-soft); margin-right: 8px; }
+.talks-badge.good { color: var(--good); border-color: currentColor; }
+.talks-badge.bad { color: var(--bad); border-color: currentColor; }
+.talks-badge.warn { color: var(--warn); border-color: currentColor; }
+.perk-pick { display: block; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-soft); cursor: pointer; }
+.perk-pick.on { border-color: var(--accent); }
+.perk-pick input { margin-right: 8px; vertical-align: middle; }
+.car-strip .offer-terms { margin: 0 0 0 auto; padding: 0; border: 0; white-space: nowrap; }
 .warn-text { color: var(--warn); }
 
 /* ---------- Achievements ---------- */
@@ -544,3 +560,125 @@ select.input { padding: 6px 8px; }
 .trophy-record.empty b { color: #59627a; }
 .trophy-focus h2 { font: 700 30px/1.1 "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
 .trophy-focus p { margin: 2px 0 0; color: #a0a8b9; font-size: 13px; }
+
+/* ---------- Preferred garage space (1.5 perk) ----------
+   While the contract holds the perk, the career's screens wear the premium look: forged carbon, brushed
+   metal and frosted hospitality panels, with the make's colour as the only accent (garage.js sets the
+   --team* colours and the --carbon tile). Locked from the 3c mockup; the red stripes step aside. */
+
+:root[data-garage] {
+  --team-text: var(--team-on-dark);
+  --accent: var(--team-text);
+  --accent-soft: color-mix(in srgb, var(--team) 18%, transparent);
+  --bg: #0d0e11;
+  --panel: rgba(16, 18, 22, 0.58);
+  --panel-solid: #15171b;
+  --panel-hover: rgba(26, 29, 35, 0.72);
+  --border: rgba(214, 220, 228, 0.28);
+  --border-soft: rgba(214, 220, 228, 0.12);
+  --text-dim: #b4bcc8;
+  --topbar: rgba(8, 9, 12, 0.55);
+  --metal: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.10) 0 1px, transparent 1px 3px),
+    linear-gradient(#eef1f4, #b9c0c9 46%, #959ca6 54%, #d3d8de);
+  --plate: var(--metal);
+  --plate-text: #12151a;
+  --frost-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+
+:root[data-garage][data-theme="light"] {
+  --team-text: var(--team-on-light);
+  --accent-soft: color-mix(in srgb, var(--team) 12%, transparent);
+  --bg: #e8eaef;
+  --panel: rgba(255, 255, 255, 0.74);
+  --panel-solid: #ffffff;
+  --panel-hover: rgba(255, 255, 255, 0.92);
+  --border: rgba(16, 20, 31, 0.22);
+  --border-soft: rgba(16, 20, 31, 0.10);
+  --text-dim: #4a5367;
+  --topbar: rgba(14, 16, 20, 0.84);
+  --plate: linear-gradient(#7a838f, #4a515b 46%, #353b43 54%, #5f6773);
+  --plate-text: #ffffff;
+  --frost-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 28px rgba(16, 20, 31, 0.12);
+}
+
+/* Dark: carbon under a clear coat, darkened and vignetted, the team's glow top right. */
+:root[data-garage] .backdrop {
+  background:
+    radial-gradient(ellipse 50% 60% at 82% 6%, var(--team-glow), transparent 70%),
+    radial-gradient(circle at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.6)),
+    linear-gradient(rgba(5, 6, 8, 0.18), rgba(5, 6, 8, 0.18)),
+    linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.02) 30%, rgba(255, 255, 255, 0.09) 42%,
+      rgba(255, 255, 255, 0.02) 50%, transparent 60%),
+    var(--carbon) #17181b; }
+:root[data-garage] .backdrop .stripe { display: none; }
+/* The livery lines, and a slow sweep of light across the coat. */
+:root[data-garage] .backdrop::before { content: ""; position: absolute; inset: 0; opacity: 0.75;
+  background: linear-gradient(118deg, transparent 64%, var(--team) 64% 64.8%, transparent 64.8% 65.8%,
+    var(--team-2) 65.8% 66.1%, transparent 66.1%); }
+:root[data-garage] .backdrop::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.06) 50%, transparent 58%) no-repeat;
+  background-size: 300% 100%; animation: garage-sweep 9s ease-in-out infinite; }
+@keyframes garage-sweep { from { background-position: 120% 0; } to { background-position: -20% 0; } }
+@media (prefers-reduced-motion: reduce) { :root[data-garage] .backdrop::after { animation: none; display: none; } }
+
+/* Light: a bright paddock wall, with a carbon band across the top that carries the bar and the heading. */
+:root[data-garage][data-theme="light"] .backdrop {
+  background: radial-gradient(ellipse 55% 60% at 92% 100%, var(--team-wash), transparent 70%),
+    linear-gradient(#f3f4f7, #e3e6ec); }
+:root[data-garage][data-theme="light"] .backdrop::before,
+:root[data-garage][data-theme="light"] .backdrop::after { display: none; }
+:root[data-garage][data-theme="light"] body::after { content: ""; position: absolute; top: 0; left: 0; right: 0;
+  height: var(--garage-band, 236px); z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(118deg, transparent 70%, var(--team) 70% 71.6%, transparent 71.6% 73%, var(--team-2) 73% 73.6%, transparent 73.6%),
+    linear-gradient(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.45)),
+    var(--carbon) #17181b; }
+:root[data-garage][data-theme="light"] .topbar { color: #f2f4f8; border-bottom-color: rgba(214, 220, 228, 0.14); }
+:root[data-garage][data-theme="light"] .topbar .tab,
+:root[data-garage][data-theme="light"] .topbar .back { color: #c9d0da; }
+:root[data-garage][data-theme="light"] .topbar .tab:hover,
+:root[data-garage][data-theme="light"] .topbar .tab.active,
+:root[data-garage][data-theme="light"] .topbar .back:hover { color: #f2f4f8; }
+:root[data-garage][data-theme="light"] .topbar .crumb { border-left-color: rgba(214, 220, 228, 0.2); }
+:root[data-garage][data-theme="light"] .topbar .brand em { color: var(--team-on-dark); }
+:root[data-garage][data-theme="light"] .topbar .icon-button { background: rgba(255, 255, 255, 0.08); border-color: rgba(214, 220, 228, 0.22); }
+:root[data-garage][data-theme="light"] .hero-title { color: #f2f4f8; }
+:root[data-garage][data-theme="light"] .hero-sub { -webkit-text-stroke-color: #c9d0da; }
+:root[data-garage][data-theme="light"] .hero-facts,
+:root[data-garage][data-theme="light"] .hero-mark .faint,
+:root[data-garage][data-theme="light"] .hero-map figcaption { color: #c9d0da; }
+:root[data-garage][data-theme="light"] .hero-mark { color: var(--team-on-dark); border-right-color: rgba(214, 220, 228, 0.2); }
+:root[data-garage][data-theme="light"] .hero-map svg { stroke: #f2f4f8; }
+
+/* The bar: smoked glass, the active tab underlined in the team's colour. */
+:root[data-garage] .tab.active { border-bottom-color: var(--team); }
+:root[data-garage] .tab .count { background: var(--team); color: var(--team-ink); }
+:root[data-garage] .tab .dot { background: var(--team); }
+
+.garage-badge { display: inline-flex; align-items: center; gap: 7px; padding: 3px 11px 2px; border-radius: 999px;
+  background: var(--metal); color: #12151a; white-space: nowrap; min-width: 0; max-width: 280px;
+  font: 700 13px "Barlow Condensed", var(--cjk); text-transform: uppercase; letter-spacing: 0.08em; }
+.garage-label { overflow: hidden; text-overflow: ellipsis; }
+.garage-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--team);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); }
+
+/* Frosted hospitality panels; the ones that matter carry the team's colour along the top. */
+:root[data-garage] .card { border: 1px solid var(--border); border-radius: 14px; backdrop-filter: blur(14px);
+  box-shadow: var(--frost-shadow); }
+:root[data-garage] .card:not(.quiet) { border-top: 2px solid var(--team); }
+:root[data-garage] .card.quiet { border-color: var(--border-soft); }
+:root[data-garage] .card.selected { border-color: var(--team-text); box-shadow: inset 0 0 0 1px var(--team-text), var(--frost-shadow); }
+:root[data-garage] .new-card { background: linear-gradient(160deg, var(--accent-soft), transparent 55%), var(--panel); }
+
+/* Section headings as engraved plates: brushed metal on dark, steel on light. */
+:root[data-garage] .section-title { width: fit-content; padding: 4px 14px 2px 12px; border-left: 4px solid var(--team);
+  border-radius: 3px; background: var(--plate); color: var(--plate-text);
+  font: 700 22px "Barlow Condensed", var(--cjk); letter-spacing: 0.10em; }
+
+/* Buttons in brushed metal with a team-coloured edge; hover rings them rather than flooding them. */
+:root[data-garage] .btn:not(.ghost):not(.ngp-wing) { background: var(--metal); color: #12151a;
+  box-shadow: inset 0 0 0 2px var(--team); letter-spacing: 0.04em; }
+:root[data-garage] .btn:not(.ghost):not(.ngp-wing):not(.danger):hover:not(:disabled) { background: var(--metal); color: #12151a;
+  box-shadow: inset 0 0 0 2px var(--team), 0 0 0 4px var(--team-line); }
+:root[data-garage] .btn.danger:hover:not(:disabled) { background: var(--bad); color: #fff; box-shadow: none; }
+:root[data-garage] .btn.ghost:hover:not(:disabled) { border-color: var(--team-text); }

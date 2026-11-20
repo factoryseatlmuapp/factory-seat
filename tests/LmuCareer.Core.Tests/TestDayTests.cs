@@ -32,6 +32,28 @@ public class TestDayTests
     }
 
     [Fact]
+    public void A_prototype_test_runs_the_car_listed_under_the_venues_championship()
+    {
+        // Issue #30: an LMP2 test at an ELMS venue came with the WEC Oreca, which LMU won't put on the ELMS layout.
+        for (var seed = 0; seed < 20; seed++)
+            foreach (var offer in TestDays.MakeOffers(PreSeason(40, CareerPath.Gt), Catalog, null, new Random(seed)))
+            {
+                var venue = Catalog.Event(offer.VenueEventId)!;
+                var car = Catalog.Car(offer.CarFolder)!;
+                if (venue.Series.StartsWith("european")) Assert.True(car.Seasons?.ContainsKey("ELMS") ?? true, $"{car.Folder} at {venue.Id}");
+            }
+    }
+
+    [Fact]
+    public void An_elms_layout_swaps_the_wec_oreca_for_its_elms_twin()
+    {
+        var wec = Catalog.Car("Oreca_07_LM_2023")!;
+        var silverstone = Catalog.Event("silverstone-4")!;
+        Assert.Equal("Oreca_07_ELMS_2023", Catalog.ForEvent(wec, silverstone).Folder);
+        Assert.Equal("Oreca_07_LM_2023", Catalog.ForEvent(wec, Catalog.Event("silverstone-6")!).Folder);
+    }
+
+    [Fact]
     public void Closer_to_hypercar_a_gt_driver_tests_there_too()
     {
         var offers = TestDays.MakeOffers(PreSeason(50, CareerPath.Gt), Catalog, null, new Random(1));
@@ -82,6 +104,18 @@ public class TestDayTests
         TestDays.Withdraw(career, offer.Id);
         Assert.Equal(3, career.CurrentSeason.Rounds.Count);
         Assert.Equal(2, career.CurrentSeason.Sponsors[0].RoundNumber);
+    }
+
+    [Fact]
+    public void A_test_that_has_been_run_cannot_be_withdrawn()
+    {
+        var (career, round) = Accepted();
+        var offer = career.CurrentSeason.TestOffers!.First(o => o.Accepted);
+        round.State = RoundState.Completed;
+
+        Assert.Throws<PlayerError>(() => TestDays.Withdraw(career, offer.Id));
+        Assert.True(offer.Accepted);
+        Assert.Contains(round, career.CurrentSeason.Rounds);
     }
 
     private static void Run(Career career, Round round, int laps, double mine, double ai)

@@ -2,6 +2,7 @@ import { call, onEvent } from "./api.js";
 import { h, put, clear, trackSvg, countrySelect } from "./dom.js";
 import { configureSound, sound } from "./sound.js";
 import { applyTheme } from "./theme.js";
+import { setGarage } from "./garage.js";
 import { setLocale, t, number, countryName } from "./i18n.js";
 import { setupView } from "./views/setup.js";
 import { careersView } from "./views/careers.js";
@@ -143,6 +144,9 @@ async function route() {
 
   // Only an open career listens for new results.
   if (screen !== "career") call("watchCareer", { id: "" }).catch(() => {});
+  // The garage perk's look belongs to the career's own screens (which put it back on or off as they
+  // load); signing the next season's deal is a new team, so it goes plain there too.
+  if (screen !== "career") setGarage(null);
 
   try {
     switch (screen) {

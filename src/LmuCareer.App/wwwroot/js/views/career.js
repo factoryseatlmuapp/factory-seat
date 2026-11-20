@@ -4,13 +4,15 @@ import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, close
 import { sound } from "../sound.js";
 import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
-import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
+import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed, termsNote,
+  PERKS, perkName, perkStory, canCounter, askedNote,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
 import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
 import { achievementList, achievementCount, achievementTile, popUnlocks } from "../achievements.js";
 import { openRecapCard } from "../recapCard.js";
+import { setGarage } from "../garage.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -68,7 +70,8 @@ function saveTicks(key, ticks) {
 const sponsorName = (deal) => (deal.localName && currentLanguage().startsWith("ko") ? deal.localName : deal.name);
 
 /** A message still waiting on the player: an interview not answered, a sponsor's offer not signed or declined. */
-const waitingOn = (m) => (m.interview && m.interview.answer == null && !m.interview.lapsed) || m.approach?.status === "Open";
+const waitingOn = (m, earlyOffers = []) => (m.interview && m.interview.answer == null && !m.interview.lapsed) || m.approach?.status === "Open"
+  || (m.offerId != null && earlyOffers.some((o) => o.id === m.offerId && o.early === "Open" && !o.walkedAway));
 
 /** Text the app saved in a career: its phrase when it has one, or the English it was saved in. */
 const saved = (phrase, english) => (phrase ? t(phrase) : english);
@@ -84,6 +87,7 @@ export async function careerView(view, id, tab) {
   // A finished season is reviewed (and the offers made) the first time the career opens after it.
   const finished = (s) => s.rounds.length > 0 && !s.rounds.some((r) => r.state === "Upcoming" || r.state === "Armed");
   if (finished(data.career.currentSeason) && !data.career.currentSeason.review) data = await call("endSeason", { id });
+  setGarage(data.garage);
 
   const show = (next) => go(`#/career/${id}/${next}`);
   const season = () => data.career.currentSeason;
@@ -105,6 +109,10 @@ export async function careerView(view, id, tab) {
   const driverPoints = (entry) => (entry.driverEligible ? points(entry) : 0);
   const playerEntry = (round) => round.result?.entries.find((e) => e.entry.isPlayer);
   const layoutName = (r) => tracks.get(r.trackFolder)?.layouts.find((l) => l.file === r.layoutFile)?.name ?? r.layoutFile;
+  /** The round's layout as LMU's layout list names it ("Default", "Layout 1A-V2"), if known. */
+  const layoutLmuName = (r) => tracks.get(r.trackFolder)?.layouts.find((l) => l.file === r.layoutFile)?.lmuName;
+  /** Under the LMU name, the app's own name for the layout, so it ties back to the calendar ("ELMS" = "Default"). */
+  const calendarName = (r) => layoutLmuName(r) && layoutLmuName(r) !== layoutName(r) ? t("Called {name} in the calendar", { name: layoutName(r) }) : null;
   const finish = (e) => (e.classRank ? t("P{n}", { n: e.classRank }) : { Dnf: t("DNF"), Dq: t("DQ") }[e.entry.status] ?? t("NC"));
 
   put(view, carStrip());
@@ -160,7 +168,11 @@ export async function careerView(view, id, tab) {
   const stopPractice = onEvent("practiceRead", (message) => {
     if (message.careerId === id && location.hash.includes(id) && tab === "briefing") show("briefing");
   });
-  stopListening = () => { stopRound(); stopPractice(); };
+  // A companion app started the race weekend for the player (start-weekend.request).
+  const stopStarted = onEvent("weekendStarted", (message) => {
+    if (message.careerId === id && location.hash.includes(id)) weekendStarted();
+  });
+  stopListening = () => { stopRound(); stopPractice(); stopStarted(); };
 
   // Results written while the app was closed or another screen was open turn up on arrival.
   if (armed()) {
@@ -341,7 +353,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "lmu-path" }, lmu("Circuit")),
           h("div", { class: "rows", style: { marginBottom: "16px" } },
             setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true, tick: tick("circuit") }),
-            setting(lmu("Layout"), layoutName(round), { big: true, tick: tick("layout") })),
+            setting(lmu("Layout"), layoutLmuName(round) ?? layoutName(round), { big: true, tick: tick("layout"), hint: calendarName(round) })),
           h("div", { class: "lmu-path" }, lmu("Car")),
           h("div", { class: "rows", style: { marginBottom: "16px" } }, round.guest ? guestCarRow(round, tick("car")) : carRow(car, tick("car"))),
           h("div", { class: "lmu-path" }, lmu("Event settings")),
@@ -359,7 +371,11 @@ export async function careerView(view, id, tab) {
         h("div", {},
           h("div", { class: "section-title" }, t("Race weekend")),
           weekendPanel(round, isArmed),
-          h("div", { class: "section-title", style: { marginTop: "24px" } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
+          h("div", { class: "row", style: { alignItems: "baseline", marginTop: "24px", marginBottom: "12px" } },
+            h("div", { class: "section-title", style: { margin: 0 } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
+            h("div", { class: "spacer" }),
+            isArmed || round.test ? null
+              : h("button", { class: "btn ghost small", onclick: () => changeLength(round) }, t("More or fewer stops"))),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
           floor ? null : pacePanel(),
           sponsorPanel(),
@@ -457,21 +473,26 @@ export async function careerView(view, id, tab) {
           if (updated) { data = updated; openTests(); }
         };
         const crossover = !ladderFor(data.career).includes(o.carClass);
+        // A test that's been run keeps its result: no withdrawing it.
+        const done = season().rounds.some((r) => r.test && r.test.teamName === o.teamName && r.test.carClass === o.carClass && r.state === "Completed");
         return h("div", { class: "card quiet offer promotion" + (o.accepted ? " selected" : "") },
           h("div", { class: "row" },
-            h("span", { class: "offer-kind" }, crossover ? t("Crossover test") : t("Test day")),
+            h("span", { class: "offer-kind" }, o.development ? t("Development driver") : crossover ? t("Crossover test") : t("Test day")),
             chip(o.carClass),
             h("div", { class: "spacer" }),
             h("span", { class: "faint" }, tierName(o.tier))),
           h("h3", { style: { margin: "8px 0 4px" } }, o.teamName),
           h("div", { class: "muted" }, [car?.name, where].filter(Boolean).join(" · ")),
-          crossover ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
+          o.development ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
+            t("Written into your contract: a day in the car a class up.")) : crossover ? h("div", { class: "faint", style: { fontSize: "12px", marginTop: "4px" } },
             t("A team from the other road. Impress them and a seat there opens up.")) : null,
           h("div", { class: "row", style: { marginTop: "10px" } },
             h("div", { class: "spacer" }),
-            o.accepted
-              ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
-              : h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))));
+            done
+              ? h("span", { class: "faint" }, t("Completed"))
+              : o.accepted
+                ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
+                : h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))));
       })),
       h("div", { class: "modal-actions" },
         h("button", { class: "btn ghost", onclick: () => { closeModal(); show("briefing"); }, "data-sound": "back" }, t("Done"))),
@@ -501,8 +522,11 @@ export async function careerView(view, id, tab) {
       h("div", { class: "notice info", style: { marginBottom: "24px" } },
         h("b", {}, t("They want to see what you can do")), " ", chip(test.carClass),
         test.reasonText || test.reason ? h("div", {}, t("{reason} caught their eye.", { reason: capitalize(saved(test.reasonText, test.reason)) })) : null,
-        h("div", {}, t("Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll call when the season's over. Fall short and nothing's lost.",
-          { n: test.minLaps, share })),
+        test.offerId
+          ? h("div", {}, t("They've offered you a seat for next season. Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll improve the offer a step. Fall short and the offer stands as it is.",
+            { n: test.minLaps, share }))
+          : h("div", {}, t("Run at least {n} laps in practice in their car, with AI in the session. Get within {share}% of the fastest AI lap in class and they'll call when the season's over. Fall short and nothing's lost.",
+            { n: test.minLaps, share })),
         h("div", { class: "muted" }, t("It isn't a race: it counts for no championship, and nothing else in your season moves."))),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1.25fr 1fr", alignItems: "start" } },
         h("div", {},
@@ -510,7 +534,7 @@ export async function careerView(view, id, tab) {
           h("div", { class: "lmu-path" }, lmu("Circuit")),
           h("div", { class: "rows", style: { marginBottom: "16px" } },
             setting(lmu("Circuit"), track?.name ?? round.trackCourse, { big: true }),
-            setting(lmu("Layout"), layoutName(round), { big: true })),
+            setting(lmu("Layout"), layoutLmuName(round) ?? layoutName(round), { big: true, hint: calendarName(round) })),
           h("div", { class: "lmu-path" }, lmu("Car")),
           h("div", { class: "rows", style: { marginBottom: "16px" } }, guestCarRow(round, null)),
           h("div", { class: "lmu-path" }, lmu("Event settings")),
@@ -619,15 +643,32 @@ export async function careerView(view, id, tab) {
       ? h("div", {}, quicker
         ? t("In practice your best lap was {s} s quicker than the fastest AI in class.", { s: s(here.gap) })
         : t("In practice your best lap was {s} s slower than the fastest AI in class.", { s: s(here.gap) }))
+      : here.visits === 1 && here.measuredAt != null
+      ? h("div", {}, quicker
+        ? t("Last time here you ran AI Strength {level} and were {s} s a lap quicker than the fastest AI.", { level: here.measuredAt, s: s(here.gap) })
+        : t("Last time here you ran AI Strength {level} and were {s} s a lap slower than the fastest AI.", { level: here.measuredAt, s: s(here.gap) }))
       : h("div", {}, quicker
         ? tn(here.visits, "Last time here you were {s} s a lap quicker than the fastest AI.", "Your {n} races here: {s} s a lap quicker than the fastest AI, the latest counting most.", { s: s(here.gap) })
         : tn(here.visits, "Last time here you were {s} s a lap slower than the fastest AI.", "Your {n} races here: {s} s a lap slower than the fastest AI, the latest counting most.", { s: s(here.gap) }));
+    // 1.5: a number to set, from the level LMU last wrote (Settings.JSON is saved when LMU closes).
+    const level = here?.strength;
+    const target = here?.suggested;
+    const todo = target == null
+      ? advice[1]
+      : level == null
+      ? t("Set AI Strength to {n} in LMU's Race Weekend settings.", { n: target })
+      : target === level && level >= 105 && /Easy$/.test(here.advice)
+      ? t("You're on AI Strength {level}, LMU's top setting. The AI can't go any quicker.", { level })
+      : target === level
+      ? t("You're on AI Strength {level}. Leave it there.", { level })
+      : t("You're on AI Strength {level}. Try {n}.", { level, n: target });
     return [
       h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Pace check")),
       h("div", { class: `notice ${advice[2]}` },
         h("b", {}, advice[0]),
         basis,
-        h("div", { class: "muted", style: { marginTop: "4px" } }, advice[1])),
+        h("div", { class: "muted", style: { marginTop: "4px" } }, todo),
+        level != null ? h("div", { class: "muted small" }, t("LMU saves AI Strength when it closes, so this is the level it had last time.")) : null),
     ];
   }
 
@@ -778,10 +819,10 @@ export async function careerView(view, id, tab) {
       h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Sponsors")),
       h("div", { class: "stack" },
         data.sponsors.map(dealCard),
-        open.length && data.sponsors.length < 2
+        open.length && data.sponsors.length < data.maxSponsors
           ? h("div", { class: "notice info" },
             h("b", {}, tn(open.length, "{n} sponsor offer", "{n} sponsor offers")),
-            h("div", {}, t("Personal deals, paid in reputation at the end of the season. Sign up to two before your first race counts.")),
+            h("div", {}, t("Personal deals, paid in reputation at the end of the season. Sign up to {n} before your first race counts.", { n: data.maxSponsors })),
             h("div", { style: { marginTop: "8px" } }, h("button", { class: "btn ghost small", onclick: openSponsors }, t("See offers"))))
           : null),
     ];
@@ -833,7 +874,7 @@ export async function careerView(view, id, tab) {
 
   function openSponsors() {
     const signedIds = data.sponsors.map((d) => d.deal.sponsorId);
-    const full = signedIds.length >= 2;
+    const full = signedIds.length >= data.maxSponsors;
     showModal([
       h("h2", {}, t("Sponsor offers")),
       h("p", { class: "muted" }, t("Each deal is one objective for this season. Meet it and the sponsor pays out in reputation at the season review; miss it and nothing is lost. Running their livery is optional.")),
@@ -844,7 +885,7 @@ export async function careerView(view, id, tab) {
           if (!updated) return;
           data = updated;
           toast(t("Signed with {name}.", { name: sponsorName(o.deal) }));
-          if (data.sponsors.length >= 2) { closeModal(); show("briefing"); } else openSponsors();
+          if (data.sponsors.length >= data.maxSponsors) { closeModal(); show("briefing"); } else openSponsors();
         };
         return h("div", { class: "card quiet offer" + (isSigned ? " selected" : "") },
           h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(o.deal.sponsorId)), h("div", { class: "spacer" }),
@@ -911,9 +952,11 @@ export async function careerView(view, id, tab) {
             t("A {class} team trying you out. Impress them and you're closer to a seat.", { class: CLASS_NAMES[o.carClass] })) : null,
           h("div", { class: "row", style: { marginTop: "10px" } },
             h("div", { class: "spacer" }),
-            o.accepted
-              ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
-              : [length, h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))]));
+            season().rounds.some((r) => r.guest && !r.test && r.eventId === o.eventId && r.state === "Completed")
+              ? h("span", { class: "faint" }, t("Completed"))
+              : o.accepted
+                ? h("button", { class: "btn ghost small", onclick: withdraw }, t("Withdraw"))
+                : [length, h("button", { class: "btn small", "data-sound": "confirm", onclick: accept }, t("Accept"))]));
       })),
       h("div", { class: "modal-actions" },
         h("button", { class: "btn ghost", onclick: () => { closeModal(); show("briefing"); }, "data-sound": "back" }, t("Done"))),
@@ -922,13 +965,15 @@ export async function careerView(view, id, tab) {
 
   // Each change re-opens the tab, which reloads the career.
   async function arm() {
-    if (await attempt(call("armRound", { id }))) {
-      toast(t("Race weekend started. Set it up in LMU and go racing."));
-      show("briefing");
-      // Raced first, started the weekend after: offer that race straight away.
-      const evaluation = await attempt(call("checkRound", { id }));
-      if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
-    }
+    if (await attempt(call("armRound", { id }))) await weekendStarted();
+  }
+
+  async function weekendStarted() {
+    toast(t("Race weekend started. Set it up in LMU and go racing."));
+    show("briefing");
+    // Raced first, started the weekend after: offer that race straight away.
+    const evaluation = await attempt(call("checkRound", { id }));
+    if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
   }
 
   /** A finished race for this round from just before the weekend started: count it, or race again. */
@@ -964,18 +1009,46 @@ export async function careerView(view, id, tab) {
     const length = h("select", { class: "input", style: { width: "180px" } },
       h("option", { value: "" }, t("Usual length")),
       RACE_LENGTHS.map((m) => h("option", { value: m, selected: m === round.raceMinutes }, formatMinutes(m))));
+    const minutes = () => (length.value ? +length.value : null);
+
+    // 1.5 ("more stops"): the pit plans this length offers; the usual one sends no fuel.
+    const stops = h("select", { class: "input", style: { width: "100%" } });
+    const stopsField = h("div", { style: { marginTop: "16px" } },
+      h("div", { class: "section-title", style: { margin: "0 0 6px" } }, t("Pit stops")), stops,
+      h("div", { class: "faint", style: { marginTop: "6px", fontSize: "12px" } },
+        t("More stops raise Fuel Usage and Tyre Wear together. The race is checked against what you pick.")));
+    let plans = [];
+    const loadPlans = async () => {
+      plans = (await attempt(call("pitPlans", { id, minutes: minutes() }))) || [];
+      const sameLength = (minutes() ?? null) === null ? null : minutes() === round.raceMinutes;
+      const current = sameLength !== false && plans.find((p) => p.fuel === round.fuelMultiplier && p.stints === round.stints);
+      const picked = current || plans.find((p) => p.usual);
+      clear(stops).append(...plans.map((p, i) => {
+        const fuel = p.fuel > 1 ? "x" + p.fuel : lmu("Real");
+        const count = p.stops === 0 ? t("No stop") : p.stops === 1 ? t("1 stop") : t("{n} stops", { n: p.stops });
+        const text = t("{stops} · Fuel Usage and Tyre Wear {fuel} · stints of about {time}", { stops: count, fuel, time: formatMinutes(p.stintMinutes) });
+        return h("option", { value: i, selected: p === picked }, p.usual ? t("{plan} (usual)", { plan: text }) : text);
+      }));
+      stopsField.style.display = plans.length > 1 ? "" : "none";
+    };
+    length.addEventListener("change", loadPlans);
+
     const apply = async () => {
-      if (await attempt(call("setRoundLength", { id, minutes: length.value ? +length.value : null }))) { closeModal(); show("briefing"); }
+      const plan = plans[+stops.value];
+      const fuel = plan && !plan.usual ? plan.fuel : null;
+      if (await attempt(call("setRoundLength", { id, minutes: minutes(), fuel }))) { closeModal(); show("briefing"); }
     };
     showModal([
-      h("h2", {}, t("Race length")),
+      h("h2", {}, t("Race length and pit stops")),
       h("p", { class: "muted" }, t("Race {event} for longer or shorter than planned. Time Scale, Fuel Usage, Tyre Wear and the pit plan change to fit; the points it's worth don't.", { event: round.eventName })),
       length,
+      stopsField,
       h("div", { class: "modal-actions" },
         h("div", { class: "spacer" }),
         h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Back")),
         h("button", { class: "btn", "data-sound": "confirm", onclick: apply }, t("Save"))),
     ]);
+    loadPlans();
   }
 
   async function disarm() {
@@ -1201,6 +1274,7 @@ export async function careerView(view, id, tab) {
         h("div", {},
           pathChoice(),
           h("div", { class: "section-title" }, t("Offers for season {n}", { n: season().number + 1 })),
+          lastResortNotice(),
           data.career.offers.length
             ? h("div", { class: "stack" }, data.career.offers.map(offerCard))
             : h("div", { class: "empty" }, t("No offers.")))));
@@ -1260,14 +1334,29 @@ export async function careerView(view, id, tab) {
       t("Season card"));
   }
 
+  /** Where the talks stand, for the card's corner: walked away, agreed, final offer, last resort. */
+  function talksBadge(offer) {
+    if (offer.walkedAway) return h("span", { class: "talks-badge bad" }, t("Walked away"));
+    if (offer.early === "Signed") return h("span", { class: "talks-badge good" }, t("Signed early"));
+    if (offer.agreed) return h("span", { class: "talks-badge good" }, t("Agreed"));
+    if (offer.finalOffer) return h("span", { class: "talks-badge warn" }, t("Final offer"));
+    if (offer.lastResort) return h("span", { class: "talks-badge" }, t("Take it or leave it"));
+    return null;
+  }
+
   function offerCard(offer) {
     const car = cat.cars.find((c) => c.folder === offer.carFolder);
-    return h("div", { class: "card clickable offer" + (offer.kind === "Promotion" ? " promotion" : ""), onclick: () => go(`#/next/${id}/${offer.id}`) },
+    const gone = offer.walkedAway;
+    return h("div", {
+      class: "card offer" + (gone ? " gone" : " clickable") + (offer.kind === "Promotion" ? " promotion" : ""),
+      onclick: gone ? null : () => go(`#/next/${id}/${offer.id}`),
+    },
       h("div", { class: "row" },
         h("span", { class: "offer-kind" }, offer.underContract ? t("Contract") : kindName(offer.kind)),
         offer.seasons > 1 ? h("span", { class: "offer-kind" }, tn(offer.seasons, "{n} season", "{n} seasons")) : null,
         chip(offer.carClass),
         h("div", { class: "spacer" }),
+        talksBadge(offer),
         h("span", { class: "faint" }, tierName(offer.tier))),
       h("div", { class: "row", style: { margin: "8px 0 4px" } },
         h("h3", {}, offer.teamName),
@@ -1275,10 +1364,126 @@ export async function careerView(view, id, tab) {
         offer.imsaTeam ? h("span", { class: "chip pack" }, offer.imsaTeam === offer.teamName ? t("+ IMSA") : t("+ IMSA with {team}", { team: offer.imsaTeam })) : null),
       h("div", { class: "muted" }, offerFacts(offer, car).filter((f) => f !== tierName(offer.tier)).join(" · ")),
       offerWarnings(offer),
+      offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
+        h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
+      offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
+      askedNote(offer),
       h("div", { class: "row", style: { marginTop: "10px" } },
         h("span", { class: "faint", style: { fontSize: "12px" } }, pitch(offer, car)),
         h("div", { class: "spacer" }),
-        h("span", { class: "btn small" }, t("Sign"))));
+        canCounter(offer) ? h("button", { class: "btn ghost small", onclick: (e) => { e.stopPropagation(); negotiate(offer); } }, t("Talk terms")) : null,
+        gone ? null : h("span", { class: "btn small" }, offer.early === "Signed" ? t("Build the next season") : t("Sign"))),
+      termsNote(offer));
+  }
+
+  /** Your form against what a team expects: what the talks run on. */
+  function formRead(offer) {
+    const midSeason = !season().review;
+    const position = midSeason ? data.championshipPosition : season().review.championshipPosition;
+    const leverage = offer.targetPosition - (position ?? offer.targetPosition + 6);
+    if (midSeason) {
+      if (leverage >= 3) return t("You're well ahead of what they'd expect: they won't want to lose you.");
+      if (leverage >= 0) return t("Your form so far matches what they expect: a fair hand to play.");
+      return t("Your form so far is short of what they expect: push too hard and they may walk away.");
+    }
+    if (leverage >= 3) return t("You beat what they'd expect by a distance: they won't want to lose you.");
+    if (leverage >= 0) return t("Your season matched what they expect: a fair hand to play.");
+    return t("Your season fell short of what they expect: push too hard and they may walk away.");
+  }
+
+  /**
+   * 1.5: haggling over an offer. Gains and losses (×0.8 to ×1.5, steps of 0.1) and up to 3 perks;
+   * 2 counters, the team's last reply is final. Asking past what the team can ever do is refused
+   * with no counter used. Talking never costs reputation.
+   */
+  function negotiate(offer) {
+    const ask = { gain: offer.gainModifier, loss: offer.lossModifier, perks: new Set(offer.perks ?? []) };
+    const left = 2 - offer.counters;
+    const body = h("div", {});
+    const fixed = (v) => Math.round(v * 10) / 10;
+    const stepper = (label, key, hint) => h("div", { class: "setting" },
+      h("div", { class: "label" }, label, h("div", { class: "faint", style: { fontSize: "12px" } }, hint)),
+      h("div", { class: "value row", style: { gap: "6px" } },
+        h("button", { class: "btn ghost small", disabled: ask[key] <= 0.8, onclick: () => { ask[key] = fixed(ask[key] - 0.1); render(); } }, "−"),
+        h("b", { style: { minWidth: "44px", textAlign: "center" } }, `×${number(ask[key], 1)}`),
+        h("button", { class: "btn ghost small", disabled: ask[key] >= 1.5, onclick: () => { ask[key] = fixed(ask[key] + 0.1); render(); } }, "+")));
+
+    function render() {
+      put(clear(body),
+        h("p", { class: "muted" }, formRead(offer)),
+        h("div", { class: "rows" },
+          // A mid-season offer's deal starts next season; an off-season one's is the season about to start.
+          offer.early != null
+            ? [stepper(t("Gains"), "gain", t("Every reputation gain next season is multiplied by this.")),
+              stepper(t("Losses"), "loss", t("Every reputation loss next season is multiplied by this."))]
+            : [stepper(t("Gains"), "gain", t("Every reputation gain this season is multiplied by this.")),
+              stepper(t("Losses"), "loss", t("Every reputation loss this season is multiplied by this."))]),
+        h("div", { class: "section-title", style: { marginTop: "14px" } }, t("Perks (up to {n})", { n: 3 })),
+        h("div", { class: "offer-perks" }, Object.keys(PERKS).map((p) => {
+          const on = ask.perks.has(p);
+          return h("label", { class: "perk-pick" + (on ? " on" : "") },
+            h("input", {
+              type: "checkbox", checked: on, disabled: !on && ask.perks.size >= 3,
+              onchange: () => { if (on) ask.perks.delete(p); else ask.perks.add(p); render(); },
+            }),
+            h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p)));
+        })),
+        termsNote({ gainModifier: ask.gain, lossModifier: ask.loss }),
+        h("div", { class: "faint", style: { fontSize: "12px", marginTop: "10px" } },
+          tn(left, "{n} counter left. Each one risks the team walking away. Talking never costs reputation.",
+            "{n} counters left. Each one risks the team walking away. Talking never costs reputation.")));
+    }
+
+    const send = async () => {
+      const result = await attempt(call("counterOffer", { id, offerId: offer.id, gain: ask.gain, loss: ask.loss, perks: [...ask.perks] }));
+      if (!result) return;
+      closeModal();
+      data = result;
+      // A mid-season offer is talked over in the inbox; an off-season one on the off-season page.
+      const early = offer.early != null;
+      const message = early ? data.career.inbox.find((m) => m.offerId === offer.id) : null;
+      if (message) openMessage = message.id;
+      show(early ? "inbox" : "briefing");
+      const updated = (early ? data.career.earlyOffers : data.career.offers).find((o) => o.id === offer.id);
+      if (!updated?.reply) return;
+      const said = t("{team}: {reply}", { team: offer.teamName, reply: saved(updated.reply, "") });
+      const countered = !updated.agreed && !updated.walkedAway;
+      toast(countered
+        ? `${said} ${t("Their offer: gains {gain} · losses {loss}{perks}.", {
+          gain: `×${number(updated.gainModifier, 1)}`, loss: `×${number(updated.lossModifier, 1)}`,
+          perks: updated.perks.length ? `, ${updated.perks.map(perkName).join(", ")}` : "",
+        })}`
+        : said);
+    };
+
+    render();
+    showModal([
+      h("h2", {}, t("Talk terms with {team}", { team: offer.teamName })),
+      body,
+      h("div", { class: "modal-actions" },
+        h("button", { class: "btn ghost", onclick: closeModal }, t("Cancel")),
+        h("button", { class: "btn", onclick: send }, t("Send counter"))),
+    ], { wide: true });
+  }
+
+  /** 1.5: only back-marker seats left after a season that fell short: take one, or retire. */
+  function lastResortNotice() {
+    if (!data.atLastResort) return null;
+    const retire = async () => {
+      const text = data.canRetire
+        ? t("The career stops racing for good and goes into the Hall of Fame. This can't be undone.")
+        : t("The career stops racing for good. It hasn't met the Hall of Fame rule (a season of {n} or more races), so it retires with no Hall of Fame place: \"Retired, no seat\". This can't be undone.", { n: 5 });
+      if (!await confirmDialog(t("Retire {name}?", { name: data.career.name }), text, { confirm: t("Retire") })) return;
+      const result = await attempt(call("retireNoSeat", { id }));
+      if (!result) return;
+      toast(result.entry ? t("{name} is in the Hall of Fame. New Game+ is open on the New career screen.", { name: data.career.name })
+        : t("{name} has retired.", { name: data.career.name }));
+      go("#/careers");
+    };
+    return h("div", { class: "notice bad", style: { marginBottom: "12px" } },
+      h("b", {}, t("No better seat is left")),
+      h("div", {}, t("Only back-marker teams will take you after this season. No haggling: take one of these seats, or retire.")),
+      h("button", { class: "btn ghost small", style: { marginTop: "8px" }, onclick: retire }, t("Retire instead")));
   }
 
   /** What signing does to loyalty: the bridge it burns, the standing it costs, the make that already knows you. */
@@ -1385,7 +1590,7 @@ export async function careerView(view, id, tab) {
   function inboxStrip() {
     const newest = [...data.career.inbox].reverse().find((m) => !m.read);
     if (!newest) return null;
-    const waiting = waitingOn(newest);
+    const waiting = waitingOn(newest, data.career.earlyOffers);
     return h("button", { class: "inbox-strip", onclick: () => { openMessage = newest.id; show("inbox"); } },
       h("span", { class: "inbox-strip-label" }, t("Inbox")),
       h("span", { class: "faint" }, t(newest.from)),
@@ -1412,7 +1617,7 @@ export async function careerView(view, id, tab) {
         h("div", { class: "inbox-from" }, t(m.from)),
         h("div", { class: "inbox-subject" }, t(m.subject)),
         h("div", { class: "inbox-meta" }, t("Season {season}, round {round}", { season: m.season, round: m.round }),
-          waitingOn(m) ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
+          waitingOn(m, data.career.earlyOffers) ? h("span", { class: "inbox-waiting" }, " · " + t("Waiting for your answer")) : null))));
 
     const drawDetail = () => put(clear(detail),
       h("div", { class: "faint" }, `${t(selected.from)} · ${dateTime(selected.at)}`),
@@ -1420,6 +1625,7 @@ export async function careerView(view, id, tab) {
       selected.interview ? null : selected.body.map((line) => h("p", { class: "inbox-line" }, t(line))),
       selected.interview ? interviewBlock(selected) : null,
       selected.approach ? approachBlock(selected) : null,
+      selected.offerId ? teamOfferBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
 
     /**
@@ -1466,7 +1672,7 @@ export async function careerView(view, id, tab) {
         Lapsed: [h("b", {}, t("Lapsed")), h("div", {}, t("Your next race counted before you answered."))],
       }[a.status];
       if (status) return h("div", { class: "notice" + (a.status === "Signed" ? " good" : "") }, status);
-      const full = data.sponsors.length >= 2;
+      const full = data.sponsors.length >= data.maxSponsors;
       const reply = async (sign) => {
         const updated = await attempt(call("answerApproach", { id, messageId: m.id, sign }));
         if (!updated) return;
@@ -1479,9 +1685,73 @@ export async function careerView(view, id, tab) {
           h("div", { class: "row" }, h("span", { class: "offer-kind" }, sponsorKind(a.deal.sponsorId)), h("div", { class: "spacer" }),
             h("span", { class: "faint" }, t("+{n} rep", { n: number(+a.deal.reward) }))),
           h("h3", { style: { margin: "8px 0 4px" } }, sponsorName(a.deal))),
-        full ? h("div", { class: "faint" }, t("You already carry two personal sponsors this season.")) : null,
+        full ? h("div", { class: "faint" }, t("You already carry {n} personal sponsors this season.", { n: data.maxSponsors })) : null,
         h("div", { class: "row", style: { gap: "10px" } },
           h("button", { class: "btn", disabled: full, "data-sound": "confirm", onclick: () => reply(true) }, t("Sign")),
+          h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));
+    }
+
+    /**
+     * 1.5: a team's mid-season offer for next season: the card (story, perks, terms footnote), then
+     * sign early, talk terms or turn it down while it's open; or what became of it.
+     */
+    /** A test day still to run that could move this offer up a step. */
+    function swayTestNote(offer) {
+      if (offer.early !== "Open" || offer.walkedAway) return null;
+      const test = season().rounds.find((r) => r.test?.offerId === offer.id && (r.state === "Upcoming" || r.state === "Armed"));
+      return test ? h("div", { class: "faint" }, t("Test day at {track} before the deadline: impress them and the offer goes up a step.", { track: test.trackCourse })) : null;
+    }
+
+    function teamOfferBlock(m) {
+      const offer = data.career.earlyOffers?.find((o) => o.id === m.offerId);
+      if (!offer) return null;
+      const car = cat.cars.find((c) => c.folder === offer.carFolder);
+      const current = teamName() || t("your team");
+      const card = h("div", { class: "card quiet offer" + (offer.walkedAway ? " gone" : "") + (offer.kind === "Promotion" ? " promotion" : "") },
+        h("div", { class: "row" },
+          h("span", { class: "offer-kind" }, kindName(offer.kind)),
+          offer.seasons > 1 ? h("span", { class: "offer-kind" }, tn(offer.seasons, "{n} season", "{n} seasons")) : null,
+          chip(offer.carClass),
+          h("div", { class: "spacer" }),
+          talksBadge(offer),
+          h("span", { class: "faint" }, tierName(offer.tier))),
+        h("div", { class: "row", style: { margin: "8px 0 4px" } },
+          h("h3", {}, offer.teamName),
+          offer.imsaTeam ? h("span", { class: "chip pack" }, offer.imsaTeam === offer.teamName ? t("+ IMSA") : t("+ IMSA with {team}", { team: offer.imsaTeam })) : null),
+        h("div", { class: "muted" }, offerFacts(offer, car).filter((f) => f !== tierName(offer.tier)).join(" · ")),
+        offerWarnings(offer),
+        offer.perks?.length ? h("div", { class: "offer-perks" }, offer.perks.map((p) =>
+          h("div", {}, h("b", {}, perkName(p)), " ", h("span", { class: "faint" }, perkStory(p))))) : null,
+        offer.reply ? h("div", { class: "offer-reply" }, t("{team}: {reply}", { team: offer.teamName, reply: saved(offer.reply, "") })) : null,
+        offer.swayed ? h("div", { class: "offer-reply" }, t("Improved after your test day.")) : swayTestNote(offer),
+        askedNote(offer),
+        termsNote(offer));
+
+      const status = offer.walkedAway ? null : {
+        Signed: [h("b", {}, t("Signed early")), h("div", {}, t("Announced. You finish this season with {team}; the new deal starts next season.", { team: current }))],
+        Declined: [h("b", {}, t("Turned down")), h("div", {}, t("No harm done."))],
+        Lapsed: [h("b", {}, t("Lapsed")), h("div", {}, t("{team} moved on and signed someone else.", { team: offer.teamName }))],
+      }[offer.early];
+      if (offer.walkedAway || status) {
+        return h("div", { class: "approach" }, card,
+          status ? h("div", { class: "notice" + (offer.early === "Signed" ? " good" : "") }, status) : null);
+      }
+
+      const reply = async (sign) => {
+        if (sign && !await confirmDialog(t("Sign with {team} for next season?", { team: offer.teamName }),
+          t("It's announced now and can't be undone. You finish this season with {current}; any other offer still open is turned down. Signing early costs no reputation.", { current }),
+          { confirm: t("Sign early") })) return;
+        const updated = await attempt(call("answerTeamOffer", { id, offerId: offer.id, sign }));
+        if (!updated) return;
+        data = updated;
+        if (sign) toast(t("Signed with {team} for next season.", { team: offer.teamName }));
+        openMessage = m.id;
+        show("inbox");
+      };
+      return h("div", { class: "approach" }, card,
+        h("div", { class: "row", style: { gap: "10px" } },
+          h("button", { class: "btn", "data-sound": "confirm", onclick: () => reply(true) }, t("Sign early")),
+          canCounter(offer) ? h("button", { class: "btn ghost", onclick: () => negotiate(offer) }, t("Talk terms")) : null,
           h("button", { class: "btn ghost", "data-sound": "back", onclick: () => reply(false) }, t("No thanks"))));
     }
 
@@ -1600,7 +1870,9 @@ export async function careerView(view, id, tab) {
           h("h1", { class: "hero-title" }, t("Career over")),
           h("div", { class: "hero-sub" }, t("Retired {date}", { date: dateTime(data.career.retiredAt) })))),
       h("div", { class: "card quiet", style: { maxWidth: "720px" } },
-        h("div", { class: "muted" }, t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
+        h("div", { class: "muted" }, data.career.retiredNoSeat
+          ? t("Retired, no seat. No team would give this career a better seat, and it walked away before reaching the Hall of Fame. Its seasons and standings stay here to look back on.")
+          : t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
         h("div", { class: "row", style: { marginTop: "14px" } },
           h("button", { class: "btn", onclick: () => go("#/new") }, t("Start a New Game+ career")),
           h("button", { class: "btn ghost", onclick: showHallEntry }, t("Hall of Fame")))));
@@ -1623,7 +1895,9 @@ export async function careerView(view, id, tab) {
   function retireCard() {
     if (data.career.retiredAt) {
       return [h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retired")),
-        h("div", { class: "card quiet muted" }, t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
+        h("div", { class: "card quiet muted" }, data.career.retiredNoSeat
+          ? t("Retired, no seat, on {date}. Its records stay here.", { date: dateTime(data.career.retiredAt) })
+          : t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
     }
     if (!data.canRetire) return null;
     const retire = async () => {

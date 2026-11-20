@@ -117,9 +117,10 @@ public static class FloorChecks
         // LMU writes Settings.JSON on exit: one not written since the weekend started says nothing about it.
         if (!File.Exists(install.SettingsFile) || File.GetLastWriteTimeUtc(install.SettingsFile) < since.UtcDateTime) return (null, null);
         // Both reads must say the same: a slider turned down and back between them shows as the odd one out.
+        // Without a floor (a normal career's pace check) the later read wins: the slider was most likely set in LMU after the weekend started.
         int? strength = (start?.Strength, now?.Strength) switch
         {
-            ({ } a, { } b) when a != b => round.Floor is { } f && a == f.AiStrength ? b : a,
+            ({ } a, { } b) when a != b => round.Floor is { } f ? (a == f.AiStrength ? b : a) : b,
             ({ } a, _) => a,
             (_, { } b) => b,
             _ => null,

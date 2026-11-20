@@ -26,6 +26,15 @@ public enum MessageKind
 
     /// <summary>The press on a rivalry with an AI driver, the race it started.</summary>
     Rivalry,
+
+    /// <summary>1.5: a team offering next season's seat mid-season, with a deadline; answered in the inbox.</summary>
+    TeamOffer,
+
+    /// <summary>1.5: mid-season offers that ran out unanswered.</summary>
+    OfferLapsed,
+
+    /// <summary>1.5: the current team on the player signing early elsewhere.</summary>
+    SignedEarly,
 }
 
 /// <summary>
@@ -57,6 +66,10 @@ public sealed class InboxMessage
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public SponsorApproach? Approach { get; set; }
 
+    /// <summary>For a team's mid-season offer: its id in <see cref="Career.EarlyOffers"/>.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? OfferId { get; set; }
+
     public static string IdFor(int season, int round, MessageKind kind) => $"{season}-{round}-{kind}".ToLowerInvariant();
 }
 
@@ -72,6 +85,7 @@ public static class Inbox
         // Questions and offers from earlier rounds can't be answered once another race has counted.
         Paddock.LapseOpenQuestions(career, round);
         Sponsorship.LapseOpenApproaches(career, round);
+        MidSeason.LapseOffers(career, round, now);
 
         // Newest last: what tops the inbox and the strip on Next race goes in last. The interview
         // waits for an answer, so it's on top; then the debrief.
@@ -82,8 +96,12 @@ public static class Inbox
         if (Paddock.Press(career, round, now) is { } press) Add(career, press);
 
         if (DebriefReport.For(round) is { } report)
-            Add(career, Message(season, round, MessageKind.Debrief, now, Phrase.Of("Your race engineer"),
-                Phrase.Of("Debrief: {event}", ("event", round.EventName)), EngineerNotes(report)));
+        {
+            // Expert engineer (a contract perk): a richer debrief, in the team's own races.
+            var expert = !round.Guest && Negotiation.Holds(season, Perk.ExpertEngineer);
+            Add(career, Message(season, round, MessageKind.Debrief, now, expert ? Phrase.Of("Your expert engineer") : Phrase.Of("Your race engineer"),
+                Phrase.Of("Debrief: {event}", ("event", round.EventName)), EngineerNotes(report, expert)));
+        }
 
         if (Paddock.Interview(career, round, now) is { } interview) Add(career, interview);
         career.InboxStarted = true;
@@ -137,7 +155,8 @@ public static class Inbox
     private static string Seconds(double value) => Math.Abs(value).ToString("0.000", CultureInfo.InvariantCulture);
 
     /// <summary>The engineer's read on the race, most important first.</summary>
-    public static List<Phrase> EngineerNotes(DebriefReport r)
+    /// <param name="expert">The Expert engineer perk: every sector against the best AI, the ideal lap, and the lap the pace started to go.</param>
+    public static List<Phrase> EngineerNotes(DebriefReport r, bool expert = false)
     {
         var notes = new List<Phrase>();
 
@@ -168,7 +187,16 @@ public static class Inbox
 
         // Where the time went.
         var sectors = r.Sectors.Where(s => s.Gap is not null).ToList();
-        if (sectors.Count > 0)
+        if (expert && sectors.Count > 0)
+        {
+            static string Signed(double gap) => (gap > 0 ? "+" : gap < 0 ? "−" : "±") + Seconds(gap);
+            notes.Add(Phrase.Of("Sector by sector against the best AI: {sectors}.",
+                ("sectors", string.Join(", ", sectors.Select(s => $"S{s.Sector} {Signed(s.Gap!.Value)}")))));
+            if (r.IdealLap is { } ideal && r.BestLap is { } bestLap && bestLap - ideal >= 0.1)
+                notes.Add(Phrase.Of("Your best sectors put together make a {ideal}: {gap} s still out there.",
+                    ("ideal", DebriefReport.LapTime(ideal)), ("gap", Seconds(bestLap - ideal))));
+        }
+        else if (sectors.Count > 0)
         {
             var worst = sectors.MaxBy(s => s.Gap)!;
             if (worst.Gap > 0.15)
@@ -197,6 +225,8 @@ public static class Inbox
                 (_, true) => Phrase.Of("Your pace fell off by {drop} s a lap from the start of the race to the end. Worth a look at tyre wear in the setup.", drop),
                 _ => Phrase.Of("Your pace fell off by {drop} s a lap over stint {n}. Worth a look at tyre wear in the setup.", drop, n),
             });
+            if (expert && fading.FadeFromLap is { } from)
+                notes.Add(Phrase.Of("It started going from lap {lap}.", ("lap", from)));
         }
 
         // Incidents.

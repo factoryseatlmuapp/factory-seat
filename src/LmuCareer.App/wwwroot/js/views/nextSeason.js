@@ -2,7 +2,7 @@ import { call } from "../api.js";
 import { h, put, clear, chip } from "../dom.js";
 import { setChrome, go, attempt, catalog, toast } from "../app.js";
 import { seasonBuilder } from "./seasonBuilder.js";
-import { offerFacts, CLASS_NAMES } from "./offers.js";
+import { offerFacts, termsNote, CLASS_NAMES } from "./offers.js";
 import { t } from "../i18n.js";
 
 // Signing an offer: build the new season's calendar, then start it. A championship-only career
@@ -23,7 +23,8 @@ export async function nextSeasonView(view, id, offerId) {
     h("span", { class: "lmu-path" }, t("Signing with")),
     chip(offer.carClass),
     h("span", { class: "car-name" }, offer.teamName),
-    h("span", { class: "muted" }, offerFacts(offer, car).join(" · ")));
+    h("span", { class: "muted" }, offerFacts(offer, car).join(" · ")),
+    termsNote(offer));
 
   await seasonBuilder(view, {
     cat,

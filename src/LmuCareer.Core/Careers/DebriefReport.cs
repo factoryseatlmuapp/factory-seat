@@ -9,8 +9,9 @@ public enum RanLow { No, Fuel, Energy }
 /// <param name="Average">Mean of the stint's clean laps; null when it had none.</param>
 /// <param name="DropOff">How much slower its last clean laps were than its first, in seconds a lap; null on a short stint.</param>
 /// <param name="RanLow">The stint ended with the tank or the virtual energy nearly empty: a slow end that isn't the tyres.</param>
+/// <param name="FadeFromLap">The lap the pace started to fall away, on a stint with a drop-off; null otherwise.</param>
 public sealed record StintSummary(int Number, int FirstLap, int LastLap, int CleanLaps, double? Average, double? Best, double? DropOff, string? Compound,
-    RanLow RanLow = RanLow.No);
+    RanLow RanLow = RanLow.No, int? FadeFromLap = null);
 
 /// <param name="Gap">Seconds: negative when the player was quicker.</param>
 public sealed record SectorCompare(int Sector, double? Mine, double? AiBest, double? Gap);
@@ -56,7 +57,8 @@ public sealed record DebriefReport(
     int Penalties,
     IReadOnlyList<ContactSummary> Contacts,
     IReadOnlyList<DamageSummary> Damage,
-    int AiLaps)
+    int AiLaps,
+    double? IdealLap = null)
 {
     /// <summary>Best lap against the fastest AI in class, in seconds: negative when the player was quicker.</summary>
     public double? Gap => BestLap is { } mine && AiBestLap is { } ai ? Math.Round(mine - ai, 3) : null;
@@ -119,7 +121,8 @@ public sealed record DebriefReport(
             Damage: events.Where(e => e.Kind == RaceEventKind.Damage && Standings.NameKey(e.Driver ?? "") == playerKey)
                 .Select(e => new DamageSummary(LapAt(laps, e.ElapsedSeconds), DamagedPart(e.Text)))
                 .ToList(),
-            AiLaps: me.LapsUnder(Controller.AI));
+            AiLaps: me.LapsUnder(Controller.AI),
+            IdealLap: sectors.Length == 3 && sectors.All(s => s.Mine is not null) ? Math.Round(sectors.Sum(s => s.Mine!.Value), 3) : null);
     }
 
     private static SectorCompare Compare(int sector, double? mine, double? ai) =>
@@ -158,10 +161,20 @@ public sealed record DebriefReport(
         {
             if (!laps[i].Pit && i < laps.Count - 1) continue;
             var stint = laps.Skip(start).Take(i - start + 1).ToList();
-            var times = stint.Where(l => clean.Contains(l.Number)).Select(l => l.LapTimeSeconds!.Value).ToList();
+            var cleanLaps = stint.Where(l => clean.Contains(l.Number)).ToList();
+            var times = cleanLaps.Select(l => l.LapTimeSeconds!.Value).ToList();
             double? drop = times.Count >= DropOffLaps
                 ? Math.Round(times.TakeLast(3).Average() - times.Take(3).Average(), 3)
                 : null;
+            // Where it went: the first clean lap after the opening three that, with the one after it,
+            // sits at least half the drop-off above the start (one slow lap alone is traffic).
+            int? fadeFrom = null;
+            if (drop > 0)
+            {
+                var slow = times.Take(3).Average() + drop.Value / 2;
+                for (var k = 3; k < times.Count && fadeFrom is null; k++)
+                    if (times[k] >= slow && (k + 1 >= times.Count || times[k + 1] >= slow)) fadeFrom = cleanLaps[k].Number;
+            }
             // A pit lap ends the stint refuelled, so the stint's end is the last lap before it.
             var end = stint.Where(l => !l.Pit).TakeLast(3).ToList();
             var ranLow = end.Any(l => l.Energy < NearlyEmpty) ? RanLow.Energy
@@ -176,7 +189,8 @@ public sealed record DebriefReport(
                 times.Count > 0 ? times.Min() : null,
                 drop,
                 stint[0].FrontCompound,
-                ranLow));
+                ranLow,
+                fadeFrom));
             start = i + 1;
         }
         return stints;

@@ -29,6 +29,8 @@ public sealed class ApiHost
     private readonly HallOfFame _hall = new(CareerStore.DefaultRoot);
     private readonly ContentCatalog _catalog = ContentCatalog.Default;
     private readonly ResultsWatcher _watcher;
+    // 1.5: a companion app asking, by file, to start the race weekend (see OnStartRequested).
+    private readonly ResultsWatcher _requests;
     private LmuInstall? _install;
 
     // The career whose screen is open: only it listens for new results.
@@ -41,6 +43,70 @@ public sealed class ApiHost
         _watcher = new ResultsWatcher(window.Invoke);
         _watcher.Settled += OnResultsSettled;
         if (_settings.LmuRoot is { } root && LmuInstall.LooksLikeInstall(root)) UseInstall(root);
+
+        // A request left from an earlier run is stale: it must never start a weekend later.
+        try { File.Delete(StartRequestPath); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        _requests = new ResultsWatcher(window.Invoke);
+        _requests.Settled += OnStartRequested;
+        try
+        {
+            Directory.CreateDirectory(CareerStore.DefaultRoot);
+            _requests.Watch(CareerStore.DefaultRoot, StartRequestFile);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            Log($"Start requests not watched: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// The file a companion app (an in-game overlay, say) writes next to briefing.json to press
+    /// "Start race weekend" for the player: its text is the career id from briefing.json. It's a
+    /// file, not a server, so the app stays off the network.
+    /// </summary>
+    public const string StartRequestFile = "start-weekend.request";
+    private static string StartRequestPath => Path.Combine(CareerStore.DefaultRoot, StartRequestFile);
+
+    /// <summary>A request older than this is stale (written, say, while the app was busy or closing) and is dropped.</summary>
+    private static readonly TimeSpan StartRequestMaxAge = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// A companion asked to start the race weekend. Honoured only for the career open on screen
+    /// (the one briefing.json describes while "open"), and only when its next round is waiting to
+    /// start; the file is removed either way, so a request is used once.
+    /// </summary>
+    private void OnStartRequested()
+    {
+        string text;
+        bool stale;
+        try
+        {
+            if (!File.Exists(StartRequestPath)) return;
+            stale = DateTime.UtcNow - File.GetLastWriteTimeUtc(StartRequestPath) > StartRequestMaxAge;
+            text = File.ReadAllText(StartRequestPath).Trim();
+            File.Delete(StartRequestPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return; // Still being written: the next change brings it back here.
+        }
+
+        if (stale || !Guid.TryParse(text, out var id) || id != _watchedCareer) return;
+        try
+        {
+            var career = _store.Load(id).Career;
+            if (career.RetiredAt is not null || career.CurrentSeason.ArmedRound is not null || career.CurrentSeason.NextRound is null) return;
+            Arm(career);
+            career.LastPlayedAt = DateTimeOffset.Now;
+            _store.Save(career);
+            WriteBriefing(career);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or JsonException or InvalidDataException)
+        {
+            Log($"Start request not honoured: {ex.Message}");
+            return;
+        }
+        _window.PostEvent(JsonSerializer.Serialize(new { @event = "weekendStarted", careerId = id }, Json));
     }
 
     private void UseInstall(string root)
@@ -145,8 +211,9 @@ public sealed class ApiHost
         "retireCareer" => RetireCareer(args),
         "hallOfFame" => new { entries = _hall.Entries(), headStarts = HeadStarts.Unlocked(_hall.Entries()) },
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
-        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason,
-            args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
+        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason, OptInt(args, "minutes"), OptInt(args, "fuel"))),
+        // 1.5: the pit plans the next round offers at a length, for the Race length window.
+        "pitPlans" => PitPlans(Load(args), OptInt(args, "minutes")),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
         "seeAchievements" => See(args),
@@ -164,6 +231,15 @@ public sealed class ApiHost
             args.TryGetProperty("minutes", out var guestMinutes) && guestMinutes.ValueKind == JsonValueKind.Number ? guestMinutes.GetInt32() : null, _catalog)),
         "withdrawGuest" => Change(args, c => GuestDrives.Withdraw(c, Str(args, "offerId"))),
         "acceptTest" => Change(args, c => TestDays.Accept(c, Str(args, "offerId"), _catalog)),
+        "counterOffer" => Change(args, c => Negotiation.Counter(StillRacing(c), Str(args, "offerId"),
+            args.GetProperty("gain").GetDecimal(), args.GetProperty("loss").GetDecimal(),
+            Strings(args, "perks").Select(Enum.Parse<Perk>).ToList(), _catalog, _install)),
+        "answerTeamOffer" => Change(args, c =>
+        {
+            if (args.TryGetProperty("sign", out var signEarly) && signEarly.GetBoolean()) MidSeason.Sign(StillRacing(c), Str(args, "offerId"), DateTimeOffset.Now);
+            else MidSeason.Decline(StillRacing(c), Str(args, "offerId"));
+        }),
+        "retireNoSeat" => RetireNoSeat(args),
         "choosePath" => Change(args, c => Progression.ChoosePath(c, Str(args, "path") == "prototype" ? CareerPath.Prototype : CareerPath.Gt, _catalog, _install)),
         "withdrawTest" => Change(args, c => TestDays.Withdraw(c, Str(args, "offerId"))),
         "readMessage" => ReadMessage(args),
@@ -398,7 +474,7 @@ public sealed class ApiHost
         tracks = _catalog.Tracks.Select(t => new
         {
             t.Folder, t.Name, t.Location, t.Country, t.LengthKm, t.Pack,
-            layouts = t.Layouts.Select(l => new { file = l.Key, name = l.Value, installed = _install?.HasLayout(t.Folder, l.Key) ?? true }),
+            layouts = t.Layouts.Select(l => new { file = l.Key, name = l.Value, lmuName = t.LmuName(l.Key), installed = _install?.HasLayout(t.Folder, l.Key) ?? true }),
         }),
         cars = _catalog.Cars.Select(c => new
         {
@@ -477,6 +553,7 @@ public sealed class ApiHost
                     TargetPosition = Progression.DefaultTarget,
                 },
                 Rounds = CalendarBuilder.Number(rounds),
+                ReputationRules = Progression.CurrentReputationRules,
             },
         };
         if (career.CurrentSeason.Rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
@@ -635,11 +712,11 @@ public sealed class ApiHost
     /// Keeps briefing.json next to the saves up to date with the career on screen, for companion
     /// apps. A file that can't be written (locked by a reader) waits for the next change.
     /// </summary>
-    private static void WriteBriefing(Career career)
+    private void WriteBriefing(Career career)
     {
         try
         {
-            BriefingFile.For(career, ContentCatalog.Default, Updates.CurrentLabel, DateTimeOffset.Now)
+            BriefingFile.For(career, ContentCatalog.Default, Updates.CurrentLabel, DateTimeOffset.Now, AiStrengthNow())
                 .Write(CareerStore.DefaultRoot);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -653,6 +730,7 @@ public sealed class ApiHost
         career,
         // Every achievement and progress on the ones still to earn; what's earned is in the career (unseen ones pop up).
         canRetire = Retirement.CanRetire(career),
+        atLastResort = Retirement.AtLastResort(career),
         achievements = new
         {
             all = Achievements.All,
@@ -666,6 +744,9 @@ public sealed class ApiHost
         }),
         sponsorOffers = (career.CurrentSeason.SponsorOffers ?? []).Select(d => new { deal = d, text = Sponsorship.Describe(d) }),
         canSignSponsors = !career.ChampionshipOnly && Sponsorship.CanSign(career.CurrentSeason),
+        maxSponsors = Sponsorship.MaxDealsFor(career.CurrentSeason),
+        // 1.5: Preferred garage space's premium look, in the make's colour; null without the perk.
+        garage = Garage.For(career, _catalog),
         pace = PaceCheck.Summarize(career.CurrentSeason),
         roundPace = career.CurrentSeason.Rounds.Select(PaceCheck.For).OfType<RoundPace>(),
         liveryRounds = Sponsorship.LiveryRounds(career.CurrentSeason) is var (custom, counted) ? new { custom, counted } : null,
@@ -684,7 +765,9 @@ public sealed class ApiHost
             .OrderByDescending(l => l.Points),
         // For each offer on the table: what signing it does to the loyalty left behind, and the
         // standing the player already has with the make or team it's with.
-        offerNotes = career.Offers.Select(o => new
+        // 1.5: where the player stands now, for mid-season talks (the review has it after the season).
+        championshipPosition = MidSeason.Position(career.CurrentSeason),
+        offerNotes = career.Offers.Concat(career.EarlyOffers.Where(MidSeason.IsOpen)).Select(o => new
         {
             o.Id,
             leaving = career.CurrentSeason.Review is null ? null
@@ -705,7 +788,7 @@ public sealed class ApiHost
         ladder = LadderView(career),
         unread = Inbox.Unread(career),
         // The next race's stakes, history here, practice and AI Strength advice.
-        preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next) : null,
+        preparation = career.CurrentSeason.NextRound is { } next ? Preparation.For(career, next, AiStrengthNow()) : null,
         // The season review worked out now, until the real one is written.
         projectedReputation = !career.ChampionshipOnly && career.CurrentSeason.Review is null && career.CurrentSeason.ChampionshipRounds.Any(r => r.State == RoundState.Completed)
             ? Progression.Review(career.CurrentSeason, career.Reputation) is var review ? review.ReputationAfter - review.ReputationBefore : (decimal?)null
@@ -742,11 +825,34 @@ public sealed class ApiHost
     }
 
     /// <summary>Signs an offer and starts the next season on the calendar from the season builder.</summary>
-    /// <summary>Starts the race weekend; New Game+ notes LMU's AI settings as they are now, to check against later.</summary>
+    /// <summary>
+    /// Starts the race weekend, noting LMU's AI settings as they are now: New Game+ checks against
+    /// them, and every career's pace check reads the race's AI Strength from them.
+    /// </summary>
     private void Arm(Career career)
     {
         var round = RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
-        if (career.IsNewGamePlus && _install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+        if (_install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+    }
+
+    /// <summary>LMU's AI Strength as of its last exit (Settings.JSON); null when it can't be read.</summary>
+    private int? AiStrengthNow() => _install is null ? null : AiProof.Settings(_install.SettingsFile)?.Strength;
+
+    private static int? OptInt(JsonElement args, string name) =>
+        args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+
+    /// <summary>The next round's pit plans at a length, fewest stops first, the usual one marked (picking it sends no fuel).</summary>
+    private static object PitPlans(Career career, int? minutes)
+    {
+        var usual = RoundFlow.UsualPlan(career.CurrentSeason, minutes).Stints;
+        return RoundFlow.PitOptions(career.CurrentSeason, minutes).Select(f => new
+        {
+            fuel = f.FuelMultiplier,
+            f.Stints,
+            stops = f.Stints - 1,
+            stintMinutes = (int)Math.Round(f.RaceMinutes / (double)f.Stints),
+            usual = f.Stints == usual,
+        });
     }
 
     /// <summary>A retired career keeps its records but races no more.</summary>
@@ -761,6 +867,20 @@ public sealed class ApiHost
         _hall.Add(entry);
         _store.Save(career);
         return new { entry, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
+    }
+
+    /// <summary>
+    /// 1.5: walking away from the last-resort seats. A career that meets the Hall of Fame rule
+    /// retires into it as usual; one that doesn't is "Retired, no seat".
+    /// </summary>
+    private object RetireNoSeat(JsonElement args)
+    {
+        var career = Load(args);
+        if (!Retirement.AtLastResort(career)) throw new PlayerError("You can only walk away like this when no better seat is left.");
+        if (Retirement.CanRetire(career)) return RetireCareer(args);
+        Retirement.RetireNoSeat(career, DateTimeOffset.Now);
+        _store.Save(career);
+        return new { entry = (object?)null, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
     }
 
     private object StartNextSeason(JsonElement args)
@@ -848,7 +968,9 @@ public sealed class ApiHost
         var noticed = round is null ? null : Progression.NoticeResult(career, round, _catalog, _install);
         var approach = round is null ? null : Sponsorship.Approach(career, round, _catalog, _settings.BuiltLiveries,
             _settings.CustomSponsors.Select(s => s.ToSponsor()).ToList(), Language, DateTimeOffset.Now);
-        if (noticed is not null || approach is not null) _store.Save(career);
+        // 1.5: a team a tier or class up can offer next season's seat, answered in the inbox.
+        var offered = round is null ? null : MidSeason.AfterRace(career, round, _catalog, _install, DateTimeOffset.Now);
+        if (noticed is not null || approach is not null || offered is not null) _store.Save(career);
         return new { view = CareerView(career), noticed };
     }
 

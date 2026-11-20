@@ -14,7 +14,8 @@ public sealed record CareerSummary(
     DateTimeOffset LastPlayedAt,
     decimal Reputation = 0,
     bool NewGamePlus = false,
-    bool Retired = false);
+    bool Retired = false,
+    bool RetiredNoSeat = false);
 
 public sealed record LoadedCareer(Career Career, bool RecoveredFromBackup);
 
@@ -162,7 +163,8 @@ public sealed class CareerStore
         c.LastPlayedAt,
         c.Reputation,
         c.IsNewGamePlus,
-        c.RetiredAt is not null);
+        c.RetiredAt is not null,
+        c.RetiredNoSeat);
 
     private string PathFor(Guid id) => Path.Combine(_careersDir, id.ToString("N") + Extension);
 

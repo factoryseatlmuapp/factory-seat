@@ -27,6 +27,9 @@ public static class Sponsorship
 {
     public const int MaxDeals = 2;
 
+    /// <summary>How many personal sponsors the season can carry: one more with the Preferred sponsors perk.</summary>
+    public static int MaxDealsFor(Season season) => MaxDeals + (Negotiation.Holds(season, Perk.PreferredSponsors) ? 1 : 0);
+
     /// <summary>The most offers a season starts with (at 60 reputation).</summary>
     public const int OffersMade = 3;
 
@@ -74,6 +77,7 @@ public static class Sponsorship
         var count = career.Reputation >= 60 ? 3 : career.Reputation >= 40 ? 2 : 1;
         if (career.CurrentSeason.Contract?.Tier == 3) count--;
         if (HeadStarts.Has(career, HeadStarts.ExtraSponsor)) count++;
+        if (Negotiation.Holds(career.CurrentSeason, Perk.PreferredSponsors)) count++;
         return Math.Max(1, count);
     }
 
@@ -149,6 +153,9 @@ public static class Sponsorship
         return deal;
     }
 
+    // Declared before Regions: static fields initialise in order.
+    private static readonly string[] SouthAmerica = ["AR", "BO", "BR", "CL", "CO", "EC", "GY", "PE", "PY", "SR", "UY", "VE"];
+
     // Where local brands come from when the driver's own country has too few (design doc, Oct 13).
     private static readonly Dictionary<string, string[]> Regions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -157,6 +164,10 @@ public static class Sponsorship
         ["AT"] = ["DE"],
         ["CH"] = ["DE"],
         ["PT"] = ["BR"],
+        // South America (1.5, Mauro's picks): a country with fewer than three brands draws on the continent's.
+        ["AR"] = SouthAmerica, ["BO"] = SouthAmerica, ["BR"] = SouthAmerica, ["CL"] = SouthAmerica,
+        ["CO"] = SouthAmerica, ["EC"] = SouthAmerica, ["GY"] = SouthAmerica, ["PE"] = SouthAmerica,
+        ["PY"] = SouthAmerica, ["SR"] = SouthAmerica, ["UY"] = SouthAmerica, ["VE"] = SouthAmerica,
     };
 
     private static readonly Dictionary<string, string[]> LanguageCountries = new(StringComparer.OrdinalIgnoreCase)
@@ -166,6 +177,7 @@ public static class Sponsorship
         ["es"] = ["ES"],
         ["pt"] = ["BR"],
         ["ko"] = ["KR"],
+        ["hu"] = ["HU"],
         ["en"] = ["US", "GB", "IE"],
     };
 
@@ -257,7 +269,7 @@ public static class Sponsorship
         if (!CanSign(season)) throw new PlayerError("Sponsors sign before the season's first round counts.");
         var offer = season.SponsorOffers?.FirstOrDefault(o => o.SponsorId == sponsorId) ?? throw new KeyNotFoundException("That deal isn't on offer.");
         if (season.Sponsors.Any(s => s.SponsorId == sponsorId)) return;
-        if (season.Sponsors.Count >= MaxDeals) throw new PlayerError("You can carry {n} personal sponsors. Drop one first.", ("n", MaxDeals));
+        if (season.Sponsors.Count >= MaxDealsFor(season)) throw new PlayerError("You can carry {n} personal sponsors. Drop one first.", ("n", MaxDealsFor(season)));
         season.Sponsors.Add(offer);
     }
 
@@ -409,7 +421,7 @@ public static class Sponsorship
         IReadOnlyList<SponsorInfo> ownSponsors, string language, DateTimeOffset now, int? seed = null)
     {
         var season = career.CurrentSeason;
-        if (career.ChampionshipOnly || season.SponsorRules < CurrentRules || round.Guest || season.Sponsors.Count >= MaxDeals) return null;
+        if (career.ChampionshipOnly || season.SponsorRules < CurrentRules || round.Guest || season.Sponsors.Count >= MaxDealsFor(season)) return null;
         var left = season.ChampionshipRounds.Where(r => r.Number > round.Number && r.State is RoundState.Upcoming or RoundState.Armed).ToList();
         if (left.Count == 0 || !BeatExpectations(career, round)) return null;
 
@@ -483,7 +495,7 @@ public static class Sponsorship
             approach.Status = ApproachStatus.Declined;
             return;
         }
-        if (season.Sponsors.Count >= MaxDeals) throw new PlayerError("You already carry {n} personal sponsors this season.", ("n", MaxDeals));
+        if (season.Sponsors.Count >= MaxDealsFor(season)) throw new PlayerError("You already carry {n} personal sponsors this season.", ("n", MaxDealsFor(season)));
         season.Sponsors.Add(approach.Deal);
         approach.Status = ApproachStatus.Signed;
     }

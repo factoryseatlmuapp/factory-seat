@@ -190,6 +190,7 @@ public static class CareerActions
         var season = career.CurrentSeason;
         var round = season.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
         var scored = RoundFlow.Accept(round, evaluation, now, takeDnf, acceptDifferences);
+        round.AiStrength = FloorChecks.Proof(round, install).Strength;
         FloorChecks.AfterRace(career, round, scored.Race, evaluation.Qualifying?.Session, now, install);
 
         if (scored.Race.Player is { } player)

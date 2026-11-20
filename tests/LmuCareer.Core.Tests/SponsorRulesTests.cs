@@ -26,8 +26,9 @@ public class SponsorRulesTests
     public void The_catalog_has_the_local_tier()
     {
         var locals = Catalog.Sponsors.Where(s => s.Kind == "local").ToList();
-        Assert.Equal(32, locals.Count);
-        Assert.Equal(["BR", "DE", "ES", "FR", "GB", "IE", "KR", "US"], locals.Select(s => s.Country).Distinct().Order());
+        Assert.Equal(32 + 70, locals.Count);
+        Assert.Equal(["AR", "BO", "BR", "CH", "CL", "CO", "DE", "EC", "ES", "FR", "GB", "GY", "HU", "IE", "IN", "KR", "PE", "PY", "SR", "US", "UY"], locals.Select(s => s.Country).Distinct().Order());
+        Assert.Equal(locals.Count, locals.Select(s => s.Id).Distinct().Count());
         Assert.Equal("성심당", locals.Single(s => s.Id == "sungsimdang").LocalName);
     }
 
@@ -65,13 +66,21 @@ public class SponsorRulesTests
     [Theory]
     [InlineData("IE", "en", "GB,IE")]
     [InlineData("AT", "en", "DE")]
-    [InlineData("CH", "fr", "DE")]
+    [InlineData("CH", "fr", "CH")]
+    [InlineData("AT", "fr", "DE")]
     [InlineData("PT", "en", "BR")]
     [InlineData(null, "ko", "KR")]
     [InlineData(null, "pt-BR", "BR")]
     [InlineData("JP", "fr", "FR")]
     [InlineData("JP", "en", "US,GB,IE")]
     [InlineData("US", "de", "US")]
+    [InlineData("AR", "en", "AR")]
+    [InlineData("BO", "en", "AR,BO,BR,CL,CO,EC,GY,PE,PY,SR,UY,VE")]
+    [InlineData("UY", "es", "AR,BO,BR,CL,CO,EC,GY,PE,PY,SR,UY,VE")]
+    [InlineData("VE", "en", "AR,BO,BR,CL,CO,EC,GY,PE,PY,SR,UY,VE")]
+    [InlineData("GY", "en", "AR,BO,BR,CL,CO,EC,GY,PE,PY,SR,UY,VE")]
+    [InlineData("IN", "en", "IN")]
+    [InlineData(null, "hu", "HU")]
     public void Local_brands_come_from_the_country_then_its_region_then_the_language(string? nationality, string language, string countries)
     {
         var pool = Sponsorship.LocalPool(Catalog, nationality, language);

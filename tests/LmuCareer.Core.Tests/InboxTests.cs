@@ -33,7 +33,7 @@ public sealed class InboxTests : IDisposable
         return xml.ToString();
     }
 
-    private static Career CareerWith(ResultsXml race, int target = 6, int rounds = 3, int count = 1)
+    private static Career CareerWith(ResultsXml race, int target = 6, int rounds = 3, int count = 1, Perk[]? perks = null)
     {
         var career = new Career
         {
@@ -44,7 +44,7 @@ public sealed class InboxTests : IDisposable
             {
                 Number = 1,
                 Car = new CareerCar("Lexus RCF LMGT3", "GT3", "69", "Sample Racing"),
-                Contract = new Contract { TeamName = "Sample Racing", TargetPosition = target },
+                Contract = new Contract { TeamName = "Sample Racing", TargetPosition = target, Perks = [.. perks ?? []] },
                 Rounds = Enumerable.Range(1, rounds).Select(n => new Round
                 {
                     Number = n, EventName = $"Round {n} 6 Hours", TrackCourse = "Circuit de la Sarthe",
@@ -97,6 +97,37 @@ public sealed class InboxTests : IDisposable
         var notes = Inbox.EngineerNotes(empty);
         Assert.Contains(notes, n => n.Text.Contains("virtual energy ran low"));
         Assert.DoesNotContain(notes, n => n.Text.Contains("tyre wear"));
+    }
+
+    /// <summary>One lap's XML with its own first and third sectors (the second is 30 s).</summary>
+    private static string Lap(int n, double et, double time, double s1) => string.Create(CultureInfo.InvariantCulture,
+        $"<Lap num=\"{n}\" p=\"1\" et=\"{et}\" s1=\"{s1}\" s2=\"30\" s3=\"{time - s1 - 30:0.000}\" topspeed=\"250\" fcompound=\"0,Medium\">{time}</Lap>");
+
+    [Fact]
+    public void An_expert_engineer_lists_every_sector_the_ideal_lap_and_where_the_pace_went()
+    {
+        // Lap 3 has the best first sector, lap 4 the best lap; from lap 6 the pace fades.
+        (double Time, double S1)[] laps = [(110, 40), (100.5, 30.5), (100.5, 30.0), (100.3, 30.3), (100.5, 30.5), (102, 31), (102, 31), (102, 31)];
+        var et = 100.0;
+        var xml = string.Concat(laps.Select((l, i) => { var lap = Lap(i + 1, et, l.Time, l.S1); et += l.Time; return lap; }));
+        var race = new ResultsXml()
+            .Car("Sam Sample", player: true, number: "69", team: "Sample Racing", classPos: 1, laps: 8, lapsXml: xml, best: 100.3)
+            .Car("Dan Harper", classPos: 2, laps: 8, lapsXml: Laps(Enumerable.Repeat(99.8, 8).ToArray(), s1: 29.8));
+
+        var career = CareerWith(race, perks: [Perk.ExpertEngineer]);
+        var report = DebriefReport.For(career.CurrentSeason.Rounds[0])!;
+        Assert.Equal(100.0, report.IdealLap);
+        Assert.Equal(6, report.Stints[0].FadeFromLap);
+
+        var expert = Inbox.EngineerNotes(report, expert: true).Select(n => n.ToString()).ToList();
+        Assert.Contains("Sector by sector against the best AI: S1 +0.200, S2 ±0.000, S3 ±0.000.", expert);
+        Assert.Contains("Your best sectors put together make a 1:40.000: 0.300 s still out there.", expert);
+        Assert.Contains("It started going from lap 6.", expert);
+        var debrief = career.Inbox.Single(m => m.Kind == MessageKind.Debrief);
+        Assert.Equal("Your expert engineer", debrief.From.ToString());
+
+        var plain = Inbox.EngineerNotes(report).Select(n => n.ToString()).ToList();
+        Assert.DoesNotContain(plain, n => n.StartsWith("Sector by sector") || n.StartsWith("Your best sectors") || n.StartsWith("It started going"));
     }
 
     [Fact]

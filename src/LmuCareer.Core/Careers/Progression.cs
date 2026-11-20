@@ -1,5 +1,6 @@
 using LmuCareer.Core.Content;
 using LmuCareer.Core.Results;
+using LmuCareer.Core.Scoring;
 
 namespace LmuCareer.Core.Careers;
 
@@ -18,6 +19,46 @@ public static class Progression
     /// <summary>Reputation drifts: one season moves it at most this far up or down.</summary>
     public const decimal MaxGain = 25;
     public const decimal MaxLoss = 12;
+
+    /// <summary>A season started on 1.5's reputation rules gets this in <see cref="Season.ReputationRules"/>.</summary>
+    public const int CurrentReputationRules = 1;
+
+    /// <summary>1.5: a race this long or longer counts in full; shorter ones count pro rata (anti-farm).</summary>
+    public const int FullLengthMinutes = 45;
+
+    /// <summary>1.5: a win at a Triple Crown race run at least this long pays <see cref="TripleCrownWin"/>.</summary>
+    public const int TripleCrownMinutes = 360;
+    public const decimal TripleCrownWin = 10;
+    public static readonly IReadOnlySet<string> TripleCrownEvents = new HashSet<string> { "le-mans-24", "daytona-24", "sebring-12", "sebring-1000" };
+
+    /// <summary>
+    /// 1.5: how strong the team is, as its opening offer on both modifiers: front-runner ×1.3,
+    /// midfield ×1.1, back-marker ×1.0.
+    /// </summary>
+    public static decimal Prestige(int tier) => tier switch
+    {
+        1 => 1.3m,
+        2 => 1.1m,
+        _ => 1.0m,
+    };
+
+    /// <summary>1.5: the most a season can cost: 12 × the team's prestige (16 / 13 / 12). There's no gain cap.</summary>
+    public static decimal LossLimit(int tier) => Math.Round(MaxLoss * Prestige(tier), MidpointRounding.AwayFromZero);
+
+    /// <summary>The gain and loss modifiers a deal runs on: negotiated, or else the team's prestige.</summary>
+    public static (decimal Gain, decimal Loss) Modifiers(Contract? contract)
+    {
+        var opening = Prestige(contract?.Tier ?? 2);
+        return (contract?.GainModifier ?? opening, contract?.LossModifier ?? opening);
+    }
+
+    /// <summary>1.5: the share of a race's reputation it pays: min(1, minutes ÷ 45). Unknown length counts in full.</summary>
+    public static decimal LengthFactor(Round round) =>
+        round.RaceMinutes <= 0 ? 1 : Math.Min(1m, round.RaceMinutes / (decimal)FullLengthMinutes);
+
+    /// <summary>1.5: a class win at Daytona, Sebring or Le Mans in a race run 6 hours or more.</summary>
+    public static bool TripleCrown(Round round, ScoredEntry me) =>
+        me.ClassRank == 1 && round.RaceMinutes >= TripleCrownMinutes && TripleCrownEvents.Contains(round.EventId);
 
     /// <summary>Strong LMP3 or LMP2 seasons a Hypercar team wants to see first.</summary>
     public const int PrototypeSeasonsForHypercar = 2;
@@ -106,8 +147,9 @@ public static class Progression
         career.Reputation = season.Review.ReputationAfter;
         career.Rating = RatingFor(career.Reputation);
         Loyalties.AfterSeason(career, catalog);
+        MidSeason.CloseSeason(career);
         career.Offers = MakeOffers(career, catalog, install, new Random(seed ?? Seed(career))).ToList();
-        Teams.AddImsa(career, career.Offers, catalog, install, new Random((seed ?? Seed(career)) ^ 0x1A5A));
+        AddImsa(career, catalog, install, new Random((seed ?? Seed(career)) ^ 0x1A5A));
         return true;
     }
 
@@ -117,13 +159,26 @@ public static class Progression
     public const string CapDown = "Reputation falls at most {n} a season"; // phrase
     public const string RaceCostsItem = "New Game+: penalties, disqualifications and barrier DNFs"; // phrase
 
+    public const string PrestigeGains = "Team prestige: gains ×{x}"; // phrase
+    public const string PrestigeLosses = "Team prestige: losses ×{x}"; // phrase
+
+    private static string Times(decimal x) => x.ToString("0.0#", System.Globalization.CultureInfo.InvariantCulture);
+
     public static SeasonReview Review(Season season, decimal reputationBefore)
     {
         var carClass = season.Car.CarClass;
         var target = season.Contract?.TargetPosition ?? DefaultTarget;
         var completed = season.ChampionshipRounds.Where(r => r.State == RoundState.Completed && r.Result is not null).ToList();
         var weight = Math.Min(1.0, completed.Count / (double)FullSeasonRounds);
-        var w = (decimal)weight;
+
+        // 1.5's rules: each race pays by its length, season-long items by the season's average length.
+        var white = season.ReputationRules >= CurrentReputationRules;
+        decimal Length(Round round) => white ? LengthFactor(round) : 1;
+        decimal AverageLength(IReadOnlyCollection<Round> rounds) => rounds.Count == 0 ? 1 : rounds.Average(Length);
+        var seasonLength = AverageLength(completed);
+        var w = (decimal)weight * seasonLength;
+        var tier = season.Contract?.Tier ?? 2;
+        decimal giantKiller = 0;
 
         var table = season.Standings().FirstOrDefault(s => s.CarClass.Equals(carClass, StringComparison.OrdinalIgnoreCase));
         var index = table?.Drivers.ToList().FindIndex(d => d.IsPlayer) ?? -1;
@@ -154,7 +209,14 @@ public static class Progression
             if (met)
             {
                 Add(Phrase.Of("Team target met (top {n})", ("n", target)), 6 * w);
-                if (position <= target - 3) Add(Phrase.Of("Beat the target by {n} places", ("n", target - position)), 3 * w);
+                if (white && tier >= 3)
+                {
+                    // 1.5: a back-marker's giant-killer bonus is graded, flat (never multiplied by prestige).
+                    var bonus = position switch { <= 3 => 8m, <= 5 => 5m, _ when position <= target - 3 => 3m, _ => 0m };
+                    giantKiller = Math.Round(bonus * w, 1);
+                    Add(Phrase.Of("Giant-killer: P{n} with a team expected in the top {target}", ("n", position), ("target", target)), bonus * w);
+                }
+                else if (position <= target - 3) Add(Phrase.Of("Beat the target by {n} places", ("n", target - position)), 3 * w);
             }
             else
             {
@@ -166,37 +228,52 @@ public static class Progression
         // A championship raced beside the season's own (IMSA) counts at half the weight.
         foreach (var series in season.Series)
         {
-            var seriesRounds = season.SeriesRounds(series.Id).Count(r => r.State == RoundState.Completed && r.Result is not null);
+            var seriesCompleted = season.SeriesRounds(series.Id).Where(r => r.State == RoundState.Completed && r.Result is not null).ToList();
+            var seriesRounds = seriesCompleted.Count;
             if (seriesRounds == 0) continue;
             var seriesTable = season.Standings(series.Id).FirstOrDefault(s => s.CarClass.Equals(series.Car.CarClass, StringComparison.OrdinalIgnoreCase));
             var seriesIndex = seriesTable?.Drivers.ToList().FindIndex(d => d.IsPlayer) ?? -1;
             int? seriesPosition = seriesIndex >= 0 ? seriesIndex + 1 : null;
             var name = ("series", (object?)series.Name);
             Add(seriesPosition is int sp ? Phrase.Of("{series} championship P{n}", name, ("n", sp)) : Phrase.Of("Not classified in the {series} championship", name),
-                Math.Min(1m, seriesRounds / (decimal)FullSeasonRounds) * ChampionshipPoints(seriesPosition) / 2);
+                Math.Min(1m, seriesRounds / (decimal)FullSeasonRounds) * AverageLength(seriesCompleted) * ChampionshipPoints(seriesPosition) / 2);
         }
 
         // Each race's result, in either championship. Big events (double points: the 24-hour races) make a name.
         var raced = season.Rounds.Where(r => !r.Guest && r.State == RoundState.Completed && r.Result is not null).ToList();
-        var mine = raced.Select(r => (Round: r, Me: r.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer))).Where(x => x.Me is not null).ToList();
-        foreach (var (round, me) in mine.Where(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight >= 2))
-            Add(Phrase.Of("Won the {event}", ("event", round.EventName)), 5);
-        var wins = mine.Count(x => x.Me!.ClassRank == 1 && x.Round.PointsWeight < 2);
-        Add(Phrase.Count(wins, "{n} class win", "{n} class wins"), 2 * wins);
-        var podiums = mine.Count(x => x.Me!.ClassRank is 2 or 3);
-        Add(Phrase.Count(podiums, "{n} podium", "{n} podiums"), podiums);
-        var poles = mine.Count(x => x.Me!.ClassPole);
-        Add(Phrase.Count(poles, "{n} pole", "{n} poles"), 0.5m * poles);
-        var dnfs = mine.Count(x => x.Me!.Entry.Status == FinishStatus.Dnf);
-        Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), -2 * dnfs);
-        var dqs = mine.Count(x => x.Me!.Entry.Status == FinishStatus.Dq);
-        Add(Phrase.Count(dqs, "{n} disqualification", "{n} disqualifications"), -4 * dqs);
+        var mine = raced.Select(r => (Round: r, Me: r.Result!.Entries.FirstOrDefault(e => e.Entry.IsPlayer)!)).Where(x => x.Me is not null).ToList();
+        decimal PerRace(Func<(Round Round, ScoredEntry Me), bool> pick, decimal points) =>
+            mine.Where(pick).Sum(x => points * Length(x.Round));
+        foreach (var (round, me) in mine.Where(x => x.Me.ClassRank == 1 && (x.Round.PointsWeight >= 2 || (white && TripleCrown(x.Round, x.Me)))))
+        {
+            if (white && TripleCrown(round, me))
+                Add(Phrase.Of("Won the {event} at full distance", ("event", round.EventName)), TripleCrownWin);
+            else Add(Phrase.Of("Won the {event}", ("event", round.EventName)), 5 * Length(round));
+        }
+        bool ClassWin((Round Round, ScoredEntry Me) x) =>
+            x.Me.ClassRank == 1 && x.Round.PointsWeight < 2 && !(white && TripleCrown(x.Round, x.Me));
+        var wins = mine.Count(ClassWin);
+        Add(Phrase.Count(wins, "{n} class win", "{n} class wins"), PerRace(ClassWin, 2));
+        var podiums = mine.Count(x => x.Me.ClassRank is 2 or 3);
+        Add(Phrase.Count(podiums, "{n} podium", "{n} podiums"), PerRace(x => x.Me.ClassRank is 2 or 3, 1));
+        var poles = mine.Count(x => x.Me.ClassPole);
+        Add(Phrase.Count(poles, "{n} pole", "{n} poles"), PerRace(x => x.Me.ClassPole, 0.5m));
+        var dnfs = mine.Count(x => x.Me.Entry.Status == FinishStatus.Dnf);
+        // Team backing (a contract perk): the season's first DNF costs nothing; the team stands by the driver.
+        var backed = Negotiation.Holds(season, Perk.TeamBacking)
+            ? mine.Where(x => x.Me.Entry.Status == FinishStatus.Dnf).Select(x => x.Round).FirstOrDefault()
+            : null;
+        Add(Phrase.Count(dnfs, "{n} DNF", "{n} DNFs"), PerRace(x => x.Me.Entry.Status == FinishStatus.Dnf && x.Round != backed, -2));
+        if (backed is not null)
+            items.Add(ReputationItem.For(Phrase.Of("Team backing: your DNF at the {event} cost nothing", ("event", backed.EventName)), 0));
+        var dqs = mine.Count(x => x.Me.Entry.Status == FinishStatus.Dq);
+        Add(Phrase.Count(dqs, "{n} disqualification", "{n} disqualifications"), PerRace(x => x.Me.Entry.Status == FinishStatus.Dq, -4));
         var penalties = raced.Sum(r => r.Result!.PlayerPenalties);
-        Add(Phrase.Count(penalties, "{n} penalty", "{n} penalties"), -0.5m * penalties);
-        if (raced.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3);
+        Add(Phrase.Count(penalties, "{n} penalty", "{n} penalties"), raced.Sum(r => -0.5m * r.Result!.PlayerPenalties * Length(r)));
+        if (raced.Count >= 3 && dnfs == 0 && dqs == 0 && penalties <= 1) Add(Phrase.Of("Clean season"), 3 * AverageLength(raced));
 
         // What the player said in interviews, and the bets the next round settled.
-        foreach (var item in Paddock.ReviewItems(season)) Add(item.Text!, item.Points);
+        foreach (var item in Paddock.ReviewItems(season)) Add(item.Text!, item.Points * seasonLength);
 
         // Guest drives sit outside the championship, but a result there gets noticed.
         foreach (var round in season.Rounds.Where(r => r.Guest && r.State == RoundState.Completed && r.Result is not null))
@@ -206,6 +283,11 @@ public static class Progression
             var guestEvent = ("event", (object?)round.EventName);
             var team = ("team", (object?)round.GuestCar?.TeamName);
             var hasTeam = round.GuestCar?.TeamName is { Length: > 0 };
+            if (white && TripleCrown(round, me))
+            {
+                Add(hasTeam ? Phrase.Of("Guest win at full distance: {event} for {team}", guestEvent, team) : Phrase.Of("Guest win at full distance: {event}", guestEvent), TripleCrownWin);
+                continue;
+            }
             Add(me.ClassRank switch
             {
                 1 => hasTeam ? Phrase.Of("Guest win: {event} for {team}", guestEvent, team) : Phrase.Of("Guest win: {event}", guestEvent),
@@ -220,7 +302,7 @@ public static class Progression
                 <= 3 => 2,
                 not null => 1,
                 _ => me.Entry.Status == FinishStatus.Dq ? -2 : -1,
-            });
+            } * Length(round));
         }
 
         // Personal sponsors pay out for a met objective; a missed one costs nothing but is listed.
@@ -229,24 +311,45 @@ public static class Progression
             var objective = Sponsorship.Describe(deal);
             var sponsor = ("sponsor", (object?)deal.Name);
             if (Sponsorship.Progress(season, deal).Status == ObjectiveStatus.Met)
-                Add(Phrase.Of("{sponsor}: {objective}", sponsor).With("objective", objective), deal.Reward);
+                Add(Phrase.Of("{sponsor}: {objective}", sponsor).With("objective", objective), deal.Reward * seasonLength);
             else items.Add(ReputationItem.For(Phrase.Of("{sponsor}: missed ({objective})", sponsor).With("objective", objective), 0));
             if (deal.RunningLivery)
             {
                 var (custom, counted) = Sponsorship.LiveryRounds(season);
                 if (Sponsorship.LiveryRun(season))
-                    Add(Phrase.Of("Ran the {sponsor} livery ({custom} of {counted} rounds)", sponsor, ("custom", custom), ("counted", counted)), Sponsorship.LiveryBonus);
+                    Add(Phrase.Of("Ran the {sponsor} livery ({custom} of {counted} rounds)", sponsor, ("custom", custom), ("counted", counted)), Sponsorship.LiveryBonus * seasonLength);
                 else items.Add(ReputationItem.For(Phrase.Of("{sponsor} livery not seen: your custom car ran {custom} of {counted} rounds",
                     sponsor, ("custom", custom), ("counted", counted)), 0));
             }
         }
 
-        var total = items.Sum(i => i.Points);
-        var change = Math.Clamp(total, -MaxLoss, MaxGain);
-        if (change != total)
-            items.Add(ReputationItem.For(change > 0
-                ? Phrase.Of(CapUp, ("n", MaxGain))
-                : Phrase.Of(CapDown, ("n", MaxLoss)), change - total));
+        decimal change;
+        if (white)
+        {
+            // Team prestige (or the deal's own terms) multiplies the season's gains and losses, rounded
+            // to whole points. The giant-killer bonus is flat. No gain cap; the loss limit grows with the team.
+            var (gainBy, lossBy) = Modifiers(season.Contract);
+            var gains = items.Where(i => i.Points > 0).Sum(i => i.Points) - giantKiller;
+            var losses = items.Where(i => i.Points < 0).Sum(i => i.Points);
+            var extraGain = Math.Round(gains * (gainBy - 1), MidpointRounding.AwayFromZero);
+            var extraLoss = Math.Round(losses * (lossBy - 1), MidpointRounding.AwayFromZero);
+            if (extraGain != 0) items.Add(ReputationItem.For(Phrase.Of(PrestigeGains, ("x", Times(gainBy))), extraGain));
+            if (extraLoss != 0) items.Add(ReputationItem.For(Phrase.Of(PrestigeLosses, ("x", Times(lossBy))), extraLoss));
+
+            var total = items.Sum(i => i.Points);
+            var limit = LossLimit(tier);
+            change = Math.Max(total, -limit);
+            if (change != total) items.Add(ReputationItem.For(Phrase.Of(CapDown, ("n", limit)), change - total));
+        }
+        else
+        {
+            var total = items.Sum(i => i.Points);
+            change = Math.Clamp(total, -MaxLoss, MaxGain);
+            if (change != total)
+                items.Add(ReputationItem.For(change > 0
+                    ? Phrase.Of(CapUp, ("n", MaxGain))
+                    : Phrase.Of(CapDown, ("n", MaxLoss)), change - total));
+        }
 
         // New Game+: what the races cost was taken as each was counted, outside the season's limit.
         var raceCosts = season.Rounds.Sum(r => r.Result?.Floor?.ReputationCost ?? 0);
@@ -273,7 +376,8 @@ public static class Progression
     public static TeamInterest? NoticeResult(Career career, Round round, ContentCatalog catalog, LmuInstall? install)
     {
         const int MaxInterest = 2;
-        if (career.ChampionshipOnly) return null;
+        // 1.5: mid-season offers (MidSeason) take over from interest.
+        if (career.ChampionshipOnly || MidSeason.Runs(career)) return null;
         var me = round.Result?.Entries.FirstOrDefault(e => e.Entry.IsPlayer);
         if (me?.ClassRank != 1 || round.PointsWeight < 1.5m || career.Interest.Count >= MaxInterest) return null;
 
@@ -326,6 +430,8 @@ public static class Progression
     {
         var season = career.CurrentSeason;
         var review = season.Review ?? throw new InvalidOperationException("Review the season first.");
+        // 1.5: a deal signed early is the only one: announced mid-season, it starts now, on its agreed terms.
+        if (MidSeason.SignedEarly(career) is { } early) return [early];
         var reputation = career.Reputation;
         var currentClass = season.Car.CarClass;
         var currentCar = catalog.CarByType(season.Car.CarType);
@@ -405,6 +511,12 @@ public static class Progression
                 : Math.Max(1, Math.Min(TargetFor(tier), (review.ChampionshipPosition ?? TargetFor(tier)) + 2));
             var offer = Offer(OfferKind.ReSign, team with { Tier = tier }, currentCar, target, season.Car.CarNumber);
             offer.UnderContract = underContract;
+            // A contract still running keeps its terms, negotiated ones and perks included.
+            if (underContract)
+            {
+                (offer.GainModifier, offer.LossModifier) = Modifiers(season.Contract);
+                offer.Perks = [.. season.Contract!.Perks];
+            }
             offer.Seasons = underContract ? season.Contract!.SeasonsLeft - 1 : review.TargetMet && random.Next(5) < 2 ? 2 : 1;
             offers.Add(offer);
         }
@@ -496,14 +608,35 @@ public static class Progression
         var ladderClass = career.GteClassic ? "GTE" : Ladder.Contains(currentClass) ? currentClass : "GT3";
         // Let go, the calls come from the class the reputation still fits.
         if (letGo) ladderClass = Consequences.ClassAfterLetGo(career, ladderClass);
-        var moves = underContract && keeps ? 0 : promoted ? 1 : keeps ? 2 : 3;
+        // A release clause (a contract perk) opens the door to the class's other teams too.
+        var held = underContract && keeps && !Negotiation.Holds(season, Perk.ReleaseClause);
+        var moves = held ? 0 : promoted ? 1 : keeps ? 2 : 3;
         // A step up is never forced: a player out of contract always has a seat in their own class.
         var sameClass = offers.Count(o => o.CarClass == ladderClass);
         AddFrom(OfferKind.Move, ladderClass, BestTier(reputation, ladderClass),
             Math.Max(moves > 0 && sameClass == 0 ? 1 : 0, moves - career.Interest.Count - doors));
         if (promoted) AddFrom(OfferKind.Promotion, next!, BestTier(reputation, next!), 2);
 
-        return offers.Take(5).ToList();
+        var made = offers.Take(5).ToList();
+        OpenTalks(career, made, review);
+        return made;
+    }
+
+    /// <summary>
+    /// 1.5: each fresh offer opens at the team's prestige with its perks, ready to haggle over. A
+    /// contract still running keeps its terms. After a season that fell short with only back-marker
+    /// seats on the table, it's take one or retire: no haggling.
+    /// </summary>
+    private static void OpenTalks(Career career, List<TeamOffer> offers, SeasonReview review)
+    {
+        foreach (var offer in offers.Where(o => !o.UnderContract))
+            Negotiation.Open(offer, Negotiation.Leverage(offer.TargetPosition, review.ChampionshipPosition),
+                new Random(Seed(career) ^ Negotiation.Hash(offer.Id)));
+        foreach (var offer in offers.Where(o => o.UnderContract && o.GainModifier is null))
+            offer.GainModifier = offer.LossModifier = Prestige(offer.Tier);
+
+        if (!review.TargetMet && offers.Count > 0 && offers.All(o => o.Tier >= 3))
+            foreach (var offer in offers.Where(o => !o.UnderContract)) Negotiation.MakeLastResort(offer);
     }
 
     /// <summary>Whether the player is loyal to the make or outfit behind a seat: on their radar or better, bridge not burned.</summary>
@@ -547,6 +680,7 @@ public static class Progression
         var finished = career.CurrentSeason;
         if (finished.Review is null) throw new InvalidOperationException("The season hasn't been reviewed yet.");
         var offer = career.Offers.FirstOrDefault(o => o.Id == offerId) ?? throw new PlayerError("That offer isn't on the table any more.");
+        if (offer.WalkedAway) throw new PlayerError("{team} walked away: that seat is gone.", ("team", offer.TeamName));
         var car = catalog.Car(offer.CarFolder) ?? throw new KeyNotFoundException($"No car \"{offer.CarFolder}\".");
         if (rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
 
@@ -570,8 +704,12 @@ public static class Progression
                 Numbers = offer.Numbers,
                 ReputationDoor = offer.ReputationDoor,
                 SeasonsLeft = Math.Max(1, offer.Seasons),
+                GainModifier = offer.GainModifier,
+                LossModifier = offer.LossModifier,
+                Perks = [.. offer.Perks],
             },
             Rounds = CalendarBuilder.Number(rounds),
+            ReputationRules = CurrentReputationRules,
         };
 
         // A team (or the make's partner team) running IMSA too: its season goes in beside this one.
@@ -601,6 +739,7 @@ public static class Progression
         career.CurrentSeason = next;
         career.Offers = [];
         career.Interest = [];
+        career.EarlyOffers = [];
         return next;
     }
 
@@ -626,12 +765,14 @@ public static class Progression
             Contract = new Contract { TeamName = teamName.Trim(), Tier = 2, TargetPosition = DefaultTarget },
             Rounds = CalendarBuilder.Number(rounds),
             SponsorRules = Sponsorship.CurrentRules,
+            ReputationRules = CurrentReputationRules,
         };
 
         career.PastSeasons.Add(finished);
         career.CurrentSeason = next;
         career.Offers = [];
         career.Interest = [];
+        career.EarlyOffers = [];
         return next;
     }
 
@@ -646,8 +787,12 @@ public static class Progression
         if (career.CurrentSeason.Review is null) throw new PlayerError("The road is picked at the end of a season.");
         career.Path = path;
         career.Offers = MakeOffers(career, catalog, install, new Random(Seed(career))).ToList();
-        Teams.AddImsa(career, career.Offers, catalog, install, new Random(Seed(career) ^ 0x1A5A));
+        AddImsa(career, catalog, install, new Random(Seed(career) ^ 0x1A5A));
     }
+
+    /// <summary>IMSA and team status for the off-season offers; a deal signed early already has its own.</summary>
+    private static void AddImsa(Career career, ContentCatalog catalog, LmuInstall? install, Random random) =>
+        Teams.AddImsa(career, career.Offers.Where(o => o.Early is null).ToList(), catalog, install, random);
 
     /// <summary>The same career and season always get the same offers.</summary>
     internal static int Seed(Career career) =>

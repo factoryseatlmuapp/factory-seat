@@ -45,7 +45,7 @@ export async function careersView(view) {
         h("h3", {}, c.name),
         h("div", { class: "spacer" }),
         c.newGamePlus ? h("span", { class: "ngp-chip" }, t("NG+")) : null,
-        c.retired ? h("span", { class: "faint" }, t("Retired")) : null,
+        c.retired ? h("span", { class: "faint" }, c.retiredNoSeat ? t("Retired, no seat") : t("Retired")) : null,
         chip(c.carClass)),
       h("div", { class: "muted", style: { marginTop: "4px" } },
         [carName(c.carType), t("Season {number}", { number: c.seasonNumber }),

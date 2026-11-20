@@ -1,4 +1,5 @@
 import { t, mark, midSentence, orList, number } from "../i18n.js";
+import { h } from "../dom.js";
 
 // Words for offers, contracts and reputation, shared by the career hub and the signing screen.
 
@@ -33,6 +34,57 @@ export function offerFacts(offer, car) {
     offer.kind === "ReSign" && offer.carNumber ? `#${offer.carNumber}` : livery(offer.teamName, offer.numbers) ?? t("Any livery"),
   ].filter(Boolean);
 }
+
+/**
+ * 1.5: the deal's reputation terms, as the offer card's footnote. Green is good for the player
+ * (gains multiplied up), red is bad (losses multiplied up); ×1.0 stays plain. Null on offers from before 1.5.
+ */
+export function termsNote(terms) {
+  if (terms?.gainModifier == null || terms?.lossModifier == null) return null;
+  const tone = (value, good) => (value === 1 ? "faint" : (value > 1) === good ? "good-text" : "bad-text");
+  const times = (value) => `×${number(value, 1)}`;
+  return h("div", { class: "offer-terms", title: t("Your season's reputation gains and losses are multiplied by these at its review.") },
+    h("span", { class: "faint" }, t("Reputation")), " ",
+    h("span", { class: tone(terms.gainModifier, true) }, t("gains {x}", { x: times(terms.gainModifier) })),
+    h("span", { class: "faint" }, " · "),
+    h("span", { class: tone(terms.lossModifier, false) }, t("losses {x}", { x: times(terms.lossModifier) })));
+}
+
+// 1.5 perks: a story name and what it does, told as story on the offer card.
+export const PERKS = {
+  GarageSpace: [mark("Preferred garage space"), mark("The best tools and the best people on your car. The app takes on a premium look while you hold it.")],
+  ExpertEngineer: [mark("Expert engineer"), mark("Richer debriefs, and pre-race targets from the best car in class.")],
+  PreferredSponsors: [mark("Preferred sponsors"), mark("One extra personal sponsor offer each season, and room for 3 deals instead of 2.")],
+  TeamBacking: [mark("Team backing"), mark("The team stands behind you: the season's first DNF costs no reputation.")],
+  GuestDrivePriority: [mark("Guest drive priority"), mark("A guaranteed guest-drive offer at Daytona, Sebring or Petit Le Mans when you're eligible.")],
+  DevelopmentDriver: [mark("Development driver"), mark("A guaranteed test day each season in the team's next-class car.")],
+  ReleaseClause: [mark("Release clause"), mark("Other teams can still call while you're under contract, mid-season and at the season's end.")],
+};
+
+export const perkName = (perk) => (PERKS[perk] ? t(PERKS[perk][0]) : perk);
+export const perkStory = (perk) => (PERKS[perk] ? t(PERKS[perk][1]) : "");
+
+/**
+ * After a counter the team didn't take whole: what the player asked for, with what the team
+ * wouldn't give struck through, so its counter (the terms on the card) reads as an answer.
+ */
+export function askedNote(offer) {
+  const asked = offer.asked;
+  if (!asked || offer.agreed || offer.walkedAway) return null;
+  const times = (value) => `×${number(value, 1)}`;
+  const part = (text, given) => h("span", { class: given ? "" : "struck" }, text);
+  const parts = [
+    part(t("gains {x}", { x: times(asked.gain) }), asked.gain === offer.gainModifier),
+    part(t("losses {x}", { x: times(asked.loss) }), asked.loss === offer.lossModifier),
+    ...asked.perks.map((p) => part(perkName(p), offer.perks.includes(p))),
+  ];
+  return h("div", { class: "offer-asked faint" }, t("You asked:"), " ",
+    parts.flatMap((p, i) => (i ? [" · ", p] : [p])));
+}
+
+/** Whether the player can still counter an offer. Matches Negotiation.CanCounter. */
+export const canCounter = (offer) => offer.budget != null && !offer.underContract && !offer.lastResort
+  && !offer.walkedAway && !offer.agreed && !offer.finalOffer && offer.counters < 2;
 
 /** Where a reputation stands, in words. */
 export function standing(reputation) {

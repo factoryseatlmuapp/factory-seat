@@ -58,24 +58,28 @@ public static class RoundMatcher
                 _ => Phrase.Of("not a race or qualifying session"),
             });
         if (!session.IsSinglePlayer) return Ignored(Phrase.Of("multiplayer session"));
+        var differences = new List<Phrase>();
         if (!SameLayout(session, round))
         {
-            // The right circuit on another layout looks like the right race: say so in the briefing's words.
-            if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase)
-                && Content.ContentCatalog.Default.Track(round.TrackFolder) is { } track)
+            // The right circuit on another layout: LMU's layout list doesn't use the app's names (Paul
+            // Ricard's ELMS layout is "Default" there), so it's a near miss the player can count, said
+            // in the list's own words.
+            if (round.LayoutFile.Length > 0 && session.TrackFolder.Equals(round.TrackFolder, StringComparison.OrdinalIgnoreCase))
             {
-                return Ignored(Phrase.Of("you raced the {raced} layout of {track}; this round uses {needed}",
-                    ("raced", track.Layouts.GetValueOrDefault(session.LayoutFile) ?? session.LayoutFile),
-                    ("track", track.Name),
-                    ("needed", track.Layouts.GetValueOrDefault(round.LayoutFile) ?? round.LayoutFile)));
+                var track = Content.ContentCatalog.Default.Track(round.TrackFolder);
+                string Name(string file) => track?.LmuName(file) ?? track?.Layouts.GetValueOrDefault(file) ?? file;
+                differences.Add(Phrase.Of("raced the \"{raced}\" layout, the briefing's is \"{briefing}\"",
+                    ("raced", Name(session.LayoutFile)), ("briefing", Name(round.LayoutFile))));
             }
-            return Ignored(round.LayoutFile.Length > 0
-                ? Phrase.Of("wrong track ({track}, {layout})", ("track", session.TrackCourse), ("layout", session.LayoutFile))
-                : Phrase.Of("wrong track ({track})", ("track", session.TrackCourse)));
+            else
+            {
+                return Ignored(round.LayoutFile.Length > 0
+                    ? Phrase.Of("wrong track ({track}, {layout})", ("track", session.TrackCourse), ("layout", session.LayoutFile))
+                    : Phrase.Of("wrong track ({track})", ("track", session.TrackCourse)));
+            }
         }
         if (session.Player is not { } player) return Ignored(Phrase.Of("no player car in the session"));
 
-        var differences = new List<Phrase>();
         if (car.CarType.Length == 0)
         {
             // A car no race has shown yet (the catalog doesn't know how LMU names it): any car in the
