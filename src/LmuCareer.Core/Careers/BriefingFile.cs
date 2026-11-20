@@ -98,6 +98,9 @@ public sealed record BriefingFile(
             Pace = prep.Pace is { } pace ? new BriefingPace(pace.Advice, PaceCheck.StepFor(pace.Advice), pace.Source, pace.Gap, pace.Visits) : null,
             Series = round.SeriesId.Length > 0 ? round.SeriesId : null,
             Test = round.Test is { } test ? new BriefingTest(test.TeamName, test.MinLaps, test.PassShare) : null,
+            Floor = career.IsNewGamePlus && round.Floor is { } floor
+                ? new BriefingFloor(floor.AiStrength, Careers.Floor.Aggression, floor.Wet && round.Test is null, floor.MinDamage)
+                : null,
         };
     }
 
@@ -167,6 +170,13 @@ public sealed record BriefingCareer(Guid Id, string Name, int Season, string Car
 /// <summary>A test day: the team trying the player out, the laps it wants, and how close to the fastest AI in class impresses (0.01 = 1%).</summary>
 public sealed record BriefingTest(string Team, int MinLaps, double PassShare);
 
+/// <summary>
+/// New Game+: what the round must be raced at. <paramref name="AiStrength"/> is LMU's AI Strength
+/// exactly (90 = 90%); <paramref name="AiAggression"/> LMU's "AI Aggression Mode" (2 = High);
+/// <paramref name="Wet"/> a round set for rain; <paramref name="MinDamage"/> LMU's damage percent or more.
+/// </summary>
+public sealed record BriefingFloor(int AiStrength, int AiAggression, bool Wet, int MinDamage);
+
 public sealed record BriefingRound(
     int Number,
     int Of,
@@ -196,6 +206,9 @@ public sealed record BriefingRound(
 
     /// <summary>Since 1.3: a test day rather than a race (practice laps in the team's car); null for a race.</summary>
     public BriefingTest? Test { get; init; }
+
+    /// <summary>Since 1.4: a New Game+ round's floor; null in a normal career.</summary>
+    public BriefingFloor? Floor { get; init; }
 }
 
 /// <param name="Id">The catalog event; null for a custom event.</param>

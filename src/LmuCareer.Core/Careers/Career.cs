@@ -94,6 +94,12 @@ public sealed class Round
     /// at their invitation. Outside every championship, like a guest drive.
     /// </summary>
     public TestDay? Test { get; set; }
+
+    /// <summary>New Game+: the AI Strength, weather and damage this round must be raced at. Null otherwise.</summary>
+    public RoundFloor? Floor { get; set; }
+
+    /// <summary>New Game+: LMU's AI settings as Settings.JSON had them when the weekend started.</summary>
+    public Content.AiSettingsSeen? AiAtStart { get; set; }
 }
 
 /// <summary>A team trying the player out: a practice session in their car, against a lap time.</summary>
@@ -119,6 +125,9 @@ public sealed class TestDay
 
     /// <summary>How it went, once the test is done; null until then.</summary>
     public TestResult? Result { get; set; }
+
+    /// <summary>New Game+: how the practice measured up to the test's floor. Below it, the test earns no offer.</summary>
+    public FloorCheck? Floor { get; set; }
 }
 
 public sealed record TestResult(int Laps, double PlayerBest, double AiBest, bool Passed)
@@ -145,6 +154,9 @@ public sealed class TestOffer
 
 public sealed class RoundResult
 {
+    /// <summary>New Game+: how the race measured up to the round's floor. Null on a normal career.</summary>
+    public FloorCheck? Floor { get; set; }
+
     public string RaceFile { get; set; } = "";
     public string? QualifyingFile { get; set; }
     public DateTimeOffset AcceptedAt { get; set; }
@@ -184,6 +196,12 @@ public sealed class Contract
 
     /// <summary>Seasons the contract runs, this one included: 2 on a two-season deal's first season.</summary>
     public int SeasonsLeft { get; set; } = 1;
+
+    /// <summary>A Hypercar seat won on reputation alone, not through a ladder or a make.</summary>
+    public bool ReputationDoor { get; set; }
+
+    /// <summary>New Game+: when the team let the player go mid-season; the rest of its rounds were skipped.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public DateTimeOffset? LetGoAt { get; set; }
 }
 
 /// <summary>A team that noticed a big result mid-season: it makes an offer when the season ends.</summary>
@@ -293,6 +311,9 @@ public sealed class TeamOffer
 
     /// <summary>How the team is doing: what it can afford, such as running IMSA as well.</summary>
     public TeamStatus Status { get; set; } = TeamStatus.Stable;
+
+    /// <summary>A Hypercar seat offered on reputation alone.</summary>
+    public bool ReputationDoor { get; set; }
 
     /// <summary>
     /// The team that runs the player in IMSA beside this seat: this team itself, a partner team of
@@ -523,4 +544,20 @@ public sealed class Career
 
     /// <summary>False on a career from before the inbox, until its first open writes its starting mail.</summary>
     public bool InboxStarted { get; set; }
+
+    /// <summary>Achievements earned, in the order they were.</summary>
+    public List<EarnedAchievement> Achievements { get; set; } = [];
+
+    /// <summary>False on a career from before achievements, until its first check backfills them.</summary>
+    public bool AchievementsStarted { get; set; }
+
+    /// <summary>New Game+: the raised floor and head starts. Null on a normal career.</summary>
+    public NewGamePlusState? NewGamePlus { get; set; }
+
+    /// <summary>When the career retired into the Hall of Fame: it races no more.</summary>
+    public DateTimeOffset? RetiredAt { get; set; }
+
+    /// <summary>New Game+ and still on the floor (not turned normal by flagged rounds).</summary>
+    [JsonIgnore]
+    public bool IsNewGamePlus => NewGamePlus is { EndedAt: null };
 }

@@ -40,13 +40,15 @@ public static class RoundMatcher
 
     /// <param name="writtenAt">When the results file was written (its last-modified time).</param>
     /// <param name="claimedBy">Name of another career that already counted this file, if any.</param>
+    /// <param name="startedAt">When the weekend counts from, if not when the round was started (a race run just before it).</param>
     public static SessionCheck Check(
-        SessionResult session, DateTimeOffset writtenAt, Round round, CareerCar car, string? claimedBy = null)
+        SessionResult session, DateTimeOffset writtenAt, Round round, CareerCar car, string? claimedBy = null,
+        DateTimeOffset? startedAt = null)
     {
         SessionCheck Ignored(Phrase reason) => new(session, writtenAt, MatchVerdict.Ignored, [reason]);
 
         if (claimedBy is not null) return Ignored(Phrase.Of("already counted in the career \"{career}\"", ("career", claimedBy)));
-        if (round.ArmedAt is not DateTimeOffset armedAt) return Ignored(Phrase.Of("the round hasn't been started"));
+        if ((startedAt ?? round.ArmedAt) is not DateTimeOffset armedAt) return Ignored(Phrase.Of("the round hasn't been started"));
         if (writtenAt < armedAt) return Ignored(Phrase.Of("written before the round was started"));
         if (session.Kind is not (SessionKind.Race or SessionKind.Qualifying))
             return Ignored(session.Kind switch

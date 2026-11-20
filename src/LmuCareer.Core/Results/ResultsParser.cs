@@ -49,6 +49,8 @@ public static class ResultsParser
         {
             TrackFolder = trackFolder,
             LayoutFile = layoutFile,
+            DamageMultiplier = Double(results, "DamageMult"),
+            MechanicalFailures = Int(results, "MechFailRate"),
         };
     }
 
@@ -112,7 +114,10 @@ public static class ResultsParser
         // The text is the controller followed by the aids in use, e.g. "PlayerControl,TC=2,ABS=2".
         var controller = e.Value.Split(',')[0].Trim();
         return new ControlSegment(start.Value, end.Value,
-            controller.Equals("AIControl", StringComparison.OrdinalIgnoreCase) ? Controller.AI : Controller.Player);
+            controller.Equals("AIControl", StringComparison.OrdinalIgnoreCase) ? Controller.AI : Controller.Player)
+        {
+            Invulnerable = e.Value.Split(',').Any(a => a.Trim().Equals("Invulnerable", StringComparison.OrdinalIgnoreCase)),
+        };
     }
 
     // <Lap num="2" p="7" et="241.3304" s1="34.1233" s2="25.8770" s3="34.8973" topspeed="307.20" fuel="0.820"

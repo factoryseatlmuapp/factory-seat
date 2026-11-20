@@ -53,11 +53,14 @@ public static class Teams
     public static void AddImsa(Career career, IReadOnlyList<TeamOffer> offers, ContentCatalog catalog, LmuInstall? install, Random random)
     {
         var season = career.CurrentSeason;
-        var imsaOwned = Imsa.Calendar(catalog, "GT3", career.Rating, career.OwnedContent, install).Count >= Imsa.MinRounds;
+        // LMP2 runs fewer IMSA rounds than GTP and GTD, so whether a season's worth is owned depends on the class.
+        var owned = new Dictionary<string, bool>();
+        bool ImsaOwned(string carClass) => owned.TryGetValue(carClass, out var o) ? o
+            : owned[carClass] = Imsa.Calendar(catalog, carClass, career.Rating, career.OwnedContent, install).Count >= Imsa.MinRounds;
         foreach (var offer in offers)
         {
             offer.Status = Status(season, offer.TeamName, offer.CarClass, offer.Tier);
-            if (!imsaOwned || !Imsa.RacesIn(offer.CarClass)) continue;
+            if (!Imsa.RacesIn(offer.CarClass) || !ImsaOwned(offer.CarClass)) continue;
 
             if (random.NextDouble() < ImsaChance(offer.Status))
             {

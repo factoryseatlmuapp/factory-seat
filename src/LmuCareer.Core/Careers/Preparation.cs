@@ -97,12 +97,7 @@ public static class Preparation
     /// </summary>
     public static PracticeRead? ReadPractice(IEnumerable<SessionCheck> checks, Round round, CareerCar car)
     {
-        var sessions = checks
-            .Where(c => c.Session.Kind == SessionKind.Practice && c.Session.IsSinglePlayer && RoundMatcher.SameLayout(c.Session, round)
-                && round.ArmedAt is { } armed && c.WrittenAt >= armed)
-            .Select(c => c.Session)
-            .Where(s => s.Player is { } p && car.IsCarType(p.CarType))
-            .ToList();
+        var sessions = PracticeSessions(checks, round, car);
         if (sessions.Count == 0) return null;
 
         var mine = sessions.Select(s => s.Player!).ToList();
@@ -117,6 +112,20 @@ public static class Preparation
             fastest?.Name ?? "",
             best > fastest?.BestLapSeconds ? fastest.BestLapSeconds : null);
     }
+
+    /// <summary>
+    /// The practice sessions run since the weekend started, at the round's layout in the round's car, oldest first.
+    /// A car whose LMU name isn't known yet (no race has shown it) takes any car in its class, as a race does.
+    /// </summary>
+    public static IReadOnlyList<SessionResult> PracticeSessions(IEnumerable<SessionCheck> checks, Round round, CareerCar car) =>
+        checks
+            .Where(c => c.Session.Kind == SessionKind.Practice && c.Session.IsSinglePlayer && RoundMatcher.SameLayout(c.Session, round)
+                && round.ArmedAt is { } armed && c.WrittenAt >= armed)
+            .Select(c => c.Session)
+            .Where(s => s.Player is { } p && (car.CarType.Length == 0
+                ? p.CarClass.Equals(car.CarClass, StringComparison.OrdinalIgnoreCase)
+                : car.IsCarType(p.CarType)))
+            .ToList();
 
     // ---------- Pace advice for this track ----------
 

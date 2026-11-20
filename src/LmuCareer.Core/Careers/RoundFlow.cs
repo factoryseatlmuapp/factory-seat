@@ -38,6 +38,12 @@ public sealed record RoundEvaluation(
     /// <summary>This check read practice the round hadn't seen yet (the career was saved with it).</summary>
     public bool PracticeChanged { get; init; }
 
+    /// <summary>
+    /// While nothing has turned up since the weekend started: a finished race for the round run
+    /// shortly before it, which the player can choose to count.
+    /// </summary>
+    public SessionCheck? RacedBeforeStart { get; init; }
+
     /// <summary>The race stopped before the flag, quit or saved: counting it means taking the DNF.</summary>
     public bool EndedEarly => Status is RoundStatus.QuitEarly or RoundStatus.SavedToResume;
 }
@@ -61,6 +67,21 @@ public static class RoundFlow
         if (round.State != RoundState.Armed) return;
         round.State = RoundState.Upcoming;
         round.ArmedAt = null;
+    }
+
+    /// <summary>
+    /// Changes how long the season's next round is raced, before its weekend starts: Time Scale,
+    /// Fuel Usage, Tyre Wear and stints follow, as in the season builder. Null minutes puts back
+    /// its usual length.
+    /// </summary>
+    public static Round SetLength(Season season, int? minutes)
+    {
+        var round = season.NextRound ?? throw new InvalidOperationException("The season has no rounds left.");
+        if (round.State != RoundState.Upcoming)
+            throw new PlayerError("The race weekend has started. Cancel the weekend first to change the race length.");
+        if (minutes is < 5 or > 1440) throw new PlayerError("A race runs between 5 minutes and 24 hours.");
+        Content.CalendarBuilder.ApplyLength(round, minutes, season.CarFor(round).CarClass);
+        return round;
     }
 
     public static void Skip(Round round)

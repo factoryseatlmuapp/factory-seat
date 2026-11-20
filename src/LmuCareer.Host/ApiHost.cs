@@ -26,6 +26,7 @@ public sealed class ApiHost
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Locales _locales = Locales.Load();
     private readonly CareerStore _store = new(CareerStore.DefaultRoot);
+    private readonly HallOfFame _hall = new(CareerStore.DefaultRoot);
     private readonly ContentCatalog _catalog = ContentCatalog.Default;
     private readonly ResultsWatcher _watcher;
     private LmuInstall? _install;
@@ -72,9 +73,10 @@ public sealed class ApiHost
         if (evaluation.PracticeChanged)
             _window.PostEvent(JsonSerializer.Serialize(new { @event = "practiceRead", careerId = id }, Json));
         var wrongCar = CareerActions.WrongCarRace(evaluation);
-        if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null) return;
+        if (evaluation.Status == RoundStatus.Waiting && evaluation.Qualifying is null && wrongCar is null
+            && evaluation.RacedBeforeStart is null) return;
 
-        var signature = $"{id}|{evaluation.Status}|{evaluation.Race?.FileName}|{evaluation.Qualifying?.FileName}|{wrongCar?.FileName}";
+        var signature = $"{id}|{evaluation.Status}|{evaluation.Race?.FileName}|{evaluation.Qualifying?.FileName}|{wrongCar?.FileName}|{evaluation.RacedBeforeStart?.FileName}";
         if (signature == _lastPosted) return;
         _lastPosted = signature;
 
@@ -126,6 +128,7 @@ public sealed class ApiHost
         "setLmuRoot" => SetLmuRoot(Str(args, "path")),
         "setPrefs" => SetPrefs(args),
         "openLocales" => OpenLocales(),
+        "setUpOverlay" => SetUpOverlay(),
         "setTitleBar" => SetTitleBar(args.GetProperty("dark").GetBoolean()),
         "catalog" => CatalogView(),
         "defaultSeason" => CalendarBuilder.DefaultSeason(_catalog, Str(args, "carClass"), DriverRating.Silver,
@@ -138,10 +141,21 @@ public sealed class ApiHost
         "deleteCareer" => DeleteCareer(args),
         "exportCareer" => ExportCareer(args),
         "importCareer" => ImportCareer(),
-        "armRound" => Change(args, c => RoundFlow.Arm(c.CurrentSeason, DateTimeOffset.Now)),
+        "armRound" => Change(args, c => Arm(StillRacing(c))),
+        "retireCareer" => RetireCareer(args),
+        "hallOfFame" => new { entries = _hall.Entries(), headStarts = HeadStarts.Unlocked(_hall.Entries()) },
         "disarmRound" => Change(args, c => RoundFlow.Disarm(c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."))),
+        "setRoundLength" => Change(args, c => RoundFlow.SetLength(c.CurrentSeason,
+            args.TryGetProperty("minutes", out var minutes) && minutes.ValueKind == JsonValueKind.Number ? minutes.GetInt32() : null)),
         "skipRound" => Change(args, c => RoundFlow.Skip(c.CurrentSeason.NextRound ?? throw new InvalidOperationException("No rounds left."))),
         "checkRound" => EvaluationView(CareerActions.CheckArmedRound(_store, Load(args), ResultsFolder, _install?.RaceSavesFolder)),
+        "seeAchievements" => See(args),
+        "trophyRoom" => TrophyRooms(),
+        "seasonRecap" => SeasonRecap.For(Load(args), args.GetProperty("season").GetInt32(), TrophyRooms()),
+        "saveImage" => SaveImage(args),
+        "countRaceBeforeStart" => Change(args, c => CareerActions.CountRaceBeforeStart(
+            c.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed."),
+            CareerActions.CheckArmedRound(_store, c, ResultsFolder, _install?.RaceSavesFolder))),
         "acceptRound" => AcceptRound(args),
         "endSeason" => EndSeason(args),
         "setOwnedContent" => Change(args, c => c.OwnedContent = Strings(args, "ownedPacks")
@@ -156,7 +170,7 @@ public sealed class ApiHost
         "roundAnalysis" => RoundAnalysis(args),
         "seasonStandings" => SeasonStandings(args),
         "answerInterview" => Change(args, c => Paddock.Answer(c, Str(args, "messageId"),
-            Enum.Parse<InterviewTone>(Str(args, "tone")))),
+            Enum.Parse<InterviewTone>(Str(args, "tone")), _settings.RollAnswers ? Random.Shared : null)),
         "answerApproach" => Change(args, c => Sponsorship.AnswerApproach(c, Str(args, "messageId"),
             args.TryGetProperty("sign", out var sign) && sign.GetBoolean())),
         "setNationality" => Change(args, c => c.Nationality = Nationality(Str(args, "nationality"))),
@@ -290,6 +304,14 @@ public sealed class ApiHost
         return null;
     }
 
+    /// <summary>Puts a fresh copy of the OBS overlay next to briefing.json and opens the folder.</summary>
+    private object? SetUpOverlay()
+    {
+        StreamOverlay.Write(CareerStore.DefaultRoot);
+        _window.OpenFolder(CareerStore.DefaultRoot);
+        return null;
+    }
+
     /// <summary>No career is open any more (the player left it, or the app is closing): briefing.json says so.</summary>
     public static void Closing()
     {
@@ -349,6 +371,8 @@ public sealed class ApiHost
         if (args.TryGetProperty("soundVolume", out var volume)) _settings.SoundVolume = Math.Clamp(volume.GetDouble(), 0, 1);
         if (args.TryGetProperty("muted", out var muted)) _settings.Muted = muted.GetBoolean();
         if (args.TryGetProperty("checkForUpdates", out var updates)) _settings.CheckForUpdates = updates.GetBoolean();
+        if (args.TryGetProperty("showAnswerOutcomes", out var showOutcomes)) _settings.ShowAnswerOutcomes = showOutcomes.GetBoolean();
+        if (args.TryGetProperty("rollAnswers", out var roll)) _settings.RollAnswers = roll.GetBoolean();
         if (args.TryGetProperty("tourSeen", out var tour)) _settings.TourSeen = tour.ValueKind == JsonValueKind.String ? tour.GetString() : null;
         if (args.TryGetProperty("customSponsors", out var own))
             _settings.CustomSponsors = (JsonSerializer.Deserialize<List<OwnSponsor>>(own.GetRawText(), Json) ?? [])
@@ -456,9 +480,34 @@ public sealed class ApiHost
             },
         };
         if (career.CurrentSeason.Rounds.Count == 0) throw new PlayerError("The season needs at least one round.");
+        if (args.TryGetProperty("newGamePlus", out var ngp) && ngp.ValueKind == JsonValueKind.Object) StartNewGamePlus(career, ngp);
 
         _store.Save(career);
         return new { id = career.Id };
+    }
+
+    /// <summary>
+    /// Makes a new career New Game+, with the head starts picked (only ones the Hall of Fame has
+    /// unlocked count). Needs a retired career; championship-only careers have no ladder to replay.
+    /// </summary>
+    private void StartNewGamePlus(Career career, JsonElement ngp)
+    {
+        var hall = _hall.Entries();
+        if (hall.Count == 0) throw new PlayerError("New Game+ opens once a career has retired.");
+        if (career.ChampionshipOnly) throw new PlayerError("New Game+ is a career: it can't be championship only.");
+        var unlocked = HeadStarts.Unlocked(hall);
+        var picked = Strings(ngp, "headStarts").Where(unlocked.Contains).Distinct().ToList();
+        var legacy = ngp.TryGetProperty("legacy", out var l) && Guid.TryParse(l.GetString(), out var id)
+            ? hall.FirstOrDefault(e => e.CareerId == id) : null;
+        legacy ??= hall.OrderByDescending(e => e.RetiredAt).First();
+
+        career.NewGamePlus = new NewGamePlusState { HeadStarts = picked, Legacy = legacy.CareerId, OldRival = legacy.Rival };
+        career.Reputation = HeadStarts.StartingReputation(picked);
+        if (picked.Contains(HeadStarts.FrontRunner) && career.CurrentSeason.Contract is { } contract)
+        {
+            contract.Tier = 1;
+            contract.TargetPosition = Progression.TargetFor(1);
+        }
     }
 
     /// <summary>A round spec from the season builder, with the career's class added.</summary>
@@ -522,6 +571,32 @@ public sealed class ApiHost
         return CareerViewData(career);
     }
 
+    /// <summary>Every career's wins and titles, for the trophy room (it shows one career or all of them). A save that won't load is left out.</summary>
+    private IReadOnlyList<CareerTrophies> TrophyRooms()
+    {
+        var rooms = new List<CareerTrophies>();
+        foreach (var summary in _store.List())
+        {
+            try
+            {
+                rooms.Add(TrophyRoom.For(_store.Load(summary.Id).Career, _catalog));
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
+            {
+                Log($"trophy room: {summary.Name} not read: {ex.Message}");
+            }
+        }
+        return rooms;
+    }
+
+    /// <summary>The unlock pop-ups have been shown. Not playing: the career keeps its place in the list.</summary>
+    private object See(JsonElement args)
+    {
+        var career = Load(args);
+        if (Achievements.MarkSeen(career)) _store.Save(career);
+        return new { };
+    }
+
     private object Change(JsonElement args, Action<Career> change)
     {
         var career = Load(args);
@@ -547,8 +622,11 @@ public sealed class ApiHost
         return CareerView(career);
     }
 
+    /// <summary>The career for the page, after checking for achievements its latest change earned.</summary>
     private object CareerView(Career career)
     {
+        // A New Game+ season's rounds get their floor as soon as they exist.
+        if ((Achievements.Update(career, _catalog, DateTimeOffset.Now).Count > 0) | Floor.Fill(career)) _store.Save(career);
         WriteBriefing(career);
         return CareerViewData(career);
     }
@@ -573,6 +651,13 @@ public sealed class ApiHost
     private object CareerViewData(Career career) => new
     {
         career,
+        // Every achievement and progress on the ones still to earn; what's earned is in the career (unseen ones pop up).
+        canRetire = Retirement.CanRetire(career),
+        achievements = new
+        {
+            all = Achievements.All,
+            progress = Achievements.Progress(career, _catalog),
+        },
         sponsors = career.CurrentSeason.Sponsors.Select(d => new
         {
             deal = d,
@@ -657,9 +742,30 @@ public sealed class ApiHost
     }
 
     /// <summary>Signs an offer and starts the next season on the calendar from the season builder.</summary>
-    private object StartNextSeason(JsonElement args)
+    /// <summary>Starts the race weekend; New Game+ notes LMU's AI settings as they are now, to check against later.</summary>
+    private void Arm(Career career)
+    {
+        var round = RoundFlow.Arm(career.CurrentSeason, DateTimeOffset.Now);
+        if (career.IsNewGamePlus && _install is not null) round.AiAtStart = AiProof.Settings(_install.SettingsFile);
+    }
+
+    /// <summary>A retired career keeps its records but races no more.</summary>
+    private static Career StillRacing(Career career) =>
+        career.RetiredAt is null ? career : throw new PlayerError("This career has retired: start a New Game+ career to race again.");
+
+    /// <summary>Retires a career into the Hall of Fame: its achievements unlock head starts for New Game+.</summary>
+    private object RetireCareer(JsonElement args)
     {
         var career = Load(args);
+        var entry = Retirement.Retire(career, _catalog, DateTimeOffset.Now);
+        _hall.Add(entry);
+        _store.Save(career);
+        return new { entry, headStarts = HeadStarts.Unlocked(_hall.Entries()) };
+    }
+
+    private object StartNextSeason(JsonElement args)
+    {
+        var career = StillRacing(Load(args));
         var offer = career.Offers.FirstOrDefault(o => o.Id == Str(args, "offerId"))
             ?? throw new KeyNotFoundException("That offer isn't on the table any more.");
         var rounds = args.GetProperty("rounds").EnumerateArray().Select(r => RoundFor(Merge(r, offer.CarClass))).ToList();
@@ -702,6 +808,16 @@ public sealed class ApiHost
         return new { exported = true };
     }
 
+    /// <summary>Saves a picture the page drew (a PNG, as base64) where the player picks.</summary>
+    private object SaveImage(JsonElement args)
+    {
+        var file = _window.PickSaveFile(T("Save image"),
+            string.Concat(Str(args, "fileName").Split(Path.GetInvalidFileNameChars())), new FileFilter(T("PNG image"), "*.png"));
+        if (file is null) return new { saved = false };
+        File.WriteAllBytes(file, Convert.FromBase64String(Str(args, "png")));
+        return new { saved = true };
+    }
+
     private object ImportCareer()
     {
         if (_window.PickOpenFile(T("Import career"), CareerSave, T("All files")) is not { } file) return new { imported = false };
@@ -711,14 +827,14 @@ public sealed class ApiHost
 
     private object AcceptRound(JsonElement args)
     {
-        var career = Load(args);
+        var career = StillRacing(Load(args));
         var evaluation = CareerActions.CheckArmedRound(_store, career, ResultsFolder, _install?.RaceSavesFolder);
         var round = career.CurrentSeason.ArmedRound;
 
         // A test day is judged on its practice laps, which the check above has just read.
         if (round?.Test is not null)
         {
-            TestDays.Complete(career, DateTimeOffset.Now);
+            CareerActions.CompleteTest(_store, career, ResultsFolder, _install, DateTimeOffset.Now);
             _store.Save(career);
             return new { view = CareerView(career), noticed = (TeamInterest?)null };
         }
@@ -726,7 +842,7 @@ public sealed class ApiHost
         CareerActions.AcceptArmedRound(_store, career, evaluation,
             takeDnf: args.TryGetProperty("takeDnf", out var dnf) && dnf.GetBoolean(),
             acceptDifferences: args.TryGetProperty("acceptDifferences", out var despite) && despite.GetBoolean(),
-            DateTimeOffset.Now);
+            DateTimeOffset.Now, _install);
 
         // A big win can get the player noticed by a better team, and a result above expectations by a sponsor.
         var noticed = round is null ? null : Progression.NoticeResult(career, round, _catalog, _install);
@@ -744,6 +860,7 @@ public sealed class ApiHost
         race = CheckView(evaluation.Race),
         qualifying = CheckView(evaluation.Qualifying),
         ignored = evaluation.Ignored.Select(CheckView),
+        racedBeforeStart = CheckView(evaluation.RacedBeforeStart),
     };
 
     private static object? CheckView(SessionCheck? check) => check is null ? null : new

@@ -5,6 +5,8 @@ Third-party material shipped with the app:
 
 - Barlow Condensed font, (c) The Barlow Project Authors, SIL Open Font License 1.1
   (src/LmuCareer.App/wwwroot/fonts/OFL.txt).
+- three.js r160, (c) 2010-2023 three.js authors, MIT License
+  (src/LmuCareer.App/wwwroot/vendor/three/), for the 3D trophy room.
 - Track outlines in src/LmuCareer.App/wwwroot/data/trackmaps.json are derived from
   OpenStreetMap data, (c) OpenStreetMap contributors, available under the Open
   Database License (https://www.openstreetmap.org/copyright).

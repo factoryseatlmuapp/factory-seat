@@ -22,6 +22,8 @@ Race your way to a Hypercar seat, one season at a time: up the GT road from LMGT
 - **IMSA beside the WEC.** Teams with the budget run both championships, each with its own standings (needs three IMSA rounds in packs you own).
 - **GTE Classic,** a career of its own in the 2023 WEC: start in a privateer Am seat and earn a factory Pro drive.
 - **Rivals.** Keep tangling with, or finishing next to, the same AI driver and they become your rival in the paddock press.
+- **Achievements and a 3D trophy room.** 20 achievements to earn (a few of them secret), a trophy for every track and a cup for every title, records, and a season card to share.
+- **New Game+.** Retire a career into the Hall of Fame, then climb the ladder again on a raised floor: tougher AI, a third of the races wet, damage on, and every race checked against it. Your retired careers unlock head starts.
 - **Season builder.** A default world or European calendar for your class, with every race's length adjustable and events you can add, reorder or make up yourself.
 - **Race briefings** in LMU's own setting names: track and layout, race length, Time Scale, Fuel Usage, Tyre Wear and start time, plus a pit plan.
 - **Automatic results.** Leave the app open while you race. It watches LMU's results folder and pops up when the race ends. Only races that match the briefing count, so test drives and online races never do.
@@ -31,6 +33,7 @@ Race your way to a Hypercar seat, one season at a time: up the GT road from LMGT
 - **Guest drives** at Daytona, Sebring and Petit Le Mans, outside the championship.
 - **Pace check.** Compares your best laps with the fastest AI in your class and tells you whether to raise or lower AI Strength.
 - **Track maps** traced from OpenStreetMap.
+- **Streaming.** An OBS overlay for the next race, and a row for Milky28's free [SimHub Companion](https://github.com/Milky28/factory-seat-companion).
 - Several careers side by side, automatic backups, export and import, dark and light themes.
 - **8 languages:** English, German, French, Spanish, Brazilian Portuguese, Italian, Hungarian and Korean. [Spot a bad translation?](../../issues/new?template=translation.yml)
 
@@ -76,12 +79,16 @@ At the end of the season you get a review, a reputation change, and offers for n
 - **DLC ownership is on trust.** LMU installs every pack's files whether you own it or not, so the app asks you which packs you have. Offers and calendars only use those.
 - **Your careers** are saved in `%AppData%\LmuCareer` (`~/.config/LmuCareer` on Linux). Uninstalling asks before it deletes them.
 - **Network:** the app's only online request is an optional check for a newer release on GitHub when it starts. You can turn it off in Settings. The app collects no data and has no accounts or servers. Its window is drawn by Microsoft's WebView2 runtime, a Windows component that may contact Microsoft for its own updates, just as it does for other apps that use it.
+- **Factory Seat Companion** is a free SimHub overlay by Milky28, a community project separate from Factory Seat. It checks LMU's race setup against your briefing right over LMU's menus, so you don't have to switch windows, which helps when you're streaming or recording. Get it on [its GitHub page](https://github.com/Milky28/factory-seat-companion).
 - **Code signing:** official Windows releases are built by GitHub Actions from this public source; see the [code signing policy](docs/CODE_SIGNING.md).
 
 ## FAQ
 
 **Does it work online?**
 No. Only offline Race Weekends count, and only the one that matches your current briefing. Online races, test drives and any other offline races are ignored, so you can race whatever else you like in LMU without affecting your career.
+
+**Does the LMU API ban affect Factory Seat?**
+No. Factory Seat doesn't use any LMU API, online or local. It only reads the files LMU saves on your own PC (race results, settings and saves) after you race offline. It never talks to Studio 397's servers, never logs in to your account, and never changes the game. Its only internet connection is checking GitHub for app updates.
 
 **Do I need all the DLC?**
 No. When you start a career you tick the packs you own, and calendars, cars and offers stick to those. With only the base game, calendars use the base tracks, and LMP3 is raced in the free ADESS AD25.
@@ -99,7 +106,7 @@ Not yet. LMU removed the AI takeover button in 2024, so you drive the whole race
 Yes. Leave the car number and team blank when you start a career, and the app learns them from your first race. Race Control custom-team cars are recognised whatever number they run.
 
 **A race didn't count. Why?**
-A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. If the track, layout and car are right but settings are off (race length, Fuel Usage, Tyre Wear), the app asks whether to count it anyway, however many are off. Fuel Usage, Tyre Wear and Time Scale only take effect from LMU's **Event Settings › Advanced** page. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
+A race only counts if it matches the briefing: the right track and layout, your career car, an offline Race Weekend, and started after you pressed **Start race weekend**. Forgot to press it? If a matching race finished in the hour before you do, the app asks whether to count it. If the track, layout and car are right but settings are off (race length, Fuel Usage, Tyre Wear), the app asks whether to count it anyway, however many are off. Fuel Usage, Tyre Wear and Time Scale only take effect from LMU's **Event Settings › Advanced** page. If nothing popped up, open the career and press **Check now**, which tells you why the race didn't match.
 
 ## Feedback and ideas
 
@@ -149,6 +156,7 @@ Factory Seat is free and always will be. If it's put some extra miles on your Le
 
 - Track outlines: map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL.
 - Barlow Condensed font by The Barlow Project Authors, SIL Open Font License 1.1.
+- 3D trophy room built with [three.js](https://threejs.org/) (MIT).
 - Team and event names are used only to describe the racing. No logos or game assets are included.
 
 ## License

@@ -19,6 +19,8 @@ internal sealed class ResultsXml
     public double Fuel { get; init; } = 3.5;
     public double Tires { get; init; } = 3.5;
     public string TrackData { get; init; } = "";
+    public int Damage { get; init; } = 100;
+    public int MechFail { get; init; } = 1;
 
     public ResultsXml Car(
         string name,
@@ -33,6 +35,7 @@ internal sealed class ResultsXml
         string vehicle = "",
         string? lapsXml = null,
         int grid = 0,
+        double? best = null,
         params (int Start, int End, string Controller)[] control)
     {
         if (control.Length == 0) control = [(1, laps, player ? "PlayerControl,TC=2" : "AIControl")];
@@ -56,7 +59,7 @@ internal sealed class ResultsXml
               <GridPos>{grid}</GridPos>
               <ClassGridPos>{grid}</ClassGridPos>
               <Laps>{laps}</Laps>
-              <BestLapTime>{100 + classPos}.5</BestLapTime>
+              <BestLapTime>{(best ?? 100 + classPos + 0.5).ToString(CultureInfo.InvariantCulture)}</BestLapTime>
               <Pitstops>1</Pitstops>
               <FinishStatus>{status}</FinishStatus>
               {controlXml}
@@ -85,6 +88,8 @@ internal sealed class ResultsXml
             <RaceTime>{RaceMinutes}</RaceTime>
             <FuelMult>{Fuel.ToString(CultureInfo.InvariantCulture)}</FuelMult>
             <TireMult>{Tires.ToString(CultureInfo.InvariantCulture)}</TireMult>
+            <MechFailRate>{MechFail}</MechFailRate>
+            <DamageMult>{Damage}</DamageMult>
             <{Session}>
               <DateTime>{DateTime.ToString(CultureInfo.InvariantCulture)}</DateTime>
               <MostLapsCompleted>10</MostLapsCompleted>

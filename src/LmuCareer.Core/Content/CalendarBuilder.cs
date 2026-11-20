@@ -77,6 +77,32 @@ public static class CalendarBuilder
         round.Stints = format.Stints;
     }
 
+    /// <summary>
+    /// For a season planned before 1.4: a round still to race whose full tank lasts it at its
+    /// Fuel Usage plans no stop, as a new season would. Only the pit plan changes; length, Fuel
+    /// Usage and the rest of the round stay as the season was built.
+    /// </summary>
+    /// <returns>True if any round's plan changed.</returns>
+    public static bool RefreshPitPlans(Season season)
+    {
+        var changed = false;
+        foreach (var round in season.Rounds)
+        {
+            if (round.State is not (RoundState.Upcoming or RoundState.Armed) || round.Stints != 2) continue;
+            if (round.RealDurationHours >= 12 && round.RaceMinutes >= 120) continue; // a full stint plan
+
+            var carClass = season.CarFor(round).CarClass;
+            if (carClass.Length == 0 || round.FuelMultiplier < 1 || round.RaceMinutes <= 0) continue;
+
+            var tank = TankTimes.For(carClass, round.TrackFolder, round.LayoutFile) / round.FuelMultiplier;
+            if (!RaceFormats.TankReachesFlag(tank, round.RaceMinutes)) continue;
+
+            round.Stints = 1;
+            changed = true;
+        }
+        return changed;
+    }
+
     /// <summary>Renumbers rounds 1..n in calendar order.</summary>
     public static List<Round> Number(IEnumerable<Round> rounds)
     {

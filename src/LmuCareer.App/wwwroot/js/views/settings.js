@@ -47,6 +47,8 @@ export async function openSettings() {
       h("div", { class: "rows-title" }, t("Display")),
       h("div", { class: "rows" },
         setting(t("Language"), h("div", { class: "row", style: { gap: "8px" } },
+          h("button", { class: "btn ghost small", title: t("Opens a GitHub form in your browser"),
+            onclick: () => window.open("https://github.com/factoryseatlmuapp/factory-seat/issues/new?template=translation.yml") }, t("Suggest a fix")),
           h("button", { class: "btn ghost small", title: t("Fixes and new languages go in this folder"), onclick: () => attempt(call("openLocales")) }, t("Open folder")),
           languagePicker()),
           { hint: t("Translations are made by players. Spot a mistake? You can fix it yourself.") }),
@@ -68,6 +70,17 @@ export async function openSettings() {
           { canDown: volume > 0, canUp: volume < 10 })),
         setting(t("Test"), h("button", { class: "btn ghost small", "data-sound": "none", onclick: () => sound.confirm() }, t("Play")))),
 
+      h("div", { class: "rows-title" }, t("Press")),
+      h("div", { class: "rows" },
+        setting(t("Show answer outcomes"), h("button", {
+          class: "toggle" + (s.showAnswerOutcomes ? " on" : ""), "data-sound": "none",
+          onclick: () => save({ showAnswerOutcomes: !s.showAnswerOutcomes }),
+        }), { hint: t("Off: interview answers don't say what they'll do until you've given one. You can still peek on each question.") }),
+        setting(t("Roll the dice"), h("button", {
+          class: "toggle" + (s.rollAnswers ? " on" : ""), "data-sound": "none",
+          onclick: () => save({ rollAnswers: !s.rollAnswers }),
+        }), { hint: t("On: each answer can land more than one way, and chance picks which. Off: it always lands the usual way. Answers already given keep how they landed.") })),
+
       h("div", { class: "rows-title" }, t("Updates")),
       h("div", { class: "rows" },
         setting(t("Check for new versions"), h("button", {
@@ -76,6 +89,13 @@ export async function openSettings() {
         }), { hint: t("When the app starts, it asks GitHub whether a newer release is out. That's the only time it goes online.") }),
         setting(t("What's new tour"), h("button", { class: "btn ghost small", onclick: () => { save({ tourSeen: null }); toast(t("The tour runs the next time you open a career.")); } },
           t("Show the tour again")), { hint: t("A short walk through what 1.2 added.") })),
+
+      h("div", { class: "rows-title" }, t("Streaming")),
+      h("div", { class: "rows" },
+        setting(t("OBS overlay"), h("button", { class: "btn ghost small", onclick: () => attempt(call("setUpOverlay")) }, t("Set up")),
+          { hint: t("Shows your race briefing on stream. Puts the overlay next to your saves and opens the folder: add it to OBS as a Browser source (Local file), 460 × 780. The README there has the rest.") }),
+        setting(t("SimHub Companion"), h("button", { class: "btn ghost small", title: t("Opens the download page in your browser"), onclick: () => window.open("https://github.com/Milky28/factory-seat-companion") }, t("Get it")),
+          { hint: t("Milky28's free SimHub overlay checks LMU's race setup against your briefing, right over LMU's menus, so you don't have to switch windows. It's a community project, separate from Factory Seat.") })),
 
       h("div", { class: "rows-title" }, "Le Mans Ultimate"),
       h("div", { class: "rows" },

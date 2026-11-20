@@ -29,6 +29,12 @@ public sealed class AppSettings
     /// </summary>
     public bool CheckForUpdates { get; set; } = true;
 
+    /// <summary>Interview answers show what they'll do before you pick. Off: you find out after.</summary>
+    public bool ShowAnswerOutcomes { get; set; }
+
+    /// <summary>Interview answers land one of their possible outcomes by chance, not always the usual one.</summary>
+    public bool RollAnswers { get; set; } = true;
+
     /// <summary>The newest version the update card has been shown for: it opens once per version.</summary>
     public string? UpdateCardSeen { get; set; }
 

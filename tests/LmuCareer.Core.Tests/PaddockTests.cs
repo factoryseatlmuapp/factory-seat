@@ -152,6 +152,55 @@ public class PaddockTests
         Assert.Equal([("Confident interview after the Round 1 Hours", 1m), ("Promised a comeback after the Round 1 Hours, then missed the target again", -2m)], Items(comeback));
     }
 
+    /// <summary>Dice that always come up the same: low picks the usual outcome, high the other.</summary>
+    private sealed class Dice(double value) : Random
+    {
+        public override double NextDouble() => value;
+    }
+
+    [Fact]
+    public void Rolled_dice_can_land_an_answer_the_other_way_and_it_stays_landed()
+    {
+        var viral = Run([1, 1], new Race(1));
+        var message = Last(viral, MessageKind.Interview)!;
+        Paddock.Answer(viral, message.Id, InterviewTone.Confident, new Dice(0.99));
+        Assert.Equal(3, message.Interview!.Landed!.Now);
+        Count(viral, new Race(4), 1);
+        Assert.Equal([("Confident interview after the Round 1 Hours went viral", 3m), ("Talked big after the Round 1 Hours, then missed the podium", -3m)], Items(viral));
+
+        // Low dice land the usual way, the same as no dice at all.
+        var usual = Run([1, 1], new Race(1));
+        Paddock.Answer(usual, Last(usual, MessageKind.Interview)!.Id, InterviewTone.Confident, new Dice(0.1));
+        Assert.Equal([("Confident interview after the Round 1 Hours", 2m)], Items(usual));
+
+        // Humble can fall flat: worth nothing, so it isn't in the review.
+        var bland = Run([1, 1], new Race(1));
+        Paddock.Answer(bland, Last(bland, MessageKind.Interview)!.Id, InterviewTone.Humble, new Dice(0.9));
+        Assert.Empty(Items(bland));
+    }
+
+    [Fact]
+    public void Blaming_the_team_first_time_can_still_cost_one_with_the_dice()
+    {
+        var career = Run([2, 2, 1], new Race(4, Status: "DNF"));
+        Paddock.Answer(career, Last(career, MessageKind.Interview)!.Id, InterviewTone.BlameTeam, new Dice(0.99));
+        Assert.Equal([("Blamed the team after the Round 1 Hours, and the team read it", -1m)], Items(career));
+
+        Count(career, new Race(4, Status: "DNF"), 1);
+        var second = Last(career, MessageKind.Interview)!;
+        Assert.Single(second.Interview!.Options.Single(o => o.Tone == InterviewTone.BlameTeam).Outcomes);
+        Paddock.Answer(career, second.Id, InterviewTone.BlameTeam, new Dice(0.99));
+        Assert.Equal(("Blamed the team again after the Round 2 Hours", -3m), Items(career)[^1]);
+    }
+
+    [Fact]
+    public void Answers_saved_before_the_dice_keep_their_fixed_worth()
+    {
+        var career = Run([1, 1], new Race(1));
+        career.CurrentSeason.Interviews.Add(new InterviewAnswer { Round = 1, EventName = "Round 1 Hours", Moment = Moment.FirstWin, Tone = InterviewTone.Confident });
+        Assert.Equal([("Confident interview after the Round 1 Hours", 2m)], Items(career));
+    }
+
     [Fact]
     public void Blaming_the_team_works_once_a_season_and_shows_in_the_review()
     {

@@ -19,6 +19,7 @@ public static class TankTimes
     /// <summary>For a class nothing's known about.</summary>
     public const double Fallback = 50;
 
+    // Qatar GT3/Hyper: Oct 20, pooled per car with a second race (davehenrie, #17): 31 GT3 and 29 Hyper cars.
     // Minutes at Real by "folder/layout" (a layout of its own) or "folder" (the track's main layout).
     private static readonly Dictionary<string, Dictionary<string, double>> Measured = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -27,13 +28,13 @@ public static class TankTimes
             ["PortimaoWEC_2023"] = 52.3, ["ImolaWEC_2024"] = 51.1, ["Monza_2023"] = 48.5, ["Monza_2023/layoutGrande"] = 45.8,
             ["BahrainWEC_2023"] = 54.4, ["BahrainWEC_2023/layoutOuter"] = 50.4, ["Spa_2023"] = 51.5,
             ["LeMans_2023"] = 44.2, ["LeMans_2023/layoutMulsanne"] = 42.8, ["Daytona_2026"] = 54.0, ["FujiWEC_2023"] = 58.4,
-            ["Qatar_2024"] = 54.3, ["RoadAtlanta_2026"] = 59.0, ["Sebring_2023"] = 50.3, ["Sebring_2023/layoutSchool"] = 47.2,
+            ["Qatar_2024"] = 58.0, ["RoadAtlanta_2026"] = 59.0, ["Sebring_2023"] = 50.3, ["Sebring_2023/layoutSchool"] = 47.2,
             ["Silverstone_2025/layoutNational"] = 71.3, ["LagunaSeca_2026"] = 64.1,
         },
         ["Hyper"] = new(StringComparer.OrdinalIgnoreCase)
         {
             ["ImolaWEC_2024"] = 49.7, ["Monza_2023"] = 49.5, ["Spa_2023"] = 51.9, ["LeMans_2023"] = 42.7,
-            ["Daytona_2026"] = 47.6, ["Qatar_2024"] = 57.1, ["Sebring_2023"] = 51.0,
+            ["Daytona_2026"] = 47.6, ["Qatar_2024"] = 58.8, ["Sebring_2023"] = 51.0,
         },
         ["LMP2"] = new(StringComparer.OrdinalIgnoreCase)
         {

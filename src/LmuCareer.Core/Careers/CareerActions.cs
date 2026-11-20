@@ -23,41 +23,7 @@ public static class CareerActions
         var round = season.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
         var armedAt = round.ArmedAt!.Value;
 
-        // Files this career has already counted, by the round that counted them.
-        var counted = career.PastSeasons.Append(season)
-            .SelectMany(s => s.Rounds)
-            .Where(r => r.Result is not null)
-            .SelectMany(r => new[] { (File: r.Result!.RaceFile, Round: r), (File: r.Result.QualifyingFile ?? "", Round: r) })
-            .Where(x => x.File.Length > 0)
-            .GroupBy(x => x.File, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().Round, StringComparer.OrdinalIgnoreCase);
-
-        var checks = new List<SessionCheck>();
-        if (Directory.Exists(resultsFolder))
-        {
-            foreach (var file in new DirectoryInfo(resultsFolder).EnumerateFiles("*.xml")
-                .Where(f => f.LastWriteTimeUtc >= armedAt.UtcDateTime)
-                .OrderBy(f => f.LastWriteTimeUtc))
-            {
-                SessionResult session;
-                try
-                {
-                    session = ResultsParser.Load(file.FullName);
-                }
-                catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException)
-                {
-                    // LMU may still be writing it; it'll be read on the next check.
-                    continue;
-                }
-
-                var writtenAt = new DateTimeOffset(file.LastWriteTimeUtc);
-                checks.Add(counted.TryGetValue(file.Name, out var countedFor)
-                    ? new SessionCheck(session, writtenAt, MatchVerdict.Ignored,
-                        [Phrase.Of("already counted for round {number} ({event})", ("number", countedFor.Number), ("event", countedFor.EventName))])
-                    : RoundMatcher.Check(session, writtenAt, round, season.CarFor(round), store.ClaimedByOther(file.Name, career.Id)));
-            }
-        }
-
+        var checks = ReadChecks(store, career, round, resultsFolder, armedAt, until: null);
         var evaluation = RoundFlow.Evaluate(checks);
 
         // Practice since the weekend started is read for pace, and kept with the round.
@@ -77,7 +43,87 @@ public static class CareerActions
         {
             return evaluation with { Status = RoundStatus.SavedToResume, SavedAs = save };
         }
+
+        // Raced first and started the weekend after: offer the race rather than make them run it again.
+        if (evaluation.Status == RoundStatus.Waiting)
+        {
+            var before = RoundFlow.Evaluate(ReadChecks(store, career, round, resultsFolder, armedAt - EarlyWindow, until: armedAt));
+            if (before.Status is RoundStatus.Ready or RoundStatus.NeedsConfirmation)
+                return evaluation with { RacedBeforeStart = before.Race };
+        }
         return evaluation;
+    }
+
+    /// <summary>How long before the weekend started a finished race can still be offered to count.</summary>
+    public static readonly TimeSpan EarlyWindow = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// Counts a race run shortly before the weekend started: the weekend is moved back to start
+    /// <see cref="EarlyWindow"/> earlier, so that race (and its qualifying) are read like any other.
+    /// </summary>
+    public static void CountRaceBeforeStart(Round round, RoundEvaluation evaluation)
+    {
+        if (round.State != RoundState.Armed || round.ArmedAt is not { } armedAt)
+            throw new InvalidOperationException("Only the armed round can count an earlier race.");
+        if (evaluation.RacedBeforeStart is null)
+            throw new PlayerError("There's no race from just before the weekend started to count.");
+        round.ArmedAt = armedAt - EarlyWindow;
+    }
+
+    /// <summary>Checks the results files written from <paramref name="from"/> (and before <paramref name="until"/>) against the round.</summary>
+    /// <summary>
+    /// Judges the armed test day from the practice since its weekend started; in New Game+, its
+    /// sessions are checked against the test's floor first.
+    /// </summary>
+    public static TestResult CompleteTest(CareerStore store, Career career, string resultsFolder, Content.LmuInstall? install, DateTimeOffset now)
+    {
+        var round = career.CurrentSeason.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
+        if (round.Test is { } test && career.IsNewGamePlus)
+        {
+            var checks = ReadChecks(store, career, round, resultsFolder, round.ArmedAt!.Value, until: null);
+            test.Floor = FloorChecks.ForTest(career, round, Preparation.PracticeSessions(checks, round, career.CurrentSeason.CarFor(round)), install);
+        }
+        return TestDays.Complete(career, now);
+    }
+
+    private static List<SessionCheck> ReadChecks(
+        CareerStore store, Career career, Round round, string resultsFolder, DateTimeOffset from, DateTimeOffset? until)
+    {
+        var season = career.CurrentSeason;
+
+        // Files this career has already counted, by the round that counted them.
+        var counted = career.PastSeasons.Append(season)
+            .SelectMany(s => s.Rounds)
+            .Where(r => r.Result is not null)
+            .SelectMany(r => new[] { (File: r.Result!.RaceFile, Round: r), (File: r.Result.QualifyingFile ?? "", Round: r) })
+            .Where(x => x.File.Length > 0)
+            .GroupBy(x => x.File, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Round, StringComparer.OrdinalIgnoreCase);
+
+        var checks = new List<SessionCheck>();
+        if (!Directory.Exists(resultsFolder)) return checks;
+        foreach (var file in new DirectoryInfo(resultsFolder).EnumerateFiles("*.xml")
+            .Where(f => f.LastWriteTimeUtc >= from.UtcDateTime && (until is null || f.LastWriteTimeUtc < until.Value.UtcDateTime))
+            .OrderBy(f => f.LastWriteTimeUtc))
+        {
+            SessionResult session;
+            try
+            {
+                session = ResultsParser.Load(file.FullName);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or System.Xml.XmlException)
+            {
+                // LMU may still be writing it; it'll be read on the next check.
+                continue;
+            }
+
+            var writtenAt = new DateTimeOffset(file.LastWriteTimeUtc);
+            checks.Add(counted.TryGetValue(file.Name, out var countedFor)
+                ? new SessionCheck(session, writtenAt, MatchVerdict.Ignored,
+                    [Phrase.Of("already counted for round {number} ({event})", ("number", countedFor.Number), ("event", countedFor.EventName))])
+                : RoundMatcher.Check(session, writtenAt, round, season.CarFor(round), store.ClaimedByOther(file.Name, career.Id), startedAt: from));
+        }
+        return checks;
     }
 
     /// <summary>
@@ -138,11 +184,13 @@ public static class CareerActions
     /// race the player counted under a different number makes that number the career car's.
     /// </summary>
     public static ScoredRace AcceptArmedRound(
-        CareerStore store, Career career, RoundEvaluation evaluation, bool takeDnf, bool acceptDifferences, DateTimeOffset now)
+        CareerStore store, Career career, RoundEvaluation evaluation, bool takeDnf, bool acceptDifferences, DateTimeOffset now,
+        Content.LmuInstall? install = null)
     {
         var season = career.CurrentSeason;
         var round = season.ArmedRound ?? throw new InvalidOperationException("No round is armed.");
         var scored = RoundFlow.Accept(round, evaluation, now, takeDnf, acceptDifferences);
+        FloorChecks.AfterRace(career, round, scored.Race, evaluation.Qualifying?.Session, now, install);
 
         if (scored.Race.Player is { } player)
         {

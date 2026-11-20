@@ -182,6 +182,20 @@ public class LoyaltyTests
     }
 
     [Fact]
+    public void Let_go_in_New_Game_plus_costs_a_stage_but_not_the_bridge()
+    {
+        var career = ReviewedToyotaCareer(seasonsLeft: 2);
+        career.NewGamePlus = new NewGamePlusState();
+        career.CurrentSeason.Contract!.LetGoAt = DateTimeOffset.Now; // under contract, but they let the player go
+        career.Offers = [];
+
+        Assert.Equal(Departure.LetGo, Loyalties.Leave(career, career.CurrentSeason, OfferFor("Team WRT", "GT3", "BMW_M4_LMGT3_2023", 1), Catalog, false));
+        var toyota = Loyalties.Find(career, LoyaltyKind.Brand, "toyota")!;
+        Assert.Equal(Loyalties.RadarAt, toyota.Points); // development driver -> on their radar
+        Assert.False(toyota.Burned);
+    }
+
+    [Fact]
     public void Breaking_a_contract_burns_the_bridge()
     {
         var career = ReviewedToyotaCareer(seasonsLeft: 2);

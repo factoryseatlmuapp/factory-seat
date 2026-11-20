@@ -73,6 +73,7 @@ public static class Sponsorship
     {
         var count = career.Reputation >= 60 ? 3 : career.Reputation >= 40 ? 2 : 1;
         if (career.CurrentSeason.Contract?.Tier == 3) count--;
+        if (HeadStarts.Has(career, HeadStarts.ExtraSponsor)) count++;
         return Math.Max(1, count);
     }
 
@@ -239,6 +240,8 @@ public static class Sponsorship
     private static string? Rival(Career career)
     {
         var last = career.PastSeasons.LastOrDefault();
+        // New Game+: an old rival from the retired career comes back in season 1.
+        if (last is null && HeadStarts.Has(career, HeadStarts.OldRival)) return career.NewGamePlus!.OldRival;
         if (last is null || last.Car.CarClass != career.CurrentSeason.Car.CarClass) return null;
 
         var drivers = last.Standings().FirstOrDefault(s => s.CarClass == last.Car.CarClass)?.Drivers;

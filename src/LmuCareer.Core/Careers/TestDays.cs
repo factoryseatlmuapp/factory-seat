@@ -153,7 +153,9 @@ public static class TestDays
         test.Result = result;
         round.State = RoundState.Completed;
 
-        if (result.Passed)
+        // New Game+: a test below the floor proves nothing, however quick.
+        var belowFloor = test.Floor is { Reduced: true };
+        if (result.Passed && !belowFloor)
         {
             var interest = career.Interest.FirstOrDefault(i => i.TeamName == test.TeamName && i.CarClass == test.CarClass);
             if (interest is null)
@@ -188,7 +190,9 @@ public static class TestDays
                 result.Gap <= 0
                     ? Phrase.Of("{gap} seconds quicker than anyone in class. We noticed.", gap)
                     : Phrase.Of("{gap} seconds off the fastest lap in class.", gap),
-                result.Passed
+                belowFloor
+                    ? Phrase.Of("But the session wasn't run at the New Game+ floor, so we can't judge you on it. Maybe next time.")
+                    : result.Passed
                     ? Phrase.Of("We liked what we saw. Expect a call from us when the season's over.")
                     : Phrase.Of("Not quite what we were after this time. Keep at it."),
             ],

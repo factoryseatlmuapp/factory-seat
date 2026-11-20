@@ -183,7 +183,7 @@ public static class Loyalties
     /// <summary>
     /// What signing with another make or team would do, without doing it: a contract broken or a
     /// rival joined (when the player chose to go) burns the bridge; walking away from a team that
-    /// offered a new deal costs some loyalty; being let go costs none. Staying (the same make, or
+    /// offered a new deal costs some loyalty; being let go costs none (a stage in New Game+). Staying (the same make, or
     /// the same outfit in a new class) isn't leaving: null.
     /// </summary>
     public static LeavePreview? Preview(Career career, Season finished, TeamOffer signed, ContentCatalog catalog, bool classUp)
@@ -195,12 +195,13 @@ public static class Loyalties
 
         // Joining a rival (a rival make, or a rival driver's team) only burns the bridge when the
         // player chose to go: a driver who was let go takes the seat that's there.
-        var chose = finished.Contract?.SeasonsLeft > 1 || career.Offers.Any(o => o.Kind == OfferKind.ReSign);
+        var letGo = finished.Contract?.LetGoAt is not null;
+        var chose = !letGo && (finished.Contract?.SeasonsLeft > 1 || career.Offers.Any(o => o.Kind == OfferKind.ReSign));
         var rival = to is { Kind: LoyaltyKind.Brand } t && from.Kind == LoyaltyKind.Brand && catalog.AreRivalBrands(from.Id, t.Id)
             || Rivals.IsRivalTeam(career, signed.TeamName);
         var departure =
             chose && rival ? Departure.JoinedRival
-            : finished.Contract?.SeasonsLeft > 1 ? Departure.BrokeContract
+            : !letGo && finished.Contract?.SeasonsLeft > 1 ? Departure.BrokeContract
             : chose ? Departure.WalkedAway
             : Departure.LetGo;
 
@@ -208,6 +209,8 @@ public static class Loyalties
         {
             Departure.BrokeContract or Departure.JoinedRival => 0,
             Departure.WalkedAway => Math.Max(0, loyalty.Points - WalkAwayCost(finished.Contract?.Tier ?? 2, signed.Tier, classUp)),
+            // New Game+: being let go costs a stage, but doesn't burn the bridge.
+            Departure.LetGo when career.IsNewGamePlus => Consequences.StageDown(loyalty.Points),
             _ => loyalty.Points,
         };
         return new LeavePreview(loyalty, departure, after);

@@ -18,11 +18,16 @@ public static class Imsa
 
     public static bool RacesIn(string carClass) => carClass is "Hyper" or "GT3" or "LMP2";
 
-    /// <summary>The IMSA season for a class: every owned IMSA event, in calendar order, each round marked as IMSA's.</summary>
+    /// <summary>LMP2 races only IMSA's endurance rounds (Daytona, Sebring, Petit Le Mans), like the real series.</summary>
+    public const double EnduranceHours = 6;
+
+    public static bool Runs(string carClass, EventInfo e) => carClass != "LMP2" || e.Hours >= EnduranceHours;
+
+    /// <summary>The IMSA season for a class: every owned IMSA event it runs, in calendar order, each round marked as IMSA's.</summary>
     public static List<Round> Calendar(ContentCatalog catalog, string carClass, DriverRating rating,
         IReadOnlyCollection<string> ownedPacks, LmuInstall? install = null) =>
         catalog.Events
-            .Where(e => e.Imsa
+            .Where(e => e.Imsa && Runs(carClass, e)
                 && catalog.Track(e.Folder) is { } track && ContentCatalog.IsOwned(track.Pack, ownedPacks)
                 && (install is null || install.HasLayout(e.Folder, e.Layout)))
             .OrderBy(e => e.Month)

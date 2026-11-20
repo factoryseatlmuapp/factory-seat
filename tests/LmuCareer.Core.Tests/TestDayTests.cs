@@ -130,6 +130,25 @@ public class TestDayTests
     }
 
     [Fact]
+    public void A_new_game_plus_test_below_the_floor_earns_no_call_however_quick()
+    {
+        var (career, round) = Accepted();
+        career.NewGamePlus = new NewGamePlusState();
+        round.Floor = new RoundFloor(100, false, 100);
+        Run(career, round, laps: 10, mine: 99, ai: 100);
+        var practice = new ResultsXml { Session = "Practice1", Damage = 0, Fuel = 1, Tires = 1 }
+            .Car("Me", carClass: "Hyper", player: true, laps: 10).Car("AI 1", carClass: "Hyper").Parse();
+
+        round.Test!.Floor = FloorChecks.ForTest(career, round, [practice], install: null);
+        var result = TestDays.Complete(career, Now);
+
+        Assert.Equal([FloorFlag.DamageLow], round.Test.Floor!.Flags); // no pace check: being quick is the point
+        Assert.True(result.Passed);
+        Assert.Empty(career.Interest);
+        Assert.Contains(career.Inbox, m => m.Body.Any(b => b.ToString().Contains("New Game+ floor")));
+    }
+
+    [Fact]
     public void A_team_that_was_impressed_offers_a_two_season_deal()
     {
         var career = ProgressionTests.CareerWith(30, "GT3", ProgressionTests.Season(6, _ => 5));

@@ -2,11 +2,15 @@ import { call, onEvent } from "../api.js";
 import { h, put, clear, setting, chip, trackSvg } from "../dom.js";
 import { state, setChrome, go, attempt, catalog, confirmDialog, showModal, closeModal, monthName, formatMinutes, hoursLabel, toast, trackMaps, setBackdropTrack, countryPicker } from "../app.js";
 import { sound } from "../sound.js";
+import { hallCard } from "../newGamePlus.js";
 import { runTour, tourRunning } from "../tour.js";
 import { tierName, kindName, CLASS_NAMES, target, livery, carNumbers, offerFacts, standing, signed,
   ladderFor, pathName, stageName, STAGE_AT, departureName, teamStatusName, teamStatusHint } from "./offers.js";
 import { packChecklist } from "./packs.js";
+import { RACE_LENGTHS } from "./seasonBuilder.js";
 import { careerGuide } from "./guide.js";
+import { achievementList, achievementCount, achievementTile, popUnlocks } from "../achievements.js";
+import { openRecapCard } from "../recapCard.js";
 import { t, tn, lmu, mark, number, dateTime, capitalize, midSentence, countryName, currentLanguage } from "../i18n.js";
 
 let stopListening = null;
@@ -16,6 +20,8 @@ const dismissed = new Set();
 
 // A team that noticed the race just counted, to announce on the next screen.
 let noticed = null;
+// New Game+: a race just counted below its floor, to explain once the standings show.
+let floorNotice = null;
 
 // The message to open when the Inbox tab is reached from the strip on the Next race page.
 let openMessage = null;
@@ -89,7 +95,7 @@ export async function careerView(view, id, tab) {
     back: "#/careers",
     tabs: TABS.map((x) => x.id === "briefing" && !nextRound()
       ? { ...x, label: t("Off-season"), dot: data.career.offers.length > 0 }
-      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed(), count: x.id === "inbox" ? data.unread : 0 }),
+      : { ...x, label: t(x.label), dot: x.id === "briefing" && !!armed() && !data.career.retiredAt, count: x.id === "inbox" ? data.unread : 0 }),
     active: tab,
     onTab: show,
   });
@@ -103,8 +109,29 @@ export async function careerView(view, id, tab) {
 
   put(view, carStrip());
   await ({ briefing, inbox, calendar, standings, career: history }[tab] ?? briefing)();
+  popAchievements();
 
-  if (noticed) {
+  if (floorNotice) {
+    const round = floorNotice;
+    const check = round.result.floor;
+    floorNotice = null;
+    showModal([
+      h("h2", {}, check.letGo ? t("Let go") : check.flags.length ? t("Below the New Game+ floor") : t("A costly race")),
+      check.letGo ? h("div", { class: "notice bad" },
+        t("{team} let you go: your reputation ({rep}) fell more than 10 below what {carClass} teams look for. The rest of their season is skipped; offers come in at the season's end, from the class your reputation still fits.",
+          { team: season().contract?.teamName || season().car.teamName || t("Your team"), rep: number(data.career.reputation), carClass: classLabel(round) })) : null,
+      check.flags.length ? [
+        h("div", { class: "notice bad" },
+          h("b", {}, round.eventName),
+          h("ul", { style: { margin: "6px 0 0", paddingLeft: "18px" } }, check.flags.map((f) => h("li", {}, floorFlagText(f, round))))),
+        h("p", { class: "muted" }, data.career.newGamePlus?.endedAt
+          ? t("That's {n} rounds below the floor this season: the career is a normal career from now on. Its New Game+ results so far stand.", { n: flaggedRounds() })
+          : t("The points count, but the race earns no New Game+ credit: no New Game+ achievements, and its trophy plate goes on the normal shelf. Rounds below the floor this season: {n} of {max}.", { n: flaggedRounds(), max: 3 })),
+      ] : null,
+      check.reputationCost > 0 ? h("p", {}, t("Reputation {cost} for {what}.", { cost: `−${number(check.reputationCost)}`, what: costText(check) })) : null,
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Understood"))),
+    ]);
+  } else if (noticed) {
     const n = noticed;
     noticed = null;
     sound.confirm();
@@ -206,6 +233,8 @@ export async function careerView(view, id, tab) {
     const car = season().car;
     const canChange = canChangeCar();
     return h("div", { class: "car-strip" },
+      data.career.retiredAt ? h("span", { class: "faint" }, t("Retired")) : null,
+      data.career.newGamePlus && !data.career.newGamePlus.endedAt ? h("span", { class: "ngp-chip" }, t("NG+")) : null,
       h("span", { class: "lmu-path" }, t("Your car")),
       chip(car.carClass),
       h("span", { class: "car-name" }, carName(car.carType)),
@@ -258,6 +287,7 @@ export async function careerView(view, id, tab) {
   // ---------- Next race ----------
 
   function briefing() {
+    if (data.career.retiredAt) return retiredBriefing();
     const round = nextRound();
     if (!round) return offSeason();
     if (round.test) return testBriefing(round);
@@ -273,7 +303,9 @@ export async function careerView(view, id, tab) {
 
     const key = ticksKey(id, season().number, round.number);
     const ticks = loadTicks(key);
-    const items = ["circuit", "layout", "car", "length", "fuel", "tyres", "start", "timeScale"];
+    const floor = round.floor;
+    const items = ["circuit", "layout", "car", "length", "fuel", "tyres", "start", "timeScale",
+      ...(floor ? ["aiStrength", "aggression", "weather", "damage", "failures", "rules"] : [])];
     const counter = h("span", { class: "faint" });
     const count = () => {
       counter.textContent = t("{done} of {total} set", { done: items.filter((x) => ticks.has(x)).length, total: items.length });
@@ -316,20 +348,77 @@ export async function careerView(view, id, tab) {
           h("div", { class: "rows" },
             setting(lmu("Practice"), t("Optional"), { hint: t("Run as much or as little as you like. After you start the weekend, your engineer reads it for pace."), untickable: true }),
             setting(lmu("Qualifying"), t("Optional"), { hint: t("Skip it and LMU starts you from the back of the grid."), untickable: true }),
-            setting(lmu("Race length"), formatMinutes(round.raceMinutes), { big: true, tick: tick("length") }),
+            setting(lmu("Race length"), [formatMinutes(round.raceMinutes), isArmed ? null
+              : h("button", { class: "btn ghost small", style: { marginLeft: "10px" }, onclick: () => changeLength(round) }, t("Change"))],
+              { big: true, tick: tick("length") }),
             setting(lmu("Fuel Usage"), fuel, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("fuel") }),
             setting(lmu("Tyre Wear"), tyres, { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("tyres") }),
             setting(lmu("Race start time"), round.startTime || lmu("Default"), { big: true, hint: lmu("Event Settings › Sessions"), tick: tick("start") }),
-            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") }))),
+            setting(lmu("Time Scale"), round.timeScale > 1 ? `X${round.timeScale}` : lmu("Normal"), { big: true, hint: lmu("Event Settings › Advanced"), tick: tick("timeScale") })),
+          floor ? floorRows(floor, tick) : null),
         h("div", {},
           h("div", { class: "section-title" }, t("Race weekend")),
           weekendPanel(round, isArmed),
           h("div", { class: "section-title", style: { marginTop: "24px" } }, state.features?.aiDriverSwaps ? t("Stint plan") : t("Pit plan")),
           state.features?.aiDriverSwaps ? stintPlan(round) : pitPlan(round),
-          pacePanel(),
+          floor ? null : pacePanel(),
           sponsorPanel(),
           guestPanel(),
           testPanel())));
+  }
+
+  /** Rounds of this season counted below the New Game+ floor. */
+  function flaggedRounds() {
+    return season().rounds.filter((r) => r.result?.floor?.flags.length).length;
+  }
+
+  /** What a New Game+ race cost reputation for: "2 penalties and a barrier DNF". */
+  function costText(check) {
+    const parts = [
+      check.penalties ? (check.penalties === 1 ? t("a penalty") : t("{n} penalties", { n: check.penalties })) : null,
+      check.disqualified ? t("a disqualification") : null,
+      check.barrierDnf ? t("a barrier DNF") : null,
+    ].filter(Boolean);
+    return parts.length > 1 ? t("{list} and {last}", { list: parts.slice(0, -1).join(", "), last: parts.at(-1) }) : parts[0] ?? "";
+  }
+
+  /** The class a round was raced in, as the app names it. */
+  function classLabel(round) {
+    const carClass = (round.seriesId ? season().series.find((s) => s.id === round.seriesId)?.car : season().car)?.carClass ?? "";
+    return CLASS_NAMES[carClass] ?? carClass;
+  }
+
+  /** Why a race fell below the floor, in a line. */
+  function floorFlagText(flag, round) {
+    const floor = round.floor ?? {};
+    const check = round.result.floor;
+    switch (flag) {
+      case "DamageLow": return t("Damage was set below {n}%.", { n: floor.minDamage });
+      case "Invulnerable": return t("The car was invulnerable.");
+      case "FailuresOff": return t("Mechanical failures were off.");
+      case "RatesLow": return t("Fuel or tyre use was set below real.");
+      case "StayedDry": return t("A wet round, but no car ran a lap on wet tyres.");
+      case "AiStrength": return t("LMU says AI Strength was {seen}%, not {n}%.", { seen: check.aiStrengthSeen, n: floor.aiStrength });
+      case "Aggression": return t("AI aggression wasn't on High.");
+      case "Pace": return t("No save or settings proved the AI Strength, and you beat the fastest AI in your class by {q}% in qualifying and {r}% in the race.", { q: number(check.qualifyingGap), r: number(check.raceGap) });
+      default: return flag;
+    }
+  }
+
+  /** New Game+: what this round must be raced at. Factory Seat checks it when the result comes in. */
+  function floorRows(floor, tick) {
+    return [
+      h("div", { class: "lmu-path", style: { marginTop: "16px" } }, h("span", { class: "ngp-chip" }, t("NG+")), " ", t("The floor"),
+        flaggedRounds() ? h("span", { class: "faint" }, " · ", t("{n} of {max} rounds below it this season", { n: flaggedRounds(), max: 3 })) : null),
+      h("div", { class: "rows" },
+        setting(t("AI Strength"), `${floor.aiStrength}%`, { big: true, hint: t("Exactly this: set before you start the weekend."), tick: tick("aiStrength") }),
+        setting(t("AI Aggression"), t("High"), { big: true, tick: tick("aggression") }),
+        setting(t("Weather"), floor.wet ? t("Rain") : t("Your choice"), { big: true,
+          hint: floor.wet ? t("A wet round: set rain for the race. It counts as wet once a car runs a lap on wet tyres.") : null, tick: tick("weather") }),
+        setting(t("Damage"), t("{n}% or more", { n: floor.minDamage }), { big: true, hint: t("Never invulnerable."), tick: tick("damage") }),
+        setting(t("Mechanical failures"), t("Normal or more"), { big: true, tick: tick("failures") }),
+        setting(t("Rules"), t("On"), { big: true, hint: t("Penalties and track limits apply, and cost reputation."), tick: tick("rules") })),
+    ];
   }
 
   function testPanel() {
@@ -589,7 +678,10 @@ export async function careerView(view, id, tab) {
     const stops = round.stints - 1;
     const fuel = round.fuelMultiplier > 1 ? "x" + round.fuelMultiplier : lmu("Real");
     const time = formatMinutes(stint);
-    const steps = [
+    const steps = stops === 0 ? [
+      [t("Start on a full tank"), t("Pit stop not required: a full tank lasts the race at Fuel Usage {fuel}. The AI won't stop either.", { fuel })],
+      [t("To the flag"), t("One stint, about {time}.", { time })],
+    ] : [
       [t("Start"), t("First stint, about {time}.", { time })],
       stops === 1
         ? [t("Pit around halfway"), t("A tank won't reach the flag at Fuel Usage {fuel}, so plan one stop for fuel and tyres.", { fuel })]
@@ -833,7 +925,57 @@ export async function careerView(view, id, tab) {
     if (await attempt(call("armRound", { id }))) {
       toast(t("Race weekend started. Set it up in LMU and go racing."));
       show("briefing");
+      // Raced first, started the weekend after: offer that race straight away.
+      const evaluation = await attempt(call("checkRound", { id }));
+      if (evaluation?.racedBeforeStart) offerRaceBeforeStart(evaluation.racedBeforeStart);
     }
+  }
+
+  /** A finished race for this round from just before the weekend started: count it, or race again. */
+  function offerRaceBeforeStart(race) {
+    const key = `${id}|before|${race.file}`;
+    if (dismissed.has(key)) return;
+    dismissed.add(key);
+    const p = race.player;
+    const count = async () => {
+      if (!(await attempt(call("countRaceBeforeStart", { id })))) return;
+      closeModal();
+      const evaluation = await attempt(call("checkRound", { id }));
+      if (evaluation) announce(evaluation);
+    };
+    showModal([
+      h("h2", {}, t("Count your earlier race?")),
+      h("div", { class: "notice info" },
+        h("b", {}, t("Raced before the weekend started")),
+        h("div", {}, t("You finished a race at {track} at {time}, just before starting this weekend. It looks like this round's race.",
+          { track: race.track, time: dateTime(race.writtenAt) })),
+        p ? h("div", { class: "muted" }, t("{carType} #{n}: class P{pos}, {laps} laps ({file})",
+          { carType: p.carType, n: p.carNumber, pos: p.classPosition, laps: p.laps, file: race.file })) : null),
+      h("p", { class: "muted" }, t("Count it, or leave it and race the round again.")),
+      h("div", { class: "modal-actions" },
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Race again")),
+        h("button", { class: "btn", "data-sound": "confirm", onclick: count }, t("Count it"))),
+    ]);
+  }
+
+  /** A different length for the next race, before its weekend: Time Scale, Fuel Usage, Tyre Wear and stints follow. */
+  function changeLength(round) {
+    const length = h("select", { class: "input", style: { width: "180px" } },
+      h("option", { value: "" }, t("Usual length")),
+      RACE_LENGTHS.map((m) => h("option", { value: m, selected: m === round.raceMinutes }, formatMinutes(m))));
+    const apply = async () => {
+      if (await attempt(call("setRoundLength", { id, minutes: length.value ? +length.value : null }))) { closeModal(); show("briefing"); }
+    };
+    showModal([
+      h("h2", {}, t("Race length")),
+      h("p", { class: "muted" }, t("Race {event} for longer or shorter than planned. Time Scale, Fuel Usage, Tyre Wear and the pit plan change to fit; the points it's worth don't.", { event: round.eventName })),
+      length,
+      h("div", { class: "modal-actions" },
+        h("div", { class: "spacer" }),
+        h("button", { class: "btn ghost", onclick: closeModal, "data-sound": "back" }, t("Back")),
+        h("button", { class: "btn", "data-sound": "confirm", onclick: apply }, t("Save"))),
+    ]);
   }
 
   async function disarm() {
@@ -856,6 +998,7 @@ export async function careerView(view, id, tab) {
   /** A race (or qualifying) turned up for the armed round: pop it up wherever the player is in the career. */
   function announce(evaluation) {
     if (evaluation.status === "Waiting") {
+      if (evaluation.racedBeforeStart) return offerRaceBeforeStart(evaluation.racedBeforeStart);
       const wrong = wrongCarRace(evaluation);
       if (wrong) return announceWrongCar(wrong);
       if (evaluation.qualifying) toast(t("Qualifying recorded ({file}). Now go race.", { file: evaluation.qualifying.file }));
@@ -932,7 +1075,12 @@ export async function careerView(view, id, tab) {
           break;
         }
         put(results, h("div", { class: "notice" }, h("b", {}, t("No race yet")),
-          h("div", {}, t("Nothing written since the weekend started matches this round. LMU writes the results file when the session ends."))));
+          h("div", {}, t("Nothing written since the weekend started matches this round. LMU writes the results file when the session ends.")),
+          evaluation.racedBeforeStart
+            ? h("div", { class: "row" },
+                h("span", { class: "muted" }, t("There's a race from just before the weekend started.")),
+                h("button", { class: "btn ghost small", onclick: () => { dismissed.delete(`${id}|before|${evaluation.racedBeforeStart.file}`); offerRaceBeforeStart(evaluation.racedBeforeStart); } }, t("Count it?")))
+            : null));
         break;
       case "Ready":
         sound.confirm();
@@ -1002,6 +1150,8 @@ export async function careerView(view, id, tab) {
     // Shown once the standings have loaded, since changing tab closes any open pop-up.
     noticed = accepted.noticed;
     const done = season().rounds.filter((r) => r.state === "Completed").at(-1);
+    const check = done?.result?.floor;
+    floorNotice = check && (check.flags.length || check.reputationCost > 0 || check.letGo) ? done : null;
     if (done) saveTicks(ticksKey(id, season().number, done.number), new Set());
     const me = done && playerEntry(done);
     toast(me ? t("{eventName}: {finish}, {points} points.", { eventName: done.eventName, finish: finish(me), points: number(driverPoints(me)) }) : t("Round counted."));
@@ -1022,7 +1172,9 @@ export async function careerView(view, id, tab) {
         h("div", { class: "hero-mark" }, t("Season {number}", { number: season().number })),
         h("div", {},
           h("h1", { class: "hero-title" }, t("Season complete")),
-          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified")))),
+          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified"))),
+        h("div", { class: "spacer" }),
+        recapButton(season().number)),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1fr 1.35fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "section-title" }, t("Season review")),
@@ -1084,7 +1236,9 @@ export async function careerView(view, id, tab) {
         h("div", { class: "hero-mark" }, t("Season {number}", { number: season().number })),
         h("div", {},
           h("h1", { class: "hero-title" }, t("Season complete")),
-          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified")))),
+          h("div", { class: "hero-sub" }, review.championshipPosition ? t("Championship P{n}", { n: review.championshipPosition }) : t("Not classified"))),
+        h("div", { class: "spacer" }),
+        recapButton(season().number)),
       h("div", { class: "grid-2", style: { gridTemplateColumns: "1fr 1fr", alignItems: "start" } },
         h("div", {},
           h("div", { class: "section-title" }, t("Season review")),
@@ -1098,6 +1252,12 @@ export async function careerView(view, id, tab) {
             h("h3", {}, t("Build the next season")),
             h("div", { class: "muted" }, t("Any class, any car, your calendar.")),
             h("div", { class: "row", style: { marginTop: "10px" } }, h("div", { class: "spacer" }), h("span", { class: "btn small" }, t("Start")))))));
+  }
+
+  /** The season card: the season as a picture to save or share. */
+  function recapButton(seasonNumber) {
+    return h("button", { class: "btn", onclick: () => openRecapCard({ careerId: id, season: seasonNumber, carName, achievements: data.achievements }) },
+      t("Season card"));
   }
 
   function offerCard(offer) {
@@ -1262,20 +1422,38 @@ export async function careerView(view, id, tab) {
       selected.approach ? approachBlock(selected) : null,
       selected.kind === "Debrief" ? debriefTables(data.debriefs?.[`${selected.season}-${selected.round}`]) : null);
 
-    /** The question, and either the three answers to pick from or the one given. */
+    /**
+     * The question, and either the answers to pick from or the one given. What each answer does is
+     * hidden unless the player shows it (Settings, or a peek here); with the dice, it's every way the
+     * answer could land.
+     */
     function interviewBlock(m) {
       const q = m.interview;
       const chosen = q.options.find((o) => o.tone === q.answer);
-      return h("div", { class: "interview" },
+      const rolled = state.settings.rollAnswers;
+      const effect = (o) => rolled && o.outcomes?.length > 1
+        ? o.outcomes.map((x) => h("div", {}, t("{chance}%: {effect}", { chance: x.chance, effect: t(x.effect) })))
+        : t(o.effect);
+      const block = h("div", { class: "interview" + (state.settings.showAnswerOutcomes ? "" : " outcomes-hidden") });
+      return put(block,
         h("p", { class: "interview-question" }, `“${t(q.question)}”`),
-        chosen ? h("div", { class: "notice good" }, h("b", {}, t("You said")), h("div", {}, `“${t(chosen.line)}”`), h("div", { class: "faint" }, t(chosen.effect)))
+        chosen ? h("div", { class: "notice good" }, h("b", {}, t("You said")), h("div", {}, `“${t(chosen.line)}”`),
+          h("div", { class: "faint" }, t((q.landed ?? chosen).effect)))
         : q.lapsed ? h("div", { class: "notice" }, t("You didn't answer before your next race counted. The moment's gone."))
         : [
-          h("div", { class: "faint", style: { marginBottom: "8px" } }, t("Pick one. It's paid in reputation at the season review.")),
+          h("div", { class: "row faint", style: { marginBottom: "8px" } },
+            h("span", {}, rolled
+              ? t("Pick one. How it lands is down to the paddock; it's paid in reputation at the season review.")
+              : t("Pick one. It's paid in reputation at the season review.")),
+            h("span", { class: "spacer" }),
+            state.settings.showAnswerOutcomes ? null : h("button", { class: "btn ghost small", onclick: (e) => {
+              block.classList.toggle("outcomes-hidden");
+              e.currentTarget.textContent = block.classList.contains("outcomes-hidden") ? t("Show outcomes") : t("Hide outcomes");
+            } }, t("Show outcomes"))),
           q.options.map((o) => h("button", { class: "interview-option", onclick: () => answer(m, o.tone) },
             h("span", { class: "interview-tone" }, t(TONES[o.tone])),
             h("span", { class: "interview-line" }, `“${t(o.line)}”`),
-            h("span", { class: "interview-effect" }, t(o.effect)))),
+            h("span", { class: "interview-effect" }, effect(o)))),
         ]);
     }
 
@@ -1389,6 +1567,119 @@ export async function careerView(view, id, tab) {
         t("Sector times, stints and incidents are kept for races counted in 1.2 or later, and for older races whose results file was still in LMU's folder.")));
   }
 
+  /** Achievements earned since the player last saw: one pop-up each, or a note for ones a career from before 1.4 already had. */
+  function popAchievements() {
+    const unseen = data.career.achievements.filter((a) => !a.seen);
+    if (unseen.length === 0) return;
+    unseen.forEach((a) => { a.seen = true; });
+    call("seeAchievements", { id }).catch(() => {});
+    const backfilled = unseen.filter((a) => a.backfilled).length;
+    if (backfilled > 0) {
+      toast(tn(backfilled, "Achievements are here, and this career has already earned one. See it on the Career tab.",
+        "Achievements are here, and this career has already earned {n}. See them on the Career tab."));
+    }
+    popUnlocks(unseen.filter((a) => !a.backfilled), data.achievements.all, { onOpen: openAchievements });
+  }
+
+  function openAchievements() {
+    const { earned, total } = achievementCount(data.career, data.achievements);
+    showModal([
+      h("h2", {}, t("Achievements")),
+      h("p", { class: "muted" }, t("{earned} of {total} earned in this career.", { earned, total })),
+      achievementList(data.career, data.achievements, carName),
+      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ], { wide: true });
+  }
+
+  /** A retired career races no more: its tab points to the Hall of Fame and New Game+. */
+  function retiredBriefing() {
+    put(view,
+      h("div", { class: "hero" },
+        h("div", { class: "hero-mark" }, t("Retired")),
+        h("div", {},
+          h("h1", { class: "hero-title" }, t("Career over")),
+          h("div", { class: "hero-sub" }, t("Retired {date}", { date: dateTime(data.career.retiredAt) })))),
+      h("div", { class: "card quiet", style: { maxWidth: "720px" } },
+        h("div", { class: "muted" }, t("This career is in the Hall of Fame. Its seasons, standings and trophies stay here to look back on. To race again, start a New Game+ career: the ladder again, on a raised floor, with the head starts this one unlocked.")),
+        h("div", { class: "row", style: { marginTop: "14px" } },
+          h("button", { class: "btn", onclick: () => go("#/new") }, t("Start a New Game+ career")),
+          h("button", { class: "btn ghost", onclick: showHallEntry }, t("Hall of Fame")))));
+  }
+
+  /** This career's Hall of Fame entry, with the way to the rest of them. */
+  async function showHallEntry() {
+    const hall = await call("hallOfFame");
+    const entry = hall.entries.find((e) => e.careerId === data.career.id);
+    showModal([
+      h("h2", {}, t("Hall of Fame")),
+      entry ? hallCard(entry) : h("p", { class: "muted" }, t("This career isn't in the Hall of Fame.")),
+      h("div", { class: "modal-actions" },
+        h("button", { class: "btn ghost", onclick: () => { closeModal(); go("#/careers"); } }, t("The whole Hall of Fame")),
+        h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+    ]);
+  }
+
+  /** Retiring: the career goes into the Hall of Fame and its achievements unlock New Game+ head starts. */
+  function retireCard() {
+    if (data.career.retiredAt) {
+      return [h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retired")),
+        h("div", { class: "card quiet muted" }, t("This career retired on {date}. Its records stay here and in the Hall of Fame.", { date: dateTime(data.career.retiredAt) }))];
+    }
+    if (!data.canRetire) return null;
+    const retire = async () => {
+      if (!await confirmDialog(t("Retire {name}?", { name: data.career.name }),
+        t("The career stops racing for good and goes into the Hall of Fame. Its achievements unlock head starts for a New Game+ career. This can't be undone."),
+        { confirm: t("Retire") })) return;
+      const result = await attempt(call("retireCareer", { id }));
+      if (!result) return;
+      toast(t("{name} is in the Hall of Fame. New Game+ is open on the New career screen.", { name: data.career.name }));
+      go("#/careers");
+    };
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Retire")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "muted", style: { marginBottom: "10px" } },
+          t("Done with this career? Retire it into the Hall of Fame. Its achievements unlock head starts for New Game+: the ladder again, on a raised floor.")),
+        h("button", { class: "btn ghost small", onclick: retire }, t("Retire this career")))];
+  }
+
+  function trophyCard() {
+    const wins = [...data.career.pastSeasons, season()].flatMap((s) => s.rounds)
+      .filter((r) => r.state === "Completed" && !r.test && playerEntry(r)?.classified && playerEntry(r)?.classRank === 1).length;
+    const open = async (e) => {
+      const button = e.currentTarget;
+      button.disabled = true;
+      try {
+        const rooms = await attempt(call("trophyRoom", {}));
+        if (!rooms) return;
+        const { openTrophyRoom } = await import("../trophyRoom.js");
+        await openTrophyRoom({ rooms, careerId: id, tracks: cat.tracks, carName });
+      } finally {
+        button.disabled = false;
+      }
+    };
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Trophy room")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "muted", style: { marginBottom: "10px" } }, wins
+          ? tn(wins, "One class win so far: a plate on that track's trophy.", "{n} class wins so far, each a plate on that track's trophy.")
+          : t("A trophy for every track, and a plate on it for every class win. Titles go on the top shelf.")),
+        h("button", { class: "btn ghost small", onclick: open }, t("Enter the trophy room")))];
+  }
+
+  function achievementsCard() {
+    const { earned, total } = achievementCount(data.career, data.achievements);
+    const kinds = new Map(data.achievements.all.map((a) => [a.id, a.secret ? "secret" : "normal"]));
+    return [
+      h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Achievements")),
+      h("div", { class: "card quiet" },
+        h("div", { class: "rep-figures", style: { fontSize: "32px" } }, h("b", {}, earned), h("span", { class: "muted" }, t("of {n}", { n: total }))),
+        earned > 0
+          ? h("div", { class: "ach-summary" }, data.career.achievements.filter((a) => kinds.has(a.id)).map((a) => achievementTile(a.id, kinds.get(a.id))))
+          : h("div", { class: "faint", style: { fontSize: "12px", margin: "6px 0 10px" } }, t("Count your first race to earn your first one.")),
+        h("button", { class: "btn ghost small", onclick: openAchievements }, t("View all")))];
+  }
+
   function history() {
     const seasons = [...data.career.pastSeasons, season()];
     const carName = (carType) => cat.cars.find((c) => c.carTypes.includes(carType))?.name ?? carType;
@@ -1417,10 +1708,13 @@ export async function careerView(view, id, tab) {
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your team")),
             teamCard()],
+          trophyCard(),
+          retireCard(),
           // Nationality only picks local sponsors, which a championship-only career doesn't have.
           data.career.championshipOnly ? null : [
             h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Nationality")),
             nationalityCard()],
+          achievementsCard(),
           h("div", { class: "section-title", style: { marginTop: "24px" } }, t("Your content")),
           h("div", { class: "card quiet" },
             h("div", { class: "muted" }, packs
@@ -1549,6 +1843,8 @@ export async function careerView(view, id, tab) {
   function calendar() {
     put(view,
       h("div", { class: "section-title" }, t("Season {n} calendar", { n: season().number })),
+      h("div", { class: "faint", style: { margin: "-4px 2px 10px" } },
+        t("Want different tracks? You build each new season's calendar at the beginning of the season: shuffle it, reorder it, or add events.")),
       h("div", { class: "card quiet", style: { padding: 0 } },
         season().rounds.map((r) => {
           const me = playerEntry(r);
@@ -1731,7 +2027,7 @@ export async function careerView(view, id, tab) {
             render();
           } }, chip(c).textContent))) : null),
       body,
-      h("div", { class: "modal-actions" }, h("button", { class: "btn", onclick: closeModal }, t("Close"))),
+      h("div", { class: "modal-actions" }, recapButton(s.season), h("button", { class: "btn", onclick: closeModal }, t("Close"))),
     ], { wide: true });
     render();
   }
