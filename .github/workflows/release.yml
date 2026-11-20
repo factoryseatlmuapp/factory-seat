@@ -2,7 +2,9 @@
 # - push to the `ci` branch or "Run workflow" in the Actions tab: build + tests only, files kept as run artifacts
 # - push a version tag (v1.4.0): the same, then a DRAFT release with both files attached. Publishing stays manual
 #   (opsec scan, VirusTotal, notes first).
-# Code signing (SignPath) slots in between build and release once the project is approved; see the TODO below.
+# Code signing (SignPath Foundation): the exe is signed before Inno Setup packs it, then the installer itself.
+# Needs the SIGNPATH_API_TOKEN secret and the SIGNPATH_ORGANIZATION_ID variable. The SIGNPATH_POLICY variable picks
+# the policy: test-signing (self-signed test cert, the default) until the production cert is in, then release-signing.
 name: Release build
 
 on:
@@ -36,14 +38,69 @@ jobs:
       - name: Tests
         run: dotnet test tests/LmuCareer.Core.Tests -c Release
 
+      - name: Publish app
+        run: powershell -File installer\build.ps1 -Step publish
+
+      - name: Upload unsigned app
+        id: unsigned-app
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-app
+          path: publish/FactorySeat.exe
+          if-no-files-found: error
+
+      - name: Sign app
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: factory-seat
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY || 'test-signing' }}
+          artifact-configuration-slug: app
+          github-artifact-id: ${{ steps.unsigned-app.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: publish/signed-app
+
+      - name: Swap in the signed app
+        shell: pwsh
+        run: Copy-Item publish\signed-app\FactorySeat.exe publish\FactorySeat.exe -Force
+
       - name: Windows installer
-        run: powershell -File installer\build.ps1
+        run: powershell -File installer\build.ps1 -Step installer
+
+      - name: Upload unsigned installer
+        id: unsigned-installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-installer
+          path: publish/installer/*.exe
+          if-no-files-found: error
+
+      - name: Sign installer
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: factory-seat
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY || 'test-signing' }}
+          artifact-configuration-slug: installer
+          github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: publish/signed-installer
+
+      - name: Swap in the signed installer and check both signatures
+        shell: pwsh
+        run: |
+          Copy-Item publish\signed-installer\*.exe publish\installer\ -Force
+          # A test-cert signature reads as untrusted; what this checks is that a signature is there at all.
+          Get-ChildItem publish\FactorySeat.exe, publish\installer\*.exe | ForEach-Object {
+            $sig = Get-AuthenticodeSignature $_
+            if (-not $sig.SignerCertificate) { throw "$($_.Name) is not signed." }
+            "$($_.Name): $($sig.Status), $($sig.SignerCertificate.Subject)"
+          }
 
       - name: Linux tarball
         run: python installer/build-linux.py
-
-      # TODO (after SignPath approval): sign publish\FactorySeat.exe before Inno packs it, then the installer, with
-      # signpath/github-action-submit-signing-request. Signing is what makes this workflow worth having.
 
       - name: Checksums
         shell: pwsh
